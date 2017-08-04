@@ -1,4 +1,4 @@
-#include "IMGUI.h"
+#include "handmade.h"
 
 #define STB_TRUETYPE_IMPLEMENTATION 
 #include "stb_truetype.h"
@@ -187,20 +187,30 @@ DrawBitmap(offscreen_buffer *Buffer, loaded_bitmap *Bitmap,
     }
 }
 
-internal void
-DrawGlyph(offscreen_buffer* Buffer, glyph_bitmap* Glyph,
-	   s32 X, s32 Y)
+inline internal s32
+RoundReal32ToInt32(r32 Value)
 {
-  DrawBitmap(Buffer, Glyph->Bitmap,
-	     X + Glyph->XOffset,
-	     Y + Glyph->YOffset);
+  s32 Result = (s32)(Value + 0.5f);
+  return(Result);
+}
+
+inline internal u32
+RoundReal32ToUInt32(r32 Value)
+{
+  u32 Result = (u32)(Value + 0.5f);
+  return(Result);
 }
 
 internal void
 DrawRectangle(offscreen_buffer *Buffer,
-	      s32 MinX, s32 MinY, s32 MaxX, s32 MaxY,
-	      u32 Color)
+	      r32 RealMinX, r32 RealMinY,
+	      r32 RealMaxX, r32 RealMaxY,
+	      r32 R, r32 G, r32 B)
 {
+  s32 MinX = RoundReal32ToInt32(RealMinX);
+  s32 MinY = RoundReal32ToInt32(RealMinY);
+  s32 MaxX = RoundReal32ToInt32(RealMaxX);
+  s32 MaxY = RoundReal32ToInt32(RealMaxY);
   if(MinX < 0)
     {
       MinX = 0;
@@ -218,6 +228,11 @@ DrawRectangle(offscreen_buffer *Buffer,
       MaxY = Buffer->Height;
     }
 
+  u32 Color = (u32) ((0xFF << 24) |
+		     (RoundReal32ToUInt32(R * 255.0f) << 16) |
+		     (RoundReal32ToUInt32(G * 255.0f) << 8)  |
+		     (RoundReal32ToUInt32(B * 255.0f)));
+  
   u8 *Row = Buffer->BitmapMemory
     + Buffer->Pitch * MinY
     + Buffer->BytesPerPixel * MinX;
@@ -230,6 +245,158 @@ DrawRectangle(offscreen_buffer *Buffer,
 	}
       Row += Buffer->Pitch; 
     }
+}
+
+internal void
+InitializeArena(memory_arena* Arena, memory_index Size, u8* StorageBase)
+{
+  Arena->Size = Size;
+  Arena->Base = StorageBase;
+  Arena->Used = 0;
+}
+
+extern UPDATE_AND_RENDER(UpdateAndRender)
+{
+  state* State = (state*) Memory->PermanentStorage;
+  if(!Memory->isInitialized)
+    {
+      //NOTE We will do this much differently once we have a system
+      //     for the assets like fonts and bitmaps.
+      InitializeArena(&State->BitmapArena, Megabytes(1),
+		      (u8*)Memory->PermanentStorage + sizeof(state));
+      InitializeArena(&State->Font.GlyphArena, Memory->PermanentStorageSize - sizeof(state),
+		      (u8*)Memory->PermanentStorage + sizeof(state) + Megabytes(1));
+
+      Memory->isInitialized = true;
+    }
+  
+  for(int ControllerIndex = 0;
+      ControllerIndex < ArrayCount(Input->Controllers);
+      ++ControllerIndex)
+    {
+      controller_input *Controller = GetController(Input, ControllerIndex);
+      if(Controller->IsAnalog)
+	{
+	}
+      else
+	{
+	  r32 dPlayerX = 0.0f;
+	  r32 dPlayerY = 0.0f;
+	  if(Controller->MoveUp.EndedDown)
+	    {
+	      dPlayerY = -1.0f;
+	    }
+	  if(Controller->MoveDown.EndedDown)
+	    {
+	      dPlayerY = 1.0f;
+	    }
+	  if(Controller->MoveLeft.EndedDown)
+	    {
+	      dPlayerX = -1.0f;
+	    }
+	  if(Controller->MoveRight.EndedDown)
+	    {
+	      dPlayerX = 1.0f;
+	    }
+	  dPlayerX *= 128.0f;
+	  dPlayerY *= 128.0f;
+	  
+	  State->PlayerX += Input->dtForFrame*dPlayerX;
+	  State->PlayerY += Input->dtForFrame*dPlayerY;
+	}
+    }
+
+  u32 TileMap[9][17] =
+    {
+      {1, 1, 1, 1,  1, 1, 1, 1,  0, 1, 1, 1,  1, 1, 1, 1,  1},
+      {1, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  1},
+      {1, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  1},
+      {1, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  1},
+      {0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0},
+      {1, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  1},
+      {1, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  1},
+      {1, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  1},
+      {1, 1, 1, 1,  1, 1, 1, 1,  1, 1, 1, 1,  1, 1, 1, 1,  1},
+    };
+
+  r32 UpperLeftX = -30;
+  r32 UpperLeftY = 0;
+  r32 TileWidth  = 60;
+  r32 TileHeight = 60;
+  DrawRectangle(Buffer,
+		0.0f, 0.0f,
+		Buffer->Width, Buffer->Height,
+		1.0f, 0.0f, 1.0f);
+  for(int Row = 0;
+      Row < 9;
+      ++Row)
+    {
+      for(int Column = 0;
+	  Column < 17;
+	  ++Column)
+	{
+	  u32 TileID = TileMap[Row][Column];
+	  r32 Grey = 0.5f;
+	  if(TileID == 1)
+	    {
+	      Grey = 1.0f;
+	    }
+	  
+	  r32 MinX = UpperLeftX + ((r32)Column * TileWidth);
+	  r32 MinY = UpperLeftY + ((r32)Row    * TileHeight);
+	  r32 MaxX = MinX + TileWidth;
+	  r32 MaxY = MinY + TileHeight;
+	  DrawRectangle(Buffer,
+			MinX, MinY,
+			MaxX, MaxY,
+			Grey, Grey, Grey);
+	}
+    }
+  r32 PlayerR = 1.0f;
+  r32 PlayerG = 1.0f;
+  r32 PlayerB = 0.0f;
+  r32 PlayerWidth  = 0.5f * TileWidth;
+  r32 PlayerHeight = TileHeight;
+  r32 PlayerLeft   = State->PlayerX - 0.5f * PlayerWidth;
+  r32 PlayerTop    = State->PlayerY - PlayerHeight;
+  DrawRectangle(Buffer,
+		PlayerLeft, PlayerTop,
+		PlayerLeft + PlayerWidth,
+		PlayerTop  + PlayerHeight,
+		PlayerR, PlayerG, PlayerB);
+}
+
+/*
+
+internal void
+RenderWeirdGradient(offscreen_buffer* Buffer, memory_arena* Arena,
+		    u32 BlueOffset, u32 GreenOffset)
+{
+  u8* Row = (u8*)Buffer->BitmapMemory;
+  for(int Y = 0;
+      Y < Buffer->Height;
+      ++Y)
+    {
+      u32 *Pixel = (u32*)Row;
+      for (int X = 0; 
+	   X < Buffer->Width;
+	   ++X)
+	{
+	  u8 Blue  = X + BlueOffset;
+	  u8 Green = Y + GreenOffset;
+	  *Pixel++ = ((Green << 8) | Blue);
+	}
+      Row += Buffer->Pitch;
+    }
+}
+
+internal void
+DrawGlyph(offscreen_buffer* Buffer, glyph_bitmap* Glyph,
+	   s32 X, s32 Y)
+{
+  DrawBitmap(Buffer, Glyph->Bitmap,
+	     X + Glyph->XOffset,
+	     Y + Glyph->YOffset);
 }
 
 internal void
@@ -283,90 +450,4 @@ prepareUIFrame()
 }
 #endif
 
-internal void
-RenderWeirdGradient(offscreen_buffer* Buffer, memory_arena* Arena,
-		    u32 BlueOffset, u32 GreenOffset)
-{
-  u8* Row = (u8*)Buffer->BitmapMemory;
-  for(int Y = 0;
-      Y < Buffer->Height;
-      ++Y)
-    {
-      u32 *Pixel = (u32*)Row;
-      for (int X = 0; 
-	   X < Buffer->Width;
-	   ++X)
-	{
-	  u8 Blue  = X + BlueOffset;
-	  u8 Green = Y + GreenOffset;
-	  *Pixel++ = ((Green << 8) | Blue);
-	}
-      Row += Buffer->Pitch;
-    }
-
-  glyph_bitmap* Glyph = Arena->Base;
-  Glyph += 20;
-  DrawGlyph(Buffer, Glyph,
-	     100, 100); 
-  Glyph += 15;
-  DrawGlyph(Buffer, Glyph,
-	     120, 100);
-  Glyph += 10;
-  DrawGlyph(Buffer, Glyph,
-	     140, 100);
-  Glyph += 43;
-  DrawGlyph(Buffer, Glyph,
-	     160, 100);
-  
-  Glyph -= 16;
-  DrawGlyph(Buffer, Glyph,
-	     100, 129);
-  Glyph += 3;
-  DrawGlyph(Buffer, Glyph,
-	     120, 129);
-  Glyph += 3;
-  DrawGlyph(Buffer, Glyph,
-	    140, 129);
-  Glyph += 5;
-  DrawGlyph(Buffer, Glyph,
-	     160, 129);
-}
-
-internal void
-InitializeArena(memory_arena* Arena, memory_index Size, u8* StorageBase)
-{
-  Arena->Size = Size;
-  Arena->Base = StorageBase;
-  Arena->Used = 0;
-}
-
-extern UPDATE_AND_RENDER(UpdateAndRender)
-{
-  state* State = (state*) Memory->PermanentStorage;
-  if(!Memory->isInitialized)
-    {
-      //NOTE We will do this much differently once we have a system
-      //     for the assets like fonts and bitmaps.
-      InitializeArena(&State->BitmapArena, Megabytes(1),
-		      (u8*)Memory->PermanentStorage + sizeof(state));
-      InitializeArena(&State->Font.GlyphArena, Memory->PermanentStorageSize - sizeof(state),
-		      (u8*)Memory->PermanentStorage + sizeof(state) + Megabytes(1));
-
-      InitFont(Thread, &State->Font, &State->BitmapArena, Memory);
-      
-      Memory->isInitialized = true;
-    }
-  
-  if(Input->MouseButtons[0].EndedDown)
-    State->GreenOffset += 5;
-  
-  if(Input->MouseButtons[2].EndedDown)
-    State->GreenOffset -= 5;
-
-  RenderWeirdGradient(Buffer, &State->Font.GlyphArena,
-		      State->BlueOffset, State->GreenOffset);
-  glyph_bitmap* Glyph = State->Font.GlyphArena.Base;
-  Glyph += 20;
-  DrawGlyph(Buffer, Glyph,
-	     Input->MouseX, Input->MouseY);
-}
+*/

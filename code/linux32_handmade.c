@@ -1,4 +1,4 @@
-#include "IMGUI.h"
+#include "handmade.h"
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -14,7 +14,7 @@
 //      so we will use it for now
 #include <limits.h>
 
-#include "linux32_IMGUI.h"
+#include "linux32_handmade.h"
 
 global_variable bool32 GlobalRunning     = true;
 global_variable bool32 GlobalPause = false;
@@ -162,7 +162,7 @@ Linux32ProcessKeyboardMessage(button_state* NewState,
 
 internal void
 HandleEvents(XEvent *Event, linux32_state *Linux32State,
-	     controller_input *KeyboardControllerState)
+	     controller_input *KeyboardController)
 {
   int EventType = Event->type;
   switch(EventType)
@@ -183,6 +183,26 @@ HandleEvents(XEvent *Event, linux32_state *Linux32State,
 		      &KeySym, 0);
 	switch(KeySym)
 	  {
+	  case 'w':
+	    {
+	      Linux32ProcessKeyboardMessage(&KeyboardController->MoveUp,
+					    IsDown);
+	    } break;
+	  case 'a':
+	    {
+	      Linux32ProcessKeyboardMessage(&KeyboardController->MoveLeft,
+					    IsDown);
+	    } break;
+	  case 's':
+	    {
+	      Linux32ProcessKeyboardMessage(&KeyboardController->MoveDown,
+					    IsDown);
+	    } break;
+	  case 'd':
+	    {
+	      Linux32ProcessKeyboardMessage(&KeyboardController->MoveRight,
+					    IsDown);
+	    } break;
 	  case 'L':
 	    {
 	      if(IsDown)
@@ -197,14 +217,14 @@ HandleEvents(XEvent *Event, linux32_state *Linux32State,
 		      Linux32BeginInputPlayback(Linux32State, 1);
 		    }
 		}
-	    }
+	    } break;
 	  case 'P':
 	    {
 	      if(IsDown)
 		{
 		  GlobalPause = !GlobalPause;
 		}
-	    }
+	    } break;
 	  default:
 	    {
 	    } break;
@@ -457,8 +477,8 @@ main(int ArgCount, char** Arguments)
   DisplayInfo DisplayInfo = {};
   DisplayInfo.Display         = XOpenDisplay(NULL);
   DisplayInfo.Screen          = DefaultScreen(DisplayInfo.Display);
-  int w = DisplayWidth(DisplayInfo.Display, DisplayInfo.Screen)/2;
-  int h = DisplayHeight(DisplayInfo.Display, DisplayInfo.Screen)/2;
+  int w = 960;//DisplayWidth(DisplayInfo.Display, DisplayInfo.Screen)/2;
+  int h = 540;//DisplayHeight(DisplayInfo.Display, DisplayInfo.Screen)/2;
   DisplayInfo.RootWindow      = RootWindow(DisplayInfo.Display, DisplayInfo.Screen);
   DisplayInfo.Visual          = DefaultVisual(DisplayInfo.Display, DisplayInfo.Screen);
   DisplayInfo.ScreenDepth     = DefaultDepth(DisplayInfo.Display, DisplayInfo.Screen); 
@@ -529,7 +549,6 @@ main(int ArgCount, char** Arguments)
 	  input Input[2] = {};
 	  input* NewInputState = &Input[0];
 	  input* OldInputState = &Input[1];
-	  NewInputState->SecondsToAdvanceOverUpdate = TargetSecondsPerFrame;
 	  
 	  linux32_code Code = Linux32LoadCode(SourceCodeSOFullPath,
 					      TempCodeSOFullPath);
@@ -544,6 +563,8 @@ main(int ArgCount, char** Arguments)
 	  clock_gettime(CLOCK_MONOTONIC, &BeginTime);
 	  while(GlobalRunning)
 	    {
+	      NewInputState->dtForFrame = TargetSecondsPerFrame;
+	      
 	      time_t NewSOLastWriteTime = Linux32GetLastWriteTime(SourceCodeSOFullPath);
 	      if(NewSOLastWriteTime != Code.SOLastWriteTime)
 		{

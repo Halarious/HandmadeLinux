@@ -41,6 +41,7 @@ typedef double r64;
 
 typedef struct
 {
+  //NOTE: Memory order: aRGB
   void* BitmapMemory;
 
   int BitmapMemorySize;
@@ -74,16 +75,17 @@ typedef struct
 
 typedef struct
 {
-  //  s32 MouseX;
-  //s32 MouseY;
+  bool32 IsAnalog;
 
   union
   {
-    button_state Buttons[2];
+    button_state Buttons[5];
     struct
     {
-      button_state Left;
-      button_state Right;
+      button_state MoveLeft;
+      button_state MoveRight;
+      button_state MoveUp;
+      button_state MoveDown;
 
       //NOTE: All buttons must be added above this line
       button_state Terminator;
@@ -98,7 +100,7 @@ typedef struct
   s32 MouseY;
   s32 MouseZ;
 
-  r32 SecondsToAdvanceOverUpdate;
+  r32 dtForFrame;
   controller_input Controllers[2];
 } input;
 
@@ -215,6 +217,6 @@ typedef struct
   memory_arena BitmapArena;
   font         Font;
 
-  u32 GreenOffset;
-  u32 BlueOffset;
+  r32 PlayerX;
+  r32 PlayerY;
 }state;
