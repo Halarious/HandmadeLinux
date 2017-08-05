@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CommonCompilerFlags="-g -O0 -Wall -Wno-unused-function -Wno-unused-variable -std=gnu99 -arch i386 -DHANDMADE_INTERNAL=1" 
+CommonCompilerFlags="-g -O0 -ffast-math -Wall -Wno-unused-function -Wno-unused-variable -std=gnu99 -arch i386 -DHANDMADE_INTERNAL=1" 
 CommonLinkerFlags="-ldl -lX11 -lXrandr -lm" 
 
 mkdir ../build -p > /dev/null

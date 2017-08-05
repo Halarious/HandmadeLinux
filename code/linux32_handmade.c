@@ -491,7 +491,17 @@ main(int ArgCount, char** Arguments)
 					      InputOutput,
 					      DisplayInfo.Visual,
 					      0, 0);
-
+  XColor Color;
+  XParseColor(DisplayInfo.Display,
+	      DefaultColormap(DisplayInfo.Display, 0), "#000000",
+	      &Color);
+  XAllocColor(DisplayInfo.Display,
+	      DefaultColormap(DisplayInfo.Display, 0),
+	      &Color);
+  XSetWindowBackground(DisplayInfo.Display,
+		       DisplayInfo.Window,
+		       Color.pixel);
+  
   //TODO: How to reliably query this on Linux Xlib? Similar problem to
   //      Caseys' on Win
   int MonitorRefreshHz = 60;
@@ -513,7 +523,7 @@ main(int ArgCount, char** Arguments)
       XSetWMProtocols (DisplayInfo.Display, DisplayInfo.Window,
 		       &wmDelete, 1);
       XStoreName      (DisplayInfo.Display, DisplayInfo.Window,
-		       "Title of Window");
+		       "Handmade Window");
       XSelectInput(DisplayInfo.Display, DisplayInfo.Window,
 		   KeyPressMask    | KeyReleaseMask    | 
 		   ButtonPressMask | ButtonReleaseMask |
@@ -685,6 +695,20 @@ main(int ArgCount, char** Arguments)
 		  printf("Time elapsed %.2fms\n", (r32)ElapsedTime.tv_nsec/1000000.0f);
 		  BeginTime = EndTime;
 
+		  //TODO: Find a way to stop flickering caused by clearing the screen
+		  //      to blackness
+		  int OffsetX = 10;
+		  int OffsetY = 10;
+		  //XClearWindow(DisplayInfo.Display, DisplayInfo.Window);
+		  XClearArea(DisplayInfo.Display, DisplayInfo.Window,
+			     0, 0, w, OffsetY, false);
+		  XClearArea(DisplayInfo.Display, DisplayInfo.Window,
+			     0, OffsetY + Buffer.Height,
+			     w, h, false);
+		  XClearArea(DisplayInfo.Display, DisplayInfo.Window,
+			     0, 0, OffsetX, h, false);
+		  XClearArea(DisplayInfo.Display, DisplayInfo.Window,
+			     OffsetX + Buffer.Width, 0, w, h, false);
 		  XCopyArea(DisplayInfo.Display,
 			    GlobalOffscreenBuffer.BitmapHandle,
 			    DisplayInfo.Window,
@@ -692,7 +716,7 @@ main(int ArgCount, char** Arguments)
 			    0, 0,
 			    GlobalOffscreenBuffer.Width,
 			    GlobalOffscreenBuffer.Height,
-			    0, 0);
+			    OffsetX, OffsetY);
 
 		  input *tempInput = OldInputState;
 		  OldInputState    = NewInputState;
