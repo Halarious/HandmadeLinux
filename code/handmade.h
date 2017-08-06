@@ -79,13 +79,17 @@ typedef struct
 
   union
   {
-    button_state Buttons[5];
+    button_state Buttons[9];
     struct
     {
       button_state MoveLeft;
       button_state MoveRight;
       button_state MoveUp;
       button_state MoveDown;
+      button_state ActionLeft;
+      button_state ActionRight;
+      button_state ActionUp;
+      button_state ActionDown;
 
       //NOTE: All buttons must be added above this line
       button_state Terminator;
@@ -212,49 +216,20 @@ UPDATE_AND_RENDER(UpdateAndRenderStub)
 {
 }
 
-typedef struct
-{
-  u32 *Tiles;
-} tile_chunk;
+#include "handmade_intrinsics.h"
+#include "handmade_tile.h"
 
 typedef struct
 {
-  u32 TileChunkX;
-  u32 TileChunkY;
-  
-  u32 RelTileX;
-  u32 RelTileY;
-} tile_chunk_position; 
-
-typedef struct
-{  
-  u32 AbsTileX;
-  u32 AbsTileY;
-
-  r32 TileRelX;
-  r32 TileRelY;
-} world_position; 
-
-typedef struct
-{
-  r32 TileSideInMeters;
-  s32 TileSideInPixels;
-  r32 MetersToPixels;
-
-  u32 ChunkShift;
-  u32 ChunkMask;
-  u32 ChunkDim;  
-
-  s32 TileChunkCountX;
-  s32 TileChunkCountY;
-  
-  tile_chunk *TileChunks;
+  tile_map *TileMap;
 } world;
 
 typedef struct
 {
+  memory_arena WorldArena;
   memory_arena BitmapArena;
   font         Font;
 
-  world_position PlayerP;
+  world *World;
+  tile_map_position PlayerP;
 }state;

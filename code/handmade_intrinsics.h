@@ -5,14 +5,14 @@
 inline internal s32
 RoundReal32ToInt32(r32 Value)
 {
-  s32 Result = (s32)(Value + 0.5f);
+  s32 Result = (s32)roundf(Value);
   return(Result);
 }
 
 inline internal u32
 RoundReal32ToUInt32(r32 Value)
 {
-  u32 Result = (u32)(Value + 0.5f);
+  u32 Result = (u32)roundf(Value);
   return(Result);
 }
 

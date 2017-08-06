@@ -1,0 +1,66 @@
+
+inline internal tile_chunk*
+GetTileChunk(world *World, s32 TileChunkX, s32 TileChunkY)
+{
+  tile_chunk *TileChunk = 0;
+  if((TileChunkX >= 0) && (TileChunkX < World->TileChunkCountX) &&
+     (TileChunkY >= 0) && (TileChunkY < World->TileChunkCountY))
+    {
+      TileChunk = &World->TileChunks[TileChunkY*World->TileChunkCountX + TileChunkX];  
+    }
+  
+  return(TileChunk);
+}
+
+inline internal u32
+GetTileValueUnchecked(world *World, tile_chunk *TileChunk, u32 TileX, u32 TileY)
+{
+  Assert(TileChunk);
+  Assert((TileX < World->ChunkDim) &&
+	 (TileY < World->ChunkDim))
+  u32 TileChunkValue = TileChunk->Tiles[TileY*World->ChunkDim + TileX];  
+  return(TileChunkValue);
+}
+
+internal u32
+_GetTileValue(world *World, tile_chunk *TileChunk, u32 TestTileX, u32 TestTileY)
+{
+  u32 TileChunkValue = 0;
+  if(TileChunk)
+    {      
+      TileChunkValue = GetTileValueUnchecked(World, TileChunk, TestTileX, TestTileY);      
+    }
+  return(TileChunkValue);
+}
+
+internal u32
+GetTileValue(world *World, u32 AbsTileX, u32 AbsTileY)
+{
+  tile_chunk_position ChunkPosition = GetChunkPositionFor(World, AbsTileX, AbsTileY);
+  tile_chunk *TileChunk = GetTileChunk(World, ChunkPosition.TileChunkX, ChunkPosition.TileChunkY);
+  u32 TileChunkValue = _GetTileValue(World, TileChunk, ChunkPosition.RelTileX, ChunkPosition.RelTileY);
+    
+  return(TileChunkValue);
+}
+
+internal bool32
+IsWorldPointEmpty(world *World, world_position CanPos)
+{
+  u32 TileChunkValue = GetTileValue(World, CanPos.AbsTileX, CanPos.AbsTileY);
+  bool32 IsEmpty = (TileChunkValue == 0);
+  
+  return(IsEmpty);
+}
+
+internal inline tile_chunk_position
+GetChunkPositionFor(world *World, u32 AbsTileX, u32 AbsTileY)
+{
+  tile_chunk_position Result = {};
+  
+  Result.TileChunkX = AbsTileX >> World->ChunkShift;
+  Result.TileChunkY = AbsTileY >> World->ChunkShift;
+  Result.RelTileX = AbsTileX & World->ChunkMask;
+  Result.RelTileY = AbsTileY & World->ChunkMask;
+
+  return(Result);
+}
