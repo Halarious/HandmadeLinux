@@ -114,6 +114,35 @@ InitFont(thread_context* Thread, font* FontState, memory_arena* BitmapArena, mem
   }
 }
 
+#pragma pack(push, 1)
+typedef struct
+{
+  u16 FileType;
+  u32 FileSize;
+  u16 Reserved1;
+  u16 Reserved2;
+  u32 BitmapOffset;
+  u32 Size;
+  s32 Width;
+  s32 Height;
+  u16 Planes;
+  u16 BitsPerPixel;
+} bitmap_header; 
+#pragma pack(pop)
+
+internal void
+DEBUGLoadBMP(thread_context *Thread, debug_platform_read_entire_file *ReadEntireFile,
+	     char* Filename)
+{
+  loaded_file ReadResult = ReadEntireFile(Thread, Filename);
+  if(ReadResult.ContentsSize != 0)
+    {
+      bitmap_header *Header = (bitmap_header*) ReadResult.Contents;
+      u32 *Pixels = (u32*)((u8*)ReadResult.Contents + Header->BitmapOffset); 
+    }
+  
+}
+
 internal void
 DrawBitmap(offscreen_buffer *Buffer, loaded_bitmap *Bitmap,
 	   s32 X, s32 Y)
@@ -230,7 +259,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   
   state* State = (state*) Memory->PermanentStorage;
   if(!Memory->isInitialized)
-    {            
+    {
+      DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_background.bmp");
       //NOTE We will do this much differently once we have a system
       //     for the assets like fonts and bitmaps.
       /*InitializeArena(&State->BitmapArena, Megabytes(1),
@@ -243,8 +273,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
       State->PlayerP.AbsTileX = 1;
       State->PlayerP.AbsTileY = 3;
-      State->PlayerP.TileRelX = 5.0f;
-      State->PlayerP.TileRelY = 5.0f;
+      State->PlayerP.OffsetX = 5.0f;
+      State->PlayerP.OffsetY = 5.0f;
       
       State->World   = PushStruct(&State->WorldArena, world);
       world *World   = State->World;
@@ -298,8 +328,10 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	      RandomChoice = RandomNumberTable[RandomNumberIndex++] % 3;
 	    }
 	  
+	  bool32 CreatedZDoor = false;
 	  if(RandomChoice == 2)
 	    {
+	      CreatedZDoor = true;
 	      if(AbsTileZ == 0)
 		{
 		  DoorUp = true;
@@ -367,15 +399,10 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  DoorLeft = DoorRight;
 	  DoorBottom = DoorTop;
 
-	  if(DoorUp)
+	  if(CreatedZDoor)
 	    {
-	      DoorUp   = false;
-	      DoorDown = true;
-	    }
-	  else if(DoorDown)
-	    {
-	      DoorUp   = true;
-	      DoorDown = false;
+	      DoorDown = !DoorDown;
+	      DoorUp   = !DoorUp;
 	    }
 	  else
 	    {
@@ -453,22 +480,35 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  dPlayerY *= PlayerSpeed;
 
 	  tile_map_position NewPlayerP = State->PlayerP;
-	  NewPlayerP.TileRelX += Input->dtForFrame*dPlayerX;
-	  NewPlayerP.TileRelY += Input->dtForFrame*dPlayerY;
+	  NewPlayerP.OffsetX += Input->dtForFrame*dPlayerX;
+	  NewPlayerP.OffsetY += Input->dtForFrame*dPlayerY;
 	  NewPlayerP = RecanonicalizePosition(TileMap, NewPlayerP);
 
 	  tile_map_position PlayerLeft = NewPlayerP;
-	  PlayerLeft.TileRelX -= 0.5f * PlayerWidth;
+	  PlayerLeft.OffsetX -= 0.5f * PlayerWidth;
 	  PlayerLeft = RecanonicalizePosition(TileMap, PlayerLeft);
  
 	  tile_map_position PlayerRight = NewPlayerP;
-	  PlayerRight.TileRelX += 0.5f * PlayerWidth;
+	  PlayerRight.OffsetX += 0.5f * PlayerWidth;
 	  PlayerRight = RecanonicalizePosition(TileMap, PlayerRight);
  
 	  if(IsTileMapPointEmpty(TileMap, NewPlayerP) &&
 	     IsTileMapPointEmpty(TileMap, PlayerLeft) &&
 	     IsTileMapPointEmpty(TileMap, PlayerRight))
 	    {
+	      if(!AreOnSameTile(&State->PlayerP, &NewPlayerP))
+		{
+		  u32 NewTileValue = GetTileValueP(TileMap, NewPlayerP);
+		  
+		  if(NewTileValue == 3)
+		    {
+		      ++NewPlayerP.AbsTileZ;
+		    }
+		  else if(NewTileValue == 4)
+		    {
+		      --NewPlayerP.AbsTileZ;
+		    }
+		}
 	      State->PlayerP = NewPlayerP;
 	    }
 	}
@@ -491,7 +531,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	{
 	  u32 Column = State->PlayerP.AbsTileX + RelColumn;
 	  u32 Row    = State->PlayerP.AbsTileY + RelRow;
-	  u32 TileID = GetTileValue(TileMap, Column, Row, State->PlayerP.AbsTileZ);
+	  u32 TileID = GetTileValueC(TileMap, Column, Row, State->PlayerP.AbsTileZ);
 	  
 	  if(TileID > 0)
 	    {
@@ -510,8 +550,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		{
 		  Grey = 0.0f;
 		}
-	      r32 CenterX = ScreenCenterX - MetersToPixels*State->PlayerP.TileRelX + ((r32)RelColumn * TileSideInPixels);
-	      r32 CenterY = ScreenCenterY + MetersToPixels*State->PlayerP.TileRelY - ((r32)RelRow * TileSideInPixels);
+	      r32 CenterX = ScreenCenterX - MetersToPixels*State->PlayerP.OffsetX + ((r32)RelColumn * TileSideInPixels);
+	      r32 CenterY = ScreenCenterY + MetersToPixels*State->PlayerP.OffsetY - ((r32)RelRow * TileSideInPixels);
 	      r32 MinX = CenterX - 0.5f * TileSideInPixels;
 	      r32 MinY = CenterY - 0.5f * TileSideInPixels;
 	      r32 MaxX = CenterX + 0.5f * TileSideInPixels;
