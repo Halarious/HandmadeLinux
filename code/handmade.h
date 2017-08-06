@@ -216,6 +216,26 @@ UPDATE_AND_RENDER(UpdateAndRenderStub)
 {
 }
 
+internal void
+InitializeArena(memory_arena* Arena, memory_index Size, u8* StorageBase)
+{
+  Arena->Size = Size;
+  Arena->Base = StorageBase;
+  Arena->Used = 0;
+}
+
+#define PushStruct(Arena, type) (type*)PushSize_(Arena, sizeof(type))
+#define PushArray(Arena, Count, type) (type*)PushSize_(Arena, sizeof(type)*Count)
+#define PushSize(Arena, Size) PushSize_(Arena, Size)
+internal void*
+PushSize_(memory_arena* Arena, memory_index Size)
+{
+  Assert((Arena->Used + Size) <= Arena->Size); 
+  void* Result = Arena->Base + Arena->Used;
+  Arena->Used += Size;
+  return(Result);
+}
+
 #include "handmade_intrinsics.h"
 #include "handmade_tile.h"
 
