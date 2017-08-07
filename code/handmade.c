@@ -58,7 +58,7 @@ MakeEmptyGlyphBitmap(memory_arena* GlyphArena, memory_arena* BitmapArena,
   
   return(Result); 
 }
-
+/*
 internal void
 InitFont(thread_context* Thread, font* FontState, memory_arena* BitmapArena, memory *Memory)
 {
@@ -113,7 +113,7 @@ InitFont(thread_context* Thread, font* FontState, memory_arena* BitmapArena, mem
       stbtt_FreeBitmap(STBCharacterBitmap, 0);
   }
 }
-
+*/
 #pragma pack(push, 1)
 typedef struct
 {
@@ -127,26 +127,58 @@ typedef struct
   s32 Height;
   u16 Planes;
   u16 BitsPerPixel;
+  u32 Compression;
+  u32 SizeOfBitmap;
+  s32 HorzResolution;
+  s32 VertResolution;
+  u32 ColorsUsed;
+  u32 ColorsImportant;
+
+  u32 RedMask;
+  u32 GreenMask;
+  u32 BlueMask;
 } bitmap_header; 
 #pragma pack(pop)
 
-internal void
+internal loaded_bitmap
 DEBUGLoadBMP(thread_context *Thread, debug_platform_read_entire_file *ReadEntireFile,
 	     char* Filename)
 {
+  loaded_bitmap Result = {};
+  
   loaded_file ReadResult = ReadEntireFile(Thread, Filename);
   if(ReadResult.ContentsSize != 0)
     {
       bitmap_header *Header = (bitmap_header*) ReadResult.Contents;
-      u32 *Pixels = (u32*)((u8*)ReadResult.Contents + Header->BitmapOffset); 
-    }
-  
+      Result.Memory = (u32*)((u8*)ReadResult.Contents + Header->BitmapOffset); 
+      Result.Width  = Header->Width;
+      Result.Height = Header->Height;
+      Result.Pitch  = Result.Width;
+      
+      u32 *SourceDest = Result.Memory;
+      for(s32 Y = 0;
+	  Y < Header->Height;
+	  ++Y)
+	{
+	  for(s32 X = 0;
+	      X < Header->Width;
+	      ++X)
+	    {
+	      *SourceDest = (*SourceDest >> 8) | (*SourceDest << 24);
+		++SourceDest;
+	    }
+	}
+    }  
+  return(Result);
 }
 
 internal void
 DrawBitmap(offscreen_buffer *Buffer, loaded_bitmap *Bitmap,
-	   s32 X, s32 Y)
+	   r32 RealX, r32 RealY)
 {
+  s32 X = RoundReal32ToInt32(RealX);
+  s32 Y = RoundReal32ToInt32(RealY);
+  
   s32 MinX = X;
   s32 MinY = Y;
   s32 MaxX = MinX + Bitmap->Width;
@@ -169,14 +201,16 @@ DrawBitmap(offscreen_buffer *Buffer, loaded_bitmap *Bitmap,
       MaxY = Buffer->Height;
     }
 
-  u8* SourceRow = Bitmap->Memory;
-  u8* DestRow   = (u8*)Buffer->BitmapMemory + MinX*4 + MinY*Buffer->Pitch;
+  u32* SourceRow = Bitmap->Memory + Bitmap->Width*(Bitmap->Height-1);
+  u8* DestRow    = ((u8*)Buffer->BitmapMemory +
+		    MinX*Buffer->BytesPerPixel +
+		    MinY*Buffer->Pitch);
   for(int Y = MinY;
       Y < MaxY;
       ++Y)
     {
-      u32 *Source = (u32*) SourceRow;
       u32 *Dest   = (u32*) DestRow;
+      u32 *Source = SourceRow;
       for(int X = MinX;
 	  X < MaxX;
 	  ++X)
@@ -201,7 +235,7 @@ DrawBitmap(offscreen_buffer *Buffer, loaded_bitmap *Bitmap,
 	  ++Dest;
 	  ++Source;
 	}
-      SourceRow += Bitmap->Pitch;
+      SourceRow -= Bitmap->Pitch;
       DestRow   += Buffer->Pitch;
     }
 }
@@ -260,7 +294,14 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   state* State = (state*) Memory->PermanentStorage;
   if(!Memory->isInitialized)
     {
-      DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_background.bmp");
+      State->Backdrop
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_background.bmp");
+      State->HeroHead
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_front_head.bmp");
+      State->HeroCape
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_front_cape.bmp");
+      State->HeroTorso
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_front_torso.bmp");
       //NOTE We will do this much differently once we have a system
       //     for the assets like fonts and bitmaps.
       /*InitializeArena(&State->BitmapArena, Megabytes(1),
@@ -513,11 +554,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	    }
 	}
     }
-  
-  DrawRectangle(Buffer,
-		0.0f, 0.0f,
-		Buffer->Width, Buffer->Height,
-		1.0f, 0.0f, 1.0f);
+
+  DrawBitmap(Buffer, &State->Backdrop, 0, 0);
 
   r32 ScreenCenterX = 0.5f * Buffer->Width;
   r32 ScreenCenterY = 0.5f * Buffer->Height;
@@ -569,11 +607,9 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   r32 PlayerLeft = ScreenCenterX - 0.5f * MetersToPixels*PlayerWidth;
   r32 PlayerTop  = ScreenCenterY - MetersToPixels*PlayerHeight;
 
-  DrawRectangle(Buffer,
-		PlayerLeft, PlayerTop,
-		PlayerLeft + MetersToPixels*PlayerWidth,
-		PlayerTop  + MetersToPixels*PlayerHeight,
-		PlayerR, PlayerG, PlayerB);
+  DrawBitmap(Buffer, &State->HeroHead, PlayerLeft, PlayerTop);
+  //DrawBitmap(Buffer, &State->HeroHead, PlayerLeft, PlayerTop);
+  //DrawBitmap(Buffer, &State->HeroHead, PlayerLeft, PlayerTop);
 }
 
 /*

@@ -53,7 +53,7 @@ typedef struct
 
 typedef struct
 {
-  void* Memory;
+  u32* Memory;
   
   int Width;
   int Height;
@@ -250,6 +250,11 @@ typedef struct
   memory_arena BitmapArena;
   font         Font;
 
+  loaded_bitmap Backdrop;
+  loaded_bitmap HeroHead;
+  loaded_bitmap HeroCape;
+  loaded_bitmap HeroTorso;
+  
   world *World;
   tile_map_position PlayerP;
 }state;
