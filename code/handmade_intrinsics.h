@@ -50,3 +50,36 @@ Atan2(r32 Y, r32 X)
   r32 Result = atan2f(Y, X);
   return(Result);
 }
+
+
+typedef struct
+{
+  bool32 Found;
+  u32    Index;
+} bit_scan_result;
+
+internal inline bit_scan_result
+FindLeastSignificantSetBit(u32 Value)
+{
+  bit_scan_result Result = {};
+
+#if COMPILER_MSVC
+  Result.Found = _BitScanForward((unsigned long*)&Result.Index, Value);
+#elif __clang__
+  Result.Index = __builtin_ctzll(Value);
+  Result.Found = true;
+#else
+  for(u32 Test = 0;
+      Test < 32;
+      ++Test)
+    {
+      if(Value & (1 << Test))
+	{
+	  Result.Index = Test;
+	  Result.Found = true;
+	  break;
+	}
+    }
+#endif
+  return(Result);
+}

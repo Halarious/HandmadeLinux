@@ -6,7 +6,9 @@ CommonLinkerFlags="-ldl -lX11 -lXrandr -lm"
 mkdir ../build -p > /dev/null
 pushd ../build    > /dev/null
 
+echo LOCK > lock.tmp
 clang $CommonCompilerFlags -shared -o handmade.so -fPIC ../code/handmade.c -Wl,-Map,output.map,--gc-sections
+rm lock.tmp
 clang $CommonCompilerFlags ../code/linux32_handmade.c $CommonLinkerFlags -Wl,-Map,linux32_output.map,--gc-sections -o testBuild
 
 popd > /dev/null

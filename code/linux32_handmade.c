@@ -1,5 +1,6 @@
-#include "handmade.h"
+#include "handmade_platform.h"
 
+#include <stdio.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/extensions/Xrandr.h>
@@ -16,8 +17,8 @@
 
 #include "linux32_handmade.h"
 
-global_variable bool32 GlobalRunning     = true;
-global_variable bool32 GlobalPause = false;
+global_variable bool32 GlobalRunning = true;
+global_variable bool32 GlobalPause   = false;
 global_variable linux32_offscreen_buffer GlobalOffscreenBuffer = {};
 
 internal void
@@ -393,22 +394,24 @@ Linux32GetLastWriteTime(char* Filename)
 }
 
 internal linux32_code
-Linux32LoadCode(char* SourceSOName, char* TempSOName)
+Linux32LoadCode(char* SourceSOName, char* TempSOName, char* LockFilename)
 {
   linux32_code Result = {};
-
-  Result.SOLastWriteTime =  
-    Linux32GetLastWriteTime(SourceSOName);
-  
-  CopyFile(SourceSOName, TempSOName);
-  Result.CodeSO = dlopen(TempSOName, RTLD_LAZY);
-  if(Result.CodeSO)
+  if(access(LockFilename , F_OK) == -1)
     {
-      Result.UpdateAndRender = (update_and_render*)
-	dlsym(Result.CodeSO, "UpdateAndRender");
-      Result.IsValid = (Result.UpdateAndRender != 0);
+      Result.SOLastWriteTime =  
+	Linux32GetLastWriteTime(SourceSOName);
+  
+      CopyFile(SourceSOName, TempSOName);
+      Result.CodeSO = dlopen(TempSOName, RTLD_LAZY);
+      if(Result.CodeSO)
+	{
+	  Result.UpdateAndRender = (update_and_render*)
+	    dlsym(Result.CodeSO, "UpdateAndRender");
+	  Result.IsValid = (Result.UpdateAndRender != 0);
+	}
     }
-
+  
   if(!Result.IsValid)
     {
       Result.UpdateAndRender = UpdateAndRenderStub;
@@ -478,6 +481,12 @@ main(int ArgCount, char** Arguments)
   CatStrings(OnePastLastSlash - ELFFilename, ELFFilename,
 	     sizeof(TempCodeSOFilename) - 1, TempCodeSOFilename,
 	     sizeof(TempCodeSOFullPath),     TempCodeSOFullPath);  
+
+  char LockFilename[] = "lock.tmp";
+  char LockFullPath[PATH_MAX];
+  CatStrings(OnePastLastSlash - ELFFilename, ELFFilename,
+	     sizeof(LockFilename) - 1, LockFilename,
+	     sizeof(LockFullPath),     LockFullPath);  
   
   DisplayInfo DisplayInfo = {};
   DisplayInfo.Display         = XOpenDisplay(NULL);
@@ -566,7 +575,8 @@ main(int ArgCount, char** Arguments)
 	  input* OldInputState = &Input[1];
 	  
 	  linux32_code Code = Linux32LoadCode(SourceCodeSOFullPath,
-					      TempCodeSOFullPath);
+					      TempCodeSOFullPath,
+					      LockFullPath);
 	  
 	  //TODO Might want to change this to RDTSC using an asm
 	  //     instruction, we seem to not be getting _super_ precise
@@ -585,7 +595,8 @@ main(int ArgCount, char** Arguments)
 		{
 		  Linux32UnloadCode(&Code);
 		  Code = Linux32LoadCode(SourceCodeSOFullPath,
-					 TempCodeSOFullPath);
+					 TempCodeSOFullPath,
+					 LockFullPath);
 		}
 	      
 	      controller_input *OldKeyboardController = GetController(OldInputState, 0);

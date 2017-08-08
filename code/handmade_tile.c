@@ -143,8 +143,8 @@ RecanonicalizePosition(tile_map *TileMap, tile_map_position Position)
 {
   tile_map_position Result = Position;
 
-  RecanonicalizeCoord(TileMap, &Result.AbsTileX, &Result.OffsetX);
-  RecanonicalizeCoord(TileMap, &Result.AbsTileY, &Result.OffsetY);
+  RecanonicalizeCoord(TileMap, &Result.AbsTileX, &Result.Offset.X);
+  RecanonicalizeCoord(TileMap, &Result.AbsTileY, &Result.Offset.Y);
 
   return(Result);
 }
@@ -155,5 +155,23 @@ AreOnSameTile(tile_map_position *A, tile_map_position *B)
   bool32 Result = ((A->AbsTileX == B->AbsTileX) &&
 		   (A->AbsTileY == B->AbsTileY) &&
 		   (A->AbsTileZ == B->AbsTileZ));
+  return(Result);
+}
+
+internal inline tile_map_difference
+Subtract(tile_map *TileMap, tile_map_position *A, tile_map_position* B)
+{
+  tile_map_difference Result = {};
+
+  v2 dTileXY = {(r32)A->AbsTileX - (r32)B->AbsTileX,
+		(r32)A->AbsTileY - (r32)B->AbsTileY};
+  r32 dTileZ = (r32)A->AbsTileZ - (r32)B->AbsTileZ;
+  
+  Result.dXY = VAdd(VMulS(TileMap->TileSideInMeters,
+			  dTileXY),
+		    VSub(A->Offset, B->Offset));
+  
+  Result.dZ = dTileZ * TileMap->TileSideInMeters + 0.0f;
+
   return(Result);
 }

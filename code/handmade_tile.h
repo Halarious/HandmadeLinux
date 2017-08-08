@@ -1,12 +1,17 @@
 
 typedef struct
 {  
+  v2 dXY;
+  r32 dZ;
+} tile_map_difference; 
+
+typedef struct
+{  
   u32 AbsTileX;
   u32 AbsTileY;
   u32 AbsTileZ;
 
-  r32 OffsetX;
-  r32 OffsetY;
+  v2 Offset;
 } tile_map_position; 
 
 typedef struct
