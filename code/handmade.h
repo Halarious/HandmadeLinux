@@ -121,12 +121,14 @@ typedef struct
   memory_arena WorldArena;
   memory_arena BitmapArena;
   font         Font;
-
+  world *World;
+  
+  tile_map_position PlayerP;
+  tile_map_position CameraP;
+  v2 dPlayerP;
+  
   loaded_bitmap Backdrop;
   hero_bitmaps HeroBitmaps[4];
   u32 HeroFacingDirection;
   
-  world *World;
-  tile_map_position PlayerP;
-  tile_map_position CameraP;
 } state;

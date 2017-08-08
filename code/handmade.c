@@ -559,45 +559,53 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	}
       else
 	{
-	  v2 dPlayer = {};
+	  v2 ddPlayer = {};
 	  
 	  if(Controller->MoveUp.EndedDown)
 	    {
 	      State->HeroFacingDirection = 1;
-	      dPlayer.Y = 1.0f;
+	      ddPlayer.Y = 1.0f;
 	    }
 	  if(Controller->MoveDown.EndedDown)
 	    {
 	      State->HeroFacingDirection = 3;
-	      dPlayer.Y = -1.0f;
+	      ddPlayer.Y = -1.0f;
 	    }
 	  if(Controller->MoveLeft.EndedDown)
 	    {
 	      State->HeroFacingDirection = 2;
-	      dPlayer.X = -1.0f;
+	      ddPlayer.X = -1.0f;
 	    }
 	  if(Controller->MoveRight.EndedDown)
 	    {
 	      State->HeroFacingDirection = 0;
-	      dPlayer.X = 1.0f;
+	      ddPlayer.X = 1.0f;
 	    }
-	  r32 PlayerSpeed = 2.0f;
+	  
+	  
+	  if((ddPlayer.X != 0) && (ddPlayer.Y != 0))
+	    {
+	      ddPlayer = VMulS(0.707106781187f, ddPlayer);
+	    }
+
+	  r32 PlayerSpeed = 10.0f;
 	  if(Controller->ActionUp.EndedDown)
 	    {
 	      PlayerSpeed *= 10.0f;
 	    }
-	  dPlayer = VMulS(PlayerSpeed, dPlayer);
-	  
-	  if((dPlayer.X != 0) && (dPlayer.Y != 0))
-	    {
-	      dPlayer = VMulS(0.707106781187f, dPlayer);
-	    }
-	  
+	  ddPlayer = VMulS(PlayerSpeed, ddPlayer);
+	  ddPlayer = VAdd(ddPlayer,
+			  VMulS(-2.0f, State->dPlayerP));
 	  tile_map_position NewPlayerP = State->PlayerP;
-	  NewPlayerP.Offset = VAdd(NewPlayerP.Offset,
-				   VMulS(Input->dtForFrame, dPlayer));
+	  v2 deltaPlayer = VAdd(VMulS(1.5f ,
+				      VMulS(Square(Input->dtForFrame),
+					    ddPlayer)),
+				VMulS(Input->dtForFrame, State->dPlayerP));
+	  NewPlayerP.Offset = VAdd(NewPlayerP.Offset, deltaPlayer);
+	  State->dPlayerP   = VAdd(VMulS(Input->dtForFrame, ddPlayer),
+				   State->dPlayerP);
 	  NewPlayerP = RecanonicalizePosition(TileMap, NewPlayerP);
-
+	  
 	  tile_map_position PlayerLeft = NewPlayerP;
 	  PlayerLeft.Offset.X -= 0.5f * PlayerWidth;
 	  PlayerLeft = RecanonicalizePosition(TileMap, PlayerLeft);
