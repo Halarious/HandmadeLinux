@@ -2,6 +2,13 @@
 //      intrinsics and whatnot
 #include <math.h>
 
+inline internal r32
+AbsoluteValue(r32 Value)
+{
+  r32 Result = fabs(Value);
+  return(Result);
+}
+
 inline internal s32
 RoundReal32ToInt32(r32 Value)
 {

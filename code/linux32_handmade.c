@@ -209,6 +209,11 @@ HandleEvents(XEvent *Event, linux32_state *Linux32State,
 	      Linux32ProcessKeyboardMessage(&KeyboardController->ActionUp,
 					    IsDown);
 	    } break;
+	    case XK_space:
+	    {
+	      Linux32ProcessKeyboardMessage(&KeyboardController->Start,
+					    IsDown);
+	    } break;
 	  case 'L':
 	    {
 	      if(IsDown)

@@ -70,3 +70,17 @@ Square(r32 V)
   r32 Result = V*V;
   return(Result);
 }
+
+internal inline r32
+Inner(v2 A, v2 B)
+{
+  r32 Result = A.X * B.X + A.Y * B.Y;
+  return(Result);
+}
+
+internal inline r32
+LengthSq(v2 V)
+{
+  r32 Result = Inner(V, V);
+  return(Result);
+}

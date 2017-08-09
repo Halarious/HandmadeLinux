@@ -92,12 +92,19 @@ GetTileValueP(tile_map *TileMap, tile_map_position Position)
 }
 
 internal bool32
+IsTileValueEmpty(u32 TileValue)
+{
+  bool32 IsEmpty = ((TileValue == 1) ||
+		    (TileValue == 3) ||
+		    (TileValue == 4));
+  return(IsEmpty);
+}
+
+internal bool32
 IsTileMapPointEmpty(tile_map *TileMap, tile_map_position Position)
 {
   u32 TileChunkValue = GetTileValueP(TileMap, Position);
-  bool32 IsEmpty = ((TileChunkValue == 1) ||
-		    (TileChunkValue == 3) ||
-		    (TileChunkValue == 4));
+  bool32 IsEmpty     = IsTileValueEmpty(TileChunkValue);
   
   return(IsEmpty);
 }
@@ -173,5 +180,17 @@ Subtract(tile_map *TileMap, tile_map_position *A, tile_map_position* B)
   
   Result.dZ = dTileZ * TileMap->TileSideInMeters + 0.0f;
 
+  return(Result);
+}
+
+internal inline tile_map_position
+CenteredTilePoint(u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
+{
+  tile_map_position Result = {};
+
+  Result.AbsTileX = AbsTileX;
+  Result.AbsTileY = AbsTileY;
+  Result.AbsTileZ = AbsTileZ;
+  
   return(Result);
 }

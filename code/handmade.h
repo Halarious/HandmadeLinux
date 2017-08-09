@@ -118,17 +118,29 @@ typedef struct
 
 typedef struct
 {
+  r32 Height;
+  r32 Width;
+  
+  bool32 Exists;
+  tile_map_position P;
+  v2 dP;
+  u32 FacingDirection;
+} entity;
+
+typedef struct
+{
   memory_arena WorldArena;
   memory_arena BitmapArena;
   font         Font;
   world *World;
-  
-  tile_map_position PlayerP;
+
+  u32 CameraFollowingEntityIndex;
   tile_map_position CameraP;
-  v2 dPlayerP;
+  
+  u32 PlayerIndexForController[ArrayCount(((input*)0)->Controllers)];
+  u32 EntityCount;
+  entity Entities[256];
   
   loaded_bitmap Backdrop;
   hero_bitmaps HeroBitmaps[4];
-  u32 HeroFacingDirection;
-  
 } state;
