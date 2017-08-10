@@ -150,8 +150,8 @@ RecanonicalizePosition(tile_map *TileMap, tile_map_position Position)
 {
   tile_map_position Result = Position;
 
-  RecanonicalizeCoord(TileMap, &Result.AbsTileX, &Result.Offset.X);
-  RecanonicalizeCoord(TileMap, &Result.AbsTileY, &Result.Offset.Y);
+  RecanonicalizeCoord(TileMap, &Result.AbsTileX, &Result.Offset_.X);
+  RecanonicalizeCoord(TileMap, &Result.AbsTileY, &Result.Offset_.Y);
 
   return(Result);
 }
@@ -176,7 +176,7 @@ Subtract(tile_map *TileMap, tile_map_position *A, tile_map_position* B)
   
   Result.dXY = VAdd(VMulS(TileMap->TileSideInMeters,
 			  dTileXY),
-		    VSub(A->Offset, B->Offset));
+		    VSub(A->Offset_, B->Offset_));
   
   Result.dZ = dTileZ * TileMap->TileSideInMeters + 0.0f;
 
@@ -193,4 +193,13 @@ CenteredTilePoint(u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
   Result.AbsTileZ = AbsTileZ;
   
   return(Result);
+}
+
+internal inline tile_map_position
+Offset(tile_map *TileMap, tile_map_position P, v2 Offset)
+{
+  P.Offset_ = VAdd(P.Offset_, Offset);
+  P = RecanonicalizePosition(TileMap, P);
+
+  return(P);
 }

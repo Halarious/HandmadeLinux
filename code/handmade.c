@@ -350,8 +350,8 @@ InitializePlayer(state *State, r32 EntityIndex)
   Entity->Exists = true;
   Entity->P.AbsTileX = 1;
   Entity->P.AbsTileY = 3;
-  Entity->P.Offset.X = 0.0f;
-  Entity->P.Offset.Y = 0.0f;  
+  Entity->P.Offset_.X = 0.0f;
+  Entity->P.Offset_.Y = 0.0f;  
   Entity->Height = 1.4f;
   Entity->Width  = 0.75f * Entity->Height;
 
@@ -371,8 +371,8 @@ AddEntity(state *State)
   Entity->Exists = false;
   Entity->P.AbsTileX = 0;
   Entity->P.AbsTileY = 0;
-  Entity->P.Offset.X = 0.0f;
-  Entity->P.Offset.Y = 0.0f;
+  Entity->P.Offset_.X = 0.0f;
+  Entity->P.Offset_.Y = 0.0f;
   Entity->Height = 0.0f;
   Entity->Width  = 0.0f;
     
@@ -421,9 +421,7 @@ MovePlayer(state *State, entity *Entity, r32 dt, v2 ddPlayer)
 			VMulS(dt, Entity->dP));
   Entity->dP = VAdd(VMulS(dt, ddPlayer),
 		    Entity->dP);
-  tile_map_position NewPlayerP = OldPlayerP;
-  NewPlayerP.Offset = VAdd(NewPlayerP.Offset, PlayerDelta);
-  NewPlayerP = RecanonicalizePosition(TileMap, NewPlayerP);
+  tile_map_position NewPlayerP = Offset(TileMap, OldPlayerP, PlayerDelta);
 #if 0
   tile_map_position PlayerLeft = NewPlayerP;
   PlayerLeft.Offset.X -= 0.5f * Entity->Width;
@@ -541,12 +539,8 @@ MovePlayer(state *State, entity *Entity, r32 dt, v2 ddPlayer)
 	  AbsTileY += DeltaY;
 	}
     }
-  NewPlayerP = OldPlayerP;
-  NewPlayerP.Offset = VAdd(NewPlayerP.Offset,
-			   VMulS(tMin, PlayerDelta));
-  NewPlayerP = RecanonicalizePosition(TileMap, NewPlayerP);
-  Entity->P  = NewPlayerP;
-
+  Entity->P = Offset(TileMap, OldPlayerP, VMulS(tMin, PlayerDelta)); 
+    
 #endif
 
   if(!AreOnSameTile(&OldPlayerP, &Entity->P))
@@ -683,8 +677,13 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	        
       u32 TilesPerWidth = 17;
       u32 TilesPerHeight = 9;
+#if 0
+      u32 ScreenX = INT32_MAX / 2;
+      u32 ScreenY = INT32_MAX / 2;
+#else
       u32 ScreenX = 0;
       u32 ScreenY = 0;
+#endif
       u32 AbsTileZ = 0;
       
       bool32 DoorLeft   = false;
@@ -759,8 +758,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		    {
 		      TileValue = 2;
 		    }
-		  TileValue = 1;
-		  
+		  		  
 		  if((TileX == 10) && (TileY == 6))
 		    {
 		      if(DoorUp)
@@ -930,8 +928,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
 	      v2 TileSide = {0.5f * TileSideInPixels,
 			     0.5f * TileSideInPixels};
-	      v2 Center   = {ScreenCenterX - MetersToPixels*State->CameraP.Offset.X + ((r32)RelColumn * TileSideInPixels),
-			     ScreenCenterY + MetersToPixels*State->CameraP.Offset.Y - ((r32)RelRow * TileSideInPixels)};
+	      v2 Center   = {ScreenCenterX - MetersToPixels*State->CameraP.Offset_.X + ((r32)RelColumn * TileSideInPixels),
+			     ScreenCenterY + MetersToPixels*State->CameraP.Offset_.Y - ((r32)RelRow * TileSideInPixels)};
 	      v2 Min = VSub(Center, TileSide);
 	      v2 Max = VAdd(Center, TileSide);
 	      
