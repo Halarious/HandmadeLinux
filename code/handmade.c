@@ -350,8 +350,8 @@ InitializePlayer(state *State, r32 EntityIndex)
   Entity->Exists = true;
   Entity->P.AbsTileX = 1;
   Entity->P.AbsTileY = 3;
-  Entity->P.Offset.X = 5.0f;
-  Entity->P.Offset.Y = 5.0f;  
+  Entity->P.Offset.X = 0.0f;
+  Entity->P.Offset.Y = 0.0f;  
   Entity->Height = 1.4f;
   Entity->Width  = 0.75f * Entity->Height;
 
@@ -380,30 +380,51 @@ AddEntity(state *State)
 }
 
 internal void
+TestWall(r32 WallX, r32 RelX, r32 RelY, r32 PlayerDeltaX, r32 PlayerDeltaY,
+	 r32 *tMin, r32 MinY, r32 MaxY)
+{
+  r32 tEpsilon = 0.0001f;
+  if(PlayerDeltaX != 0.0f)
+    {
+      r32 tResult = (WallX - RelX) / PlayerDeltaX;
+      r32 Y = RelY + (tResult * PlayerDeltaY);
+      if((tResult >= 0.0f) && (*tMin > tResult))
+	{
+	  if((Y >= MinY) && (Y <= MaxY))
+	    {
+	      *tMin = Maximum(0.0f, tResult - tEpsilon );
+	    }
+	}
+    }
+}
+
+internal void
 MovePlayer(state *State, entity *Entity, r32 dt, v2 ddPlayer)
 {
   tile_map *TileMap = State->World->TileMap; 
-  if((ddPlayer.X != 0) && (ddPlayer.Y != 0))
-    {
-      ddPlayer = VMulS(0.707106781187f, ddPlayer);
-    }
 
+  r32 ddPSqLength = LengthSq(ddPlayer);
+  if(ddPSqLength > 1.0f)
+    {
+      ddPlayer = VMulS(1.0f / SquareRoot(ddPSqLength), ddPlayer);
+    }
+  
   r32 PlayerSpeed = 50.0f;
   ddPlayer = VMulS(PlayerSpeed, ddPlayer);
   ddPlayer = VAdd(ddPlayer,
 		  VMulS(-8.0f, Entity->dP));
 
   tile_map_position OldPlayerP = Entity->P;
-  tile_map_position NewPlayerP = OldPlayerP;
   v2 PlayerDelta = VAdd(VMulS(1.5f ,
 			      VMulS(Square(dt),
 				    ddPlayer)),
 			VMulS(dt, Entity->dP));
-  NewPlayerP.Offset = VAdd(NewPlayerP.Offset, PlayerDelta);
   Entity->dP = VAdd(VMulS(dt, ddPlayer),
 		    Entity->dP);
+  tile_map_position NewPlayerP = OldPlayerP;
+  NewPlayerP.Offset = VAdd(NewPlayerP.Offset, PlayerDelta);
   NewPlayerP = RecanonicalizePosition(TileMap, NewPlayerP);
-#if 1
+#if 0
   tile_map_position PlayerLeft = NewPlayerP;
   PlayerLeft.Offset.X -= 0.5f * Entity->Width;
   PlayerLeft = RecanonicalizePosition(TileMap, PlayerLeft);
@@ -458,35 +479,74 @@ MovePlayer(state *State, entity *Entity, r32 dt, v2 ddPlayer)
       Entity->P = NewPlayerP;
     }
 #else
-  u32 MinTileX = 0;
-  u32 MinTileY = 0;
+#if 0
+  u32 MinTileX = Minimum(OldPlayerP.AbsTileX, NewPlayerP.AbsTileX);
+  u32 MinTileY = Minimum(OldPlayerP.AbsTileY, NewPlayerP.AbsTileY);
+  u32 OnePastMaxTileX = Maximum(OldPlayerP.AbsTileX, NewPlayerP.AbsTileX) + 1;
+  u32 OnePastMaxTileY = Maximum(OldPlayerP.AbsTileY, NewPlayerP.AbsTileY) + 1;
+#else
+  u32 StartTileX = OldPlayerP.AbsTileX;
+  u32 StartTileY = OldPlayerP.AbsTileY;
+  u32 EndTileX = NewPlayerP.AbsTileX;
+  u32 EndTileY = NewPlayerP.AbsTileY;
+
+  s32 DeltaX = SignOf(EndTileX - StartTileX);
+  s32 DeltaY = SignOf(EndTileY - StartTileY);
+#endif
   u32 AbsTileZ = Entity->P.AbsTileZ;
-  u32 OnePastMaxTileY = 0;
-  u32 OnePastMaxTileX = 0;
-  tile_map_position BestPlayerP = Entity->P;
-  r32 BestDistanceSq = LegthSq(PlayerDelta);
-  for(u32 AbsTileY = MinTileY;
-      AbsTileY != OnePastMaxTileY;
-      ++AbsTileY)
+  r32 tMin = 1.0f;
+
+  u32 AbsTileY = StartTileY;
+  for(;;)
     {
-      for(u32 AbsTileX = MinTileX;
-	  AbsTileX != OnePastMaxTileX;
-	  ++AbsTileX)
+      u32 AbsTileX = StartTileX;
+      for(;;)
 	{
 	  tile_map_position TestTileP = CenteredTilePoint(AbsTileX, AbsTileY, AbsTileZ);
 	  u32 TileValue = GetTileValueP(TileMap, TestTileP);
-	  if(IsTileValueEmpty(TileValue))
+	  if(!IsTileValueEmpty(TileValue))
 	    {
 	      v2 MinCorner = (v2){-0.5f*TileMap->TileSideInMeters,
 				  -0.5f*TileMap->TileSideInMeters};
 	      v2 MaxCorner = (v2){0.5f*TileMap->TileSideInMeters,
 				  0.5f*TileMap->TileSideInMeters};
 
-	      tile_map_difference RelNewPlayerP = Subtract(TileMap, &TestTileP, &NewPlayerP);
-	      v2 TesP = ClosestPointInRectangle(MinCorner, MaxCorner, RelNewPlayerP);
+	      tile_map_difference RelOldPlayerP = Subtract(TileMap, &OldPlayerP, &TestTileP);
+	      v2 Rel = RelOldPlayerP.dXY;
+
+	      TestWall(MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
+		       &tMin, MinCorner.Y, MaxCorner.Y);
+	      TestWall(MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
+		       &tMin, MinCorner.Y, MaxCorner.Y);
+	      TestWall(MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
+		       &tMin, MinCorner.X, MaxCorner.X);
+	      TestWall(MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
+		       &tMin, MinCorner.X, MaxCorner.X);
+	    }
+	  if(AbsTileX == EndTileX)
+	    {
+	      break;
+	    }
+	  else
+	    {
+	      AbsTileX += DeltaX;
 	    }
 	}
+      if(AbsTileY == EndTileY)
+	{
+	  break;
+	}
+      else
+	{
+	  AbsTileY += DeltaY;
+	}
     }
+  NewPlayerP = OldPlayerP;
+  NewPlayerP.Offset = VAdd(NewPlayerP.Offset,
+			   VMulS(tMin, PlayerDelta));
+  NewPlayerP = RecanonicalizePosition(TileMap, NewPlayerP);
+  Entity->P  = NewPlayerP;
+
 #endif
 
   if(!AreOnSameTile(&OldPlayerP, &Entity->P))
@@ -699,6 +759,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		    {
 		      TileValue = 2;
 		    }
+		  TileValue = 1;
+		  
 		  if((TileX == 10) && (TileY == 6))
 		    {
 		      if(DoorUp)

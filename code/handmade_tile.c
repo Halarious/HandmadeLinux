@@ -141,8 +141,8 @@ RecanonicalizeCoord(tile_map *TileMap, u32 *Tile, r32 *TileRel)
   *Tile += Offset;
   *TileRel -= Offset*TileMap->TileSideInMeters;
   
-  Assert(*TileRel >= -0.5f * TileMap->TileSideInMeters);
-  Assert(*TileRel <=  0.5f * TileMap->TileSideInMeters);
+  Assert(*TileRel > -0.5001f * TileMap->TileSideInMeters);
+  Assert(*TileRel <  0.5001f * TileMap->TileSideInMeters);
 }
 
 internal inline tile_map_position
@@ -170,8 +170,8 @@ Subtract(tile_map *TileMap, tile_map_position *A, tile_map_position* B)
 {
   tile_map_difference Result = {};
 
-  v2 dTileXY = {(r32)A->AbsTileX - (r32)B->AbsTileX,
-		(r32)A->AbsTileY - (r32)B->AbsTileY};
+  v2 dTileXY = (v2){(r32)A->AbsTileX - (r32)B->AbsTileX,
+		    (r32)A->AbsTileY - (r32)B->AbsTileY};
   r32 dTileZ = (r32)A->AbsTileZ - (r32)B->AbsTileZ;
   
   Result.dXY = VAdd(VMulS(TileMap->TileSideInMeters,

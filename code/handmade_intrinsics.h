@@ -2,6 +2,22 @@
 //      intrinsics and whatnot
 #include <math.h>
 
+inline internal s32
+SignOf(s32 Value)
+{
+  s32 Result = (Value >= 0) ? 1 : -1;
+  //NOTE: This one returns a zero value for positive 
+  //signbit(Value);
+  return(Result);
+}
+
+inline internal r32
+SquareRoot(r32 Value)
+{
+  r32 Result = sqrtf(Value);
+  return(Result);
+}
+
 inline internal r32
 AbsoluteValue(r32 Value)
 {
