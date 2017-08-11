@@ -47,6 +47,13 @@ FloorReal32ToInt32(r32 Value)
 }
 
 inline internal s32
+CeilReal32ToInt32(r32 Value)
+{
+  u32 Result = ceilf(Value);
+  return(Result);
+}
+
+inline internal s32
 TruncateReal32ToInt32(r32 Value)
 {
   u32 Result = (u32)(Value);
