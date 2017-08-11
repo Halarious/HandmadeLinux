@@ -25,6 +25,30 @@ AbsoluteValue(r32 Value)
   return(Result);
 }
 
+inline internal u32
+RotateLeft(u32 Value, s32 Amount)
+{
+#if COMPILER_MSVC
+  u32 Result = _rotl(Value, Amount);
+#else
+  Amount &= 31;
+  u32 Result = ((Value << Amount) | (Value >> (32 - Amount)));
+#endif
+  return(Result);
+}
+
+inline internal u32
+RotateRight(u32 Value, s32 Amount)
+{
+#if COMPILER_MSVC
+  u32 Result = _rotr(Value, Amount);;
+#else
+  Amount &= 31;
+  u32 Result = ((Value >> Amount) | (Value << (32 - Amount)));
+#endif
+  return(Result);
+}
+
 inline internal s32
 RoundReal32ToInt32(r32 Value)
 {
@@ -95,7 +119,7 @@ FindLeastSignificantSetBit(u32 Value)
 
 #if COMPILER_MSVC
   Result.Found = _BitScanForward((unsigned long*)&Result.Index, Value);
-#elif __clang__
+#elif COMPILER_LLVM
   Result.Index = __builtin_ctzll(Value);
   Result.Found = true;
 #else

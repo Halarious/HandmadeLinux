@@ -121,14 +121,41 @@ typedef struct
 
 typedef struct
 {
+  v2 P;
+  v2 dP;
+  u32 FacingDirection;
+} high_entity;
+
+typedef struct
+{
+  int PlaceHolder;
+} low_entity;
+
+typedef struct
+{
   r32 Height;
   r32 Width;
   
-  bool32 Exists;
   tile_map_position P;
-  v2 dP;
-  u32 FacingDirection;
+} dormant_entity;
+
+typedef enum 
+{
+  EntityResidence_NonExistent,
+  EntityResidence_Dormant,
+  EntityResidence_Low,
+  EntityResidence_High,
+} entity_residence;
+
+typedef struct
+{
+  u32 Residence;
+  
+  dormant_entity *Dormant;
+  low_entity *Low;
+  high_entity *High;
 } entity;
+
 
 typedef struct
 {
@@ -142,7 +169,10 @@ typedef struct
   
   u32 PlayerIndexForController[ArrayCount(((input*)0)->Controllers)];
   u32 EntityCount;
-  entity Entities[256];
+  entity_residence EntityResidence[256];
+  high_entity HighEntities[256];
+  low_entity LowEntities[256];
+  dormant_entity DormantEntities[256];
   
   loaded_bitmap Backdrop;
   hero_bitmaps HeroBitmaps[4];

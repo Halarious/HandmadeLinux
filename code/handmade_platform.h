@@ -1,3 +1,26 @@
+
+#if !defined(COMPILER_MSCV)
+#define COMPILER_MSCV 0
+#endif
+
+#if !defined(COMPILER_LLVM)
+#define COMPILER_CLAG 0
+#endif
+
+#if !COMPILER_MSCV && !COMPILER_LLVM
+#if _MSC_VER
+#undef COMPILER_MSCV
+#define COMPILER_MSCV 1
+#elif __clang__
+#undef COMPILER_LLVM
+#define COMPILER_LLVM 1
+#endif
+#endif
+
+#if COMPILER_MSVC
+#include <intrin.h>
+#endif
+
 #include <unistd.h>
 #include <stdint.h>
 
