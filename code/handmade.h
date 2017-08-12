@@ -123,7 +123,11 @@ typedef struct
 {
   v2 P;
   v2 dP;
+  u32 AbsTileZ;
   u32 FacingDirection;
+
+  r32 Z;
+  r32 dZ;
 } high_entity;
 
 typedef struct
@@ -135,6 +139,9 @@ typedef struct
 {
   r32 Height;
   r32 Width;
+
+  s32 dAbsTileZ;
+  bool32 Collides;
   
   tile_map_position P;
 } dormant_entity;
@@ -175,5 +182,6 @@ typedef struct
   dormant_entity DormantEntities[256];
   
   loaded_bitmap Backdrop;
+  loaded_bitmap Shadow;
   hero_bitmaps HeroBitmaps[4];
 } state;
