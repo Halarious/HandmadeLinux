@@ -125,7 +125,7 @@ typedef struct
 {
   v2 P;
   v2 dP;
-  u32 AbsTileZ;
+  u32 ChunkZ;
   u32 FacingDirection;
 
   r32 Z;
@@ -143,7 +143,7 @@ typedef struct
   r32 Height;
   r32 Width;
 
-  s32 dAbsTileZ;
+  s32 ChunkZ;
   bool32 Collides;
 
   u32 HighEntityIndex;

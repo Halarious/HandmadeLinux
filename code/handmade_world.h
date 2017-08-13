@@ -7,9 +7,9 @@ typedef struct
 
 typedef struct
 {  
-  s32 AbsTileX;
-  s32 AbsTileY;
-  s32 AbsTileZ;
+  s32 ChunkX;
+  s32 ChunkY;
+  s32 ChunkZ;
 
   v2 Offset_;
 } world_position; 
@@ -36,10 +36,9 @@ struct world_chunk
 typedef struct
 {
   r32 TileSideInMeters;
+  r32 ChunkSideInMeters;
 
-  s32 ChunkShift;
-  s32 ChunkMask;
-  s32 ChunkDim;  
+  world_entity_block *FirstFree;  
 
   world_chunk ChunkHash[4096];
 } world;

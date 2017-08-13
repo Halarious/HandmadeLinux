@@ -371,7 +371,7 @@ MakeEntityHighFrequency(state *State, u32 LowIndex)
 					  &LowEntity->P, &State->CameraP);
 	  HighEntity->P = Diff.dXY;
 	  HighEntity->dP = (v2){0, 0};
-	  HighEntity->AbsTileZ = LowEntity->dAbsTileZ;
+	  HighEntity->ChunkZ = LowEntity->P.ChunkZ;
 	  HighEntity->FacingDirection = 0;
 	  HighEntity->LowEntityIndex = LowIndex;
 	  
@@ -463,9 +463,7 @@ AddWall(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
   u32 EntityIndex = AddLowEntity(State, EntityType_Wall);
   low_entity *Entity = GetLowEntity(State, EntityIndex);
 
-  Entity->P.AbsTileX = AbsTileX;
-  Entity->P.AbsTileY = AbsTileY;
-  Entity->P.AbsTileZ = AbsTileZ;
+  Entity->P = ChunkPositionFromTilePosition(State->World, AbsTileX, AbsTileY, AbsTileZ);
   Entity->Height = State->World->TileSideInMeters;
   Entity->Width  = Entity->Height;
   Entity->Collides = true;
@@ -628,7 +626,7 @@ MovePlayer(state *State, entity Entity, r32 dt, v2 ddPlayer)
 	  
 	  high_entity *HitHigh = State->HighEntities_ + HitHighEntityIndex;
 	  low_entity  *HitLow  = State->LowEntities + HitHigh->LowEntityIndex;
-	  Entity.Low->P.AbsTileZ += HitLow->dAbsTileZ;
+	  //Entity.High->P.ChunkZ += HitLow->dAbsTileZ;
 	}
       else
 	{
@@ -683,7 +681,7 @@ SetCamera(state *State, world_position NewCameraP)
 						V2((r32)TileSpanX, (r32)TileSpanY)));
   v2 EntityOffsetForFrame = VMulS(-1, dCameraP.dXY);
   OffsetAndCheckFrequencyByArea(State, EntityOffsetForFrame, CameraBounds);
-  
+#if 0  
   s32 MinTileX = NewCameraP.AbsTileX - TileSpanX/2;
   s32 MinTileY = NewCameraP.AbsTileY - TileSpanY/2;
   s32 MaxTileX = NewCameraP.AbsTileX + TileSpanX/2;
@@ -705,6 +703,7 @@ SetCamera(state *State, world_position NewCameraP)
 	    }
 	}
     }
+#endif
 }
 
 extern UPDATE_AND_RENDER(UpdateAndRender)
@@ -794,7 +793,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       bool32 DoorDown   = false;
 	    
       for(s32 ScreenIndex = 0;
-	  ScreenIndex < 2;
+	  ScreenIndex < 2000;
 	  ++ScreenIndex)
 	{
 	  Assert(RandomNumberIndex < ArrayCount(RandomNumberTable));
@@ -923,9 +922,10 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	}
 #endif      
       world_position NewCameraP = {};
-      NewCameraP.AbsTileX = ScreenBaseX*TilesPerWidth + 17/2;
-      NewCameraP.AbsTileY = ScreenBaseY*TilesPerHeight + 9/2;
-      NewCameraP.AbsTileZ = ScreenBaseZ;
+      NewCameraP = ChunkPositionFromTilePosition(World,
+						 ScreenBaseX*TilesPerWidth + 17/2,
+						 ScreenBaseY*TilesPerHeight + 9/2,
+						 ScreenBaseZ);
       SetCamera(State, NewCameraP);
 
       Memory->isInitialized = true;
@@ -996,7 +996,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
     {
       world_position NewCameraP = State->CameraP;
       
-      State->CameraP.AbsTileZ = CameraFollowingEntity.Low->P.AbsTileZ;
+      State->CameraP.ChunkZ = CameraFollowingEntity.Low->P.ChunkZ;
 #if 0
       if(CameraFollowingEntity.High->P.X > (9.0f * World->TileSideInMeters))
 	{
