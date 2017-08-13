@@ -558,7 +558,7 @@ main(int ArgCount, char** Arguments)
 #endif
 
       memory Memory = {};
-      Memory.PermanentStorageSize = Megabytes(64);
+      Memory.PermanentStorageSize = Megabytes(256);
       Memory.TransientStorageSize = Gigabytes((u64)1);
       Memory.DEBUGPlatformReadEntireFile = DEBUGPlatformReadEntireFile;
       Memory.DEBUGPlatformFreeFileMemory = DEBUGPlatformFreeFileMemory;
