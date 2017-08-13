@@ -91,6 +91,27 @@ typedef struct
   v2 Max;
 } rectangle2;
 
+internal inline v2
+GetMinCorner(rectangle2 Rect)
+{
+  v2 Result = Rect.Min;
+  return(Result);  
+}
+
+internal inline v2
+GetMaxCorner(rectangle2 Rect)
+{
+  v2 Result = Rect.Max;
+  return(Result);
+}
+
+internal inline v2
+GetCenter(rectangle2 Rect)
+{
+  v2 Result = VMulS(0.5f, VAdd(Rect.Min, Rect.Max));
+  return(Result);  
+}
+
 internal inline rectangle2
 RectMinMax(v2 Min, v2 Max)
 {

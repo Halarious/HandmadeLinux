@@ -106,7 +106,7 @@ RecanonicalizeCoord(world *World, s32 *Tile, r32 *TileRel)
 }
 
 internal inline world_position
-MapIntoWorldSpace(world *World, world_position BasePosition, v2 Offset)
+MapIntoChunkSpace(world *World, world_position BasePosition, v2 Offset)
 {
   world_position Result = BasePosition;
 
@@ -165,8 +165,7 @@ CenteredChunkPoint(s32 ChunkX, s32 ChunkY, s32 ChunkZ)
 internal inline void
 ChangeEntityLocation(memory_arena *Arena, world *World, u32 LowEntityIndex,
 		     world_position *OldP, world_position *NewP)
-{
-  
+{  
   if(OldP && AreInSameChunk(World, OldP, NewP))
     {
     }
@@ -178,13 +177,14 @@ ChangeEntityLocation(memory_arena *Arena, world *World, u32 LowEntityIndex,
 	  Assert(Chunk);
 	  if(Chunk)
 	    {
+	      bool32 NotFound = true;
 	      world_entity_block *FirstBlock = &Chunk->FirstBlock; 
 	      for(world_entity_block *Block = &Chunk->FirstBlock;
-		  Block;
+		  Block && NotFound;
 		  Block = Block->Next)
 		{
 		  for(u32 Index = 0;
-		      Index < Block->EntityCount;
+		      (Index < Block->EntityCount) && NotFound;
 		      ++Index)
 		    {
 		      if(Block->LowEntityIndex[Index] == LowEntityIndex)
@@ -203,8 +203,7 @@ ChangeEntityLocation(memory_arena *Arena, world *World, u32 LowEntityIndex,
 				}
 			    }
 			  
-			  Block = 0;
-			  break;
+			  NotFound = false;
 			}
 		    }
 		}
@@ -230,7 +229,7 @@ ChangeEntityLocation(memory_arena *Arena, world *World, u32 LowEntityIndex,
 	  Block->EntityCount = 0;
 	}
 
-      Assert(Block->EntityCount == ArrayCount(Block->LowEntityIndex));
+      Assert(Block->EntityCount < ArrayCount(Block->LowEntityIndex));
       Block->LowEntityIndex[Block->EntityCount++] = LowEntityIndex;
     }
 }
