@@ -54,6 +54,8 @@ typedef double r64;
 #define Assert(Expresion) if(!(Expresion)){(*((int*)0) = 0);}
 #endif
 
+#define InvalidCodePath Assert(!"InvalidCodePath")
+
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
 
 #define Kilobytes(Value) (Value*1024LL)

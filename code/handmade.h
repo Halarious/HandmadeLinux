@@ -119,6 +119,13 @@ typedef struct
   loaded_bitmap Torso;
 } hero_bitmaps;
 
+typedef enum
+{
+  EntityType_Null,
+  EntityType_Hero,
+  EntityType_Wall,
+} entity_type;
+
 typedef struct
 {
   v2 P;
@@ -128,37 +135,28 @@ typedef struct
 
   r32 Z;
   r32 dZ;
+
+  u32 LowEntityIndex;
 } high_entity;
 
 typedef struct
 {
-  int PlaceHolder;
-} low_entity;
+  entity_type Type;
 
-typedef struct
-{
+  tile_map_position P;  
+
   r32 Height;
   r32 Width;
 
   s32 dAbsTileZ;
   bool32 Collides;
-  
-  tile_map_position P;
-} dormant_entity;
 
-typedef enum 
-{
-  EntityResidence_NonExistent,
-  EntityResidence_Dormant,
-  EntityResidence_Low,
-  EntityResidence_High,
-} entity_residence;
+  u32 HighEntityIndex;
+} low_entity;
 
 typedef struct
-{
-  u32 Residence;
-  
-  dormant_entity *Dormant;
+{  
+  u32 LowIndex;
   low_entity *Low;
   high_entity *High;
 } entity;
@@ -175,11 +173,13 @@ typedef struct
   tile_map_position CameraP;
   
   u32 PlayerIndexForController[ArrayCount(((input*)0)->Controllers)];
-  u32 EntityCount;
-  entity_residence EntityResidence[256];
-  high_entity HighEntities[256];
-  low_entity LowEntities[256];
-  dormant_entity DormantEntities[256];
+
+  u32 LowEntityCount;
+  low_entity LowEntities[4096];
+  
+  u32 HighEntityCount;
+  high_entity HighEntities_[256];
+
   
   loaded_bitmap Backdrop;
   loaded_bitmap Shadow;

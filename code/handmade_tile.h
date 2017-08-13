@@ -7,39 +7,42 @@ typedef struct
 
 typedef struct
 {  
-  u32 AbsTileX;
-  u32 AbsTileY;
-  u32 AbsTileZ;
+  s32 AbsTileX;
+  s32 AbsTileY;
+  s32 AbsTileZ;
 
   v2 Offset_;
 } tile_map_position; 
 
-typedef struct
+typedef struct tile_chunk tile_chunk;
+struct tile_chunk
 {
+  s32 TileChunkX;
+  s32 TileChunkY;
+  s32 TileChunkZ;
+
   u32 *Tiles;
-} tile_chunk;
+
+  tile_chunk* NextInHash;
+};
 
 typedef struct
 {
-  u32 TileChunkX;
-  u32 TileChunkY;
-  u32 TileChunkZ;
+  s32 TileChunkX;
+  s32 TileChunkY;
+  s32 TileChunkZ;
   
-  u32 RelTileX;
-  u32 RelTileY;
+  s32 RelTileX;
+  s32 RelTileY;
 } tile_chunk_position; 
 
 typedef struct
 {
   r32 TileSideInMeters;
 
-  u32 ChunkShift;
-  u32 ChunkMask;
-  u32 ChunkDim;  
+  s32 ChunkShift;
+  s32 ChunkMask;
+  s32 ChunkDim;  
 
-  u32 TileChunkCountX;
-  u32 TileChunkCountY;
-  u32 TileChunkCountZ;
-  
-  tile_chunk *TileChunks;
+  tile_chunk TileChunkHash[4096];
 } tile_map;

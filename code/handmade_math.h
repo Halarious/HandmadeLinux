@@ -84,3 +84,60 @@ LengthSq(v2 V)
   r32 Result = Inner(V, V);
   return(Result);
 }
+
+typedef struct
+{
+  v2 Min;
+  v2 Max;
+} rectangle2;
+
+internal inline rectangle2
+RectMinMax(v2 Min, v2 Max)
+{
+  rectangle2 Result;
+
+  Result.Min = Min;
+  Result.Max = Max;
+
+  return(Result);
+}
+
+internal inline rectangle2
+RectMinDim(v2 Min, v2 Dim)
+{
+  rectangle2 Result;
+
+  Result.Min = Min;
+  Result.Max = VAdd(Min, Dim);
+
+  return(Result);
+}
+
+internal inline rectangle2
+RectCenterHalfDim(v2 Center, v2 HalfDim)
+{
+  rectangle2 Result;
+
+  Result.Min = VSub(Center, HalfDim);
+  Result.Max = VAdd(Center, HalfDim);
+
+  return(Result);
+}
+
+internal inline rectangle2
+RectCenterDim(v2 Center, v2 Dim)
+{
+  rectangle2 Result = RectCenterHalfDim(Center,
+					VMulS(0.5f, Dim));
+  return(Result);
+}
+
+internal inline bool32
+IsInRectangle(rectangle2 Rectangle, v2 Test)
+{
+  bool32 Result = ((Test.X >= Rectangle.Min.X) &&
+		   (Test.Y >= Rectangle.Min.Y) &&
+		   (Test.X  < Rectangle.Max.X) &&
+		   (Test.Y  < Rectangle.Max.Y));
+  return(Result);
+}
