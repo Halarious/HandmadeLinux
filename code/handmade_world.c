@@ -126,9 +126,24 @@ ChunkPositionFromTilePosition(world *World,
   Result.ChunkX = (AbsTileX / TILES_PER_CHUNK);
   Result.ChunkY = (AbsTileY / TILES_PER_CHUNK);;
   Result.ChunkZ = (AbsTileZ / TILES_PER_CHUNK);;
+  if(AbsTileX < 0)
+    {
+      --Result.ChunkX;
+    }
+  if(AbsTileY < 0)
+    {
+      --Result.ChunkY;
+    }
+  if(AbsTileZ < 0)
+    {
+      --Result.ChunkZ;
+    }
+  
+  Result.Offset_.X = (r32)((AbsTileX - TILES_PER_CHUNK/2) - (Result.ChunkX*TILES_PER_CHUNK)) * World->TileSideInMeters;
+  Result.Offset_.Y = (r32)((AbsTileY - TILES_PER_CHUNK/2) - (Result.ChunkY*TILES_PER_CHUNK)) * World->TileSideInMeters;
 
-  Result.Offset_.X = (r32)(AbsTileX - (Result.ChunkX*TILES_PER_CHUNK)) * World->TileSideInMeters;
-  Result.Offset_.Y = (r32)(AbsTileY - (Result.ChunkY*TILES_PER_CHUNK)) * World->TileSideInMeters;
+  Assert(IsCannonicalV(World, Result.Offset_));
+  
   return(Result);
 }
 

@@ -106,8 +106,7 @@ PushSize_(memory_arena* Arena, memory_index Size)
 
 typedef struct
 {
-  s32 AlignX;
-  s32 AlignY;
+  v2 Align;
   
   loaded_bitmap Head;
   loaded_bitmap Cape;
@@ -119,6 +118,8 @@ typedef enum
   EntityType_Null,
   EntityType_Hero,
   EntityType_Wall,
+  EntityType_Familiar,
+  EntityType_Monstar,
 } entity_type;
 
 typedef struct
@@ -128,6 +129,8 @@ typedef struct
   u32 ChunkZ;
   u32 FacingDirection;
 
+  r32 tBob;
+  
   r32 Z;
   r32 dZ;
 
@@ -155,7 +158,21 @@ typedef struct
   low_entity *Low;
   high_entity *High;
 } entity;
-  
+
+typedef struct
+{
+  loaded_bitmap *Bitmap;
+  v2 Offset;
+  r32 OffsetZ;
+  r32 Alpha;
+} entity_visible_piece;
+
+typedef struct
+{
+  u32 Count;
+  entity_visible_piece Pieces[8];
+} entity_visible_piece_group;
+
 typedef struct
 {
   memory_arena WorldArena;
