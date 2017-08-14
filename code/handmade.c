@@ -527,7 +527,10 @@ AddPlayer(state *State)
 {
   world_position P = State->CameraP;
   add_low_entity_result Entity = AddLowEntity(State, EntityType_Hero, &P);
-  
+
+  Entity.Low->HitPointMax = 3;//1.4f;
+  Entity.Low->HitPoints[2].FilledAmount = HIT_POINT_SUB_COUNT;
+  Entity.Low->HitPoints[0] = Entity.Low->HitPoints[1] = Entity.Low->HitPoints[2];
   Entity.Low->Height = 0.5f;//1.4f;
   Entity.Low->Width  = 1.0f;// * Entity->Height;
   Entity.Low->Collides = true;
@@ -808,15 +811,39 @@ SetCamera(state *State, world_position NewCameraP)
 }
 
 internal inline void
-PushPiece(entity_visible_piece_group *Group, loaded_bitmap* Bitmap, v2 Offset, r32 OffsetZ, v2 Align, r32 Alpha)
+PushPiece(entity_visible_piece_group *Group, loaded_bitmap* Bitmap,
+	  v2 Offset, r32 OffsetZ, v2 Align, v2 Dim, v4 Color, r32 EntityZC)
 {
   Assert(Group->Count < ArrayCount(Group->Pieces));
   entity_visible_piece *Piece = Group->Pieces + Group->Count++;
 
   Piece->Bitmap = Bitmap;
-  Piece->Offset = VSub(Offset, Align);
-  Piece->OffsetZ = OffsetZ;
-  Piece->Alpha = Alpha;
+  Piece->Offset = VSub(VMulS(Group->State->MetersToPixels,
+			     V2(Offset.X, -Offset.Y)),
+		       Align);  
+  Piece->OffsetZ = Group->State->MetersToPixels * OffsetZ;
+  Piece->EntityZC = EntityZC;
+  Piece->A = Color.A;
+  Piece->R = Color.R;
+  Piece->G = Color.G;
+  Piece->B = Color.B;
+  Piece->Dim = Dim;
+}
+
+internal inline void
+PushBitmap(entity_visible_piece_group *Group, loaded_bitmap* Bitmap,
+	   v2 Offset, r32 OffsetZ, v2 Align, r32 Alpha, r32 EntityZC)
+{
+  PushPiece(Group, Bitmap, Offset, OffsetZ, Align, V2(0, 0),
+	    V4(1.0f, 1.0f, 1.0f, Alpha), EntityZC);
+}
+
+internal inline void
+PushRect(entity_visible_piece_group *Group, v2 Offset, r32 OffsetZ,
+	 v2 Dim, v4 Color, r32 EntityZC)
+{
+  PushPiece(Group, 0, Offset, OffsetZ, V2(0, 0), Dim,
+	    Color, EntityZC);
 }
 
 internal entity
@@ -864,7 +891,7 @@ UpdateFamiliar(state *State, entity Entity, r32 dt)
     }
   
   v2 ddP = {};
-  if((ClosestHero.High) && (ClosestHeroDSq > 0.1f))
+  if((ClosestHero.High) && (ClosestHeroDSq > Square(3.0f)))
     {
       r32 Acceleration = 0.5f;
       r32 OneOverLength = Acceleration / SquareRoot(ClosestHeroDSq);
@@ -945,6 +972,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       world *World   = State->World;
       InitializeWorld(World, 1.4f);
       
+      s32 TileSideInPixels = 60;
+      State->MetersToPixels = (r32)TileSideInPixels / (r32)World->TileSideInMeters;
       u32 RandomNumberIndex = 0;
 	        
       u32 TilesPerWidth = 17;
@@ -1119,9 +1148,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
     }
 
   world *World = State->World;
-  
-  s32 TileSideInPixels = 60;
-  r32 MetersToPixels = (r32)TileSideInPixels / (r32)World->TileSideInMeters;
+  r32 MetersToPixels = State->MetersToPixels;
 
   for(int ControllerIndex = 0;
       ControllerIndex < ArrayCount(Input->Controllers);
@@ -1219,13 +1246,14 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   r32 ScreenCenterX = 0.5f * (r32)Buffer->Width;
   r32 ScreenCenterY = 0.5f * (r32)Buffer->Height;
 
-  entity_visible_piece_group PieceGroup;
+  entity_visible_piece_group PieceGroup = {};
   for(u32 HighEntityIndex = 1;
       HighEntityIndex < State->HighEntityCount;
       ++HighEntityIndex)
     {
       PieceGroup.Count = 0;
-      
+      PieceGroup.State = State;
+	
       high_entity *HighEntity = State->HighEntities_ + HighEntityIndex;
       low_entity *LowEntity = State->LowEntities + HighEntity->LowEntityIndex;
 
@@ -1247,14 +1275,38 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	{
 	case EntityType_Hero:
 	  {
-	    PushPiece(&PieceGroup, &State->Shadow, V2(0, 0), 0 ,Hero->Align, ShadowAlpha);
-	    PushPiece(&PieceGroup, &Hero->Torso, V2(0, 0), 0 ,Hero->Align, 1.0f);
-	    PushPiece(&PieceGroup, &Hero->Cape,  V2(0, 0), 0 ,Hero->Align, 1.0f);
-	    PushPiece(&PieceGroup, &Hero->Head,  V2(0, 0), 0 ,Hero->Align, 1.0f);	
+	    PushBitmap(&PieceGroup, &State->Shadow, V2(0, 0), 0 ,Hero->Align, ShadowAlpha, 0.0f);
+	    PushBitmap(&PieceGroup, &Hero->Torso, V2(0, 0), 0 ,Hero->Align, 1.0f, 1.0f);
+	    PushBitmap(&PieceGroup, &Hero->Cape,  V2(0, 0), 0 ,Hero->Align, 1.0f, 1.0f);
+	    PushBitmap(&PieceGroup, &Hero->Head,  V2(0, 0), 0 ,Hero->Align, 1.0f, 1.0f);	
+
+	    if(LowEntity->HitPointMax >= 1)
+	      {
+		v2 HealthDim = {0.2f, 0.2f};
+		r32 SpacingX = 1.5f*HealthDim.X;
+		v2 HitP = {-0.5f*(LowEntity->HitPointMax - 1)*SpacingX, -0.2f};
+		v2 dHitP = {SpacingX, 0.0f};
+		for(u32 HealthIndex = 0;
+		    HealthIndex < LowEntity->HitPointMax;
+		    ++HealthIndex)
+		  {
+		    hit_point *HitPoint = LowEntity->HitPoints + HealthIndex;
+		    v4 Color = {1.0f, 0.0f, 0.0f, 1.0f};
+		    if(HitPoint->FilledAmount == 0)
+		      {
+			Color.R = 0.2f;
+			Color.G = 0.2f;
+			Color.B = 0.2f;
+		      }
+		    PushRect(&PieceGroup, HitP, 0, HealthDim, Color, 0.0f);
+		    HitP = VAdd(HitP, dHitP);
+		  }
+	      }
+	    
 	  } break;
 	case EntityType_Wall:
 	  {
-	    PushPiece(&PieceGroup, &State->Tree, V2(0, 0), 0 ,V2(40, 80), 1.0f);
+	    PushBitmap(&PieceGroup, &State->Tree, V2(0, 0), 0 ,V2(40, 80), 1.0f, 1.0f);
 	  } break;
 	case EntityType_Familiar:
 	  {
@@ -1264,14 +1316,15 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	      {
 		Entity.High->tBob -= 2.0f * Pi32;
 	      }
-	    PushPiece(&PieceGroup, &State->Shadow, V2(0, 0), 0, Hero->Align, ShadowAlpha);
-	    PushPiece(&PieceGroup, &Hero->Head, V2(0, 0), 10.0f*Sin(2.0f*Entity.High->tBob) ,Hero->Align, 1.0f);
+	    r32 BobSin = Sin(2.0f*Entity.High->tBob);
+	    PushBitmap(&PieceGroup, &State->Shadow, V2(0, 0), 0, Hero->Align, (0.5f*ShadowAlpha) + 0.2f*BobSin, 0.0f);
+	    PushBitmap(&PieceGroup, &Hero->Head, V2(0, 0), 0.25f*BobSin, Hero->Align, 1.0f, 1.0f);
 	  } break;
 	case EntityType_Monstar:
 	  {
 	    UpdateMonstar(State, Entity, dt);
-	    PushPiece(&PieceGroup, &State->Shadow, V2(0, 0), 0 ,Hero->Align, ShadowAlpha);
-	    PushPiece(&PieceGroup, &Hero->Torso, V2(0, 0), 0 ,Hero->Align, 1.0f);
+	    PushBitmap(&PieceGroup, &State->Shadow, V2(0, 0), 0 ,Hero->Align, ShadowAlpha, 1.0f);
+	    PushBitmap(&PieceGroup, &Hero->Torso, V2(0, 0), 0 ,Hero->Align, 1.0f, 1.0f);
 	  } break;
 	default:
 	  {
@@ -1307,10 +1360,22 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  ++PieceIndex)
 	{
 	  entity_visible_piece *Piece = PieceGroup.Pieces + PieceIndex;
-	  DrawBitmap(Buffer, Piece->Bitmap,
-		     Piece->Offset.X + EntityGroundPointX,
-		     Piece->Offset.Y + EntityGroundPointY + Piece->OffsetZ,
-		     Piece->Alpha);
+	  v2 Center = {Piece->Offset.X + EntityGroundPointX,
+		       Piece->Offset.Y + EntityGroundPointY
+		       + Piece->OffsetZ + Piece->EntityZC*EntityZ};;
+	  if(Piece->Bitmap)
+	    {
+	      DrawBitmap(Buffer, Piece->Bitmap,
+			 Center.X, Center.Y, Piece->A);
+	    }
+	  else
+	    {
+	      v2 HalfDim = VMulS(0.5f*MetersToPixels, Piece->Dim);
+	      DrawRectangle(Buffer,
+			    VSub(Center, HalfDim),
+			    VAdd(Center, HalfDim),
+			    Piece->R, Piece->G, Piece->B);
+	    }
 	}
     }
 }

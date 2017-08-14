@@ -9,6 +9,42 @@ typedef union
   r32 E[2];
 } v2;
 
+typedef union
+{
+  struct
+  {
+    r32 X;
+    r32 Y;
+    r32 Z;
+  };
+  struct
+  {
+    r32 R;
+    r32 G;
+    r32 B;
+  };
+  r32 E[3];
+} v3;
+
+typedef union
+{
+  struct
+  {
+    r32 X;
+    r32 Y;
+    r32 Z;
+    r32 W;
+  };
+  struct
+  {
+    r32 R;
+    r32 G;
+    r32 B;
+    r32 A;
+  };
+  r32 E[4];
+} v4;
+
 internal inline v2
 V2(r32 X, r32 Y)
 {
@@ -16,6 +52,31 @@ V2(r32 X, r32 Y)
 
   Result.X = X;
   Result.Y = Y;
+
+  return(Result);  
+}
+
+internal inline v3
+V3(r32 X, r32 Y, r32 Z)
+{
+  v3 Result;
+
+  Result.X = X;
+  Result.Y = Y;
+  Result.Z = Z;
+  
+  return(Result);  
+}
+
+internal inline v4
+V4(r32 X, r32 Y, r32 Z, r32 W)
+{
+  v4 Result;
+
+  Result.X = X;
+  Result.Y = Y;
+  Result.Z = Z;
+  Result.W = W;
 
   return(Result);  
 }

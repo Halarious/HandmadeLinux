@@ -137,6 +137,13 @@ typedef struct
   u32 LowEntityIndex;
 } high_entity;
 
+#define HIT_POINT_SUB_COUNT 4
+typedef struct
+{
+  u8 Flags;
+  u8 FilledAmount;
+} hit_point; 
+
 typedef struct
 {
   entity_type Type;
@@ -150,6 +157,9 @@ typedef struct
   bool32 Collides;
 
   u32 HighEntityIndex;
+
+  u32 HitPointMax;
+  hit_point HitPoints[16];
 } low_entity;
 
 typedef struct
@@ -164,14 +174,11 @@ typedef struct
   loaded_bitmap *Bitmap;
   v2 Offset;
   r32 OffsetZ;
-  r32 Alpha;
-} entity_visible_piece;
+  r32 EntityZC;
 
-typedef struct
-{
-  u32 Count;
-  entity_visible_piece Pieces[8];
-} entity_visible_piece_group;
+  r32 R, G, B, A;
+  v2 Dim;
+} entity_visible_piece;
 
 typedef struct
 {
@@ -185,6 +192,8 @@ typedef struct
   
   u32 PlayerIndexForController[ArrayCount(((input*)0)->Controllers)];
 
+  r32 MetersToPixels;
+  
   u32 LowEntityCount;
   low_entity LowEntities[100000];
   
@@ -198,3 +207,10 @@ typedef struct
 
   loaded_bitmap Tree;
 } state;
+
+typedef struct
+{
+  state *State;
+  u32 Count;
+  entity_visible_piece Pieces[32];
+} entity_visible_piece_group;
