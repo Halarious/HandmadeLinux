@@ -103,6 +103,7 @@ PushSize_(memory_arena* Arena, memory_index Size)
 #include "handmade_intrinsics.h"
 #include "handmade_math.h"
 #include "handmade_world.h"
+#include "handmade_sim_region.h"
 
 typedef struct
 {
@@ -123,21 +124,6 @@ typedef enum
   EntityType_Sword,
 } entity_type;
 
-typedef struct
-{
-  v2 P;
-  v2 dP;
-  u32 ChunkZ;
-  u32 FacingDirection;
-
-  r32 tBob;
-  
-  r32 Z;
-  r32 dZ;
-
-  u32 LowEntityIndex;
-} high_entity;
-
 #define HIT_POINT_SUB_COUNT 4
 typedef struct
 {
@@ -153,10 +139,12 @@ typedef struct
   r32 Height;
   r32 Width;
 
+  v2 dP;
+  u32 FacingDirection;
+  r32 tBob;
+   
   s32 ChunkZ;
   bool32 Collides;
-
-  u32 HighEntityIndex;
 
   u32 HitPointMax;
   hit_point HitPoints[16];
@@ -164,13 +152,6 @@ typedef struct
   u32 SwordLowIndex;
   r32 DistanceRemaining;
 } low_entity;
-
-typedef struct
-{  
-  u32 LowIndex;
-  low_entity *Low;
-  high_entity *High;
-} entity;
 
 typedef struct
 {
@@ -199,10 +180,6 @@ typedef struct
   
   u32 LowEntityCount;
   low_entity LowEntities[100000];
-  
-  u32 HighEntityCount;
-  high_entity HighEntities_[256];
-
   
   loaded_bitmap Backdrop;
   loaded_bitmap Shadow;
