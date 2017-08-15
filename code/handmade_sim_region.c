@@ -10,8 +10,9 @@ GetHashFromStorageIndex(sim_region *SimRegion, u32 StorageIndex)
       Offset < ArrayCount(SimRegion->Hash);
       ++Offset)
     {
-      sim_entity_hash *Entry = SimRegion->Hash +
-	((HashValue + Offset) & (ArrayCount(SimRegion->Hash) - 1));
+      u32 HashMask = ArrayCount(SimRegion->Hash) - 1;
+      u32 HashIndex = (HashValue + Offset) & HashMask;
+      sim_entity_hash *Entry = SimRegion->Hash + HashIndex;
       if((Entry->Index == 0) || (Entry->Index == StorageIndex))
 	{
 	  Result = Entry;
@@ -129,14 +130,15 @@ internal sim_region*
 BeginSim(memory_arena *SimArena, state* State, world* World, world_position Origin, rectangle2 Bounds)
 {
   sim_region *SimRegion = PushStruct(SimArena, sim_region);
+  ZeroStruct(SimRegion->Hash);
+  
+  SimRegion->World = World;
+  SimRegion->Origin = Origin;
+  SimRegion->Bounds = Bounds;
 
   SimRegion->MaxEntityCount = 4096;
   SimRegion->EntityCount = 0;
   SimRegion->Entities = PushArray(SimArena, SimRegion->MaxEntityCount, sim_entity);
-    
-  SimRegion->World = World;
-  SimRegion->Origin = Origin;
-  SimRegion->Bounds = Bounds;
   
   world_position MinChunkP =
     MapIntoChunkSpace(World, SimRegion->Origin, GetMinCorner(SimRegion->Bounds));

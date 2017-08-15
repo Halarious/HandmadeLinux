@@ -18,8 +18,8 @@
 #include "handmade.h"
 #include "handmade_world.c"
 #include "handmade_random.h"
-
 #include "handmade_sim_region.c"
+#include "handmade_entity.c"
 
 #define STB_TRUETYPE_IMPLEMENTATION 
 #include "stb_truetype.h"
@@ -460,18 +460,6 @@ AddFamiliar(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
   return(Entity);
 }
 
-internal inline move_spec
-DefaultMoveSpec()
-{  
-  move_spec Result;
-
-  Result.UnitMaxAccelVector = false;
-  Result.Speed = 1.0f;
-  Result.Drag = 0.0f;
-
-  return(Result);
-}
-
 internal inline void
 PushPiece(entity_visible_piece_group *Group, loaded_bitmap* Bitmap,
 	  v2 Offset, r32 OffsetZ, v2 Align, v2 Dim, v4 Color, r32 EntityZC)
@@ -509,88 +497,19 @@ PushRect(entity_visible_piece_group *Group, v2 Offset, r32 OffsetZ,
 }
 
 internal void
-UpdateFamiliar(state *State, entity Entity, r32 dt)
+DrawHitpoints(sim_entity *Entity, entity_visible_piece_group *Group)
 {
-  entity ClosestHero = {};
-  r32 ClosestHeroDSq = Square(10.0f);
-  for(u32 HighEntityIndex = 1;
-      HighEntityIndex < State->HighEntityCount;
-      ++HighEntityIndex)
-    {
-      entity TestEntity = EntityFromHighIndex(State, HighEntityIndex);
-
-      if((HighEntityIndex != Entity.Low->Sim.HighEntityIndex) &&
-	 ((TestEntity.Low->Sim.Type == EntityType_Hero)))
-	{
-	  r32 TestDSq = LengthSq(VSub(TestEntity.High->P,
-				      Entity.High->P));
-	  if(TestEntity.Low->Sim.Type == EntityType_Hero)
-	    {
-	      TestDSq *= 0.75f;
-	    }
-	  if(ClosestHeroDSq > TestDSq)
-	    {
-	      ClosestHero = TestEntity;
-	      ClosestHeroDSq = TestDSq; 
-	    }
-	}
-    }
-  
-  v2 ddP = {};
-  if((ClosestHero.High) && (ClosestHeroDSq > Square(3.0f)))
-    {
-      r32 Acceleration = 0.5f;
-      r32 OneOverLength = Acceleration / SquareRoot(ClosestHeroDSq);
-      ddP = VMulS(OneOverLength,
-		  VSub(ClosestHero.High->P, Entity.High->P));
-    }
-
-  move_spec MoveSpec = DefaultMoveSpec();
-  MoveSpec.UnitMaxAccelVector = true;
-  MoveSpec.Speed = 50.0f;
-  MoveSpec.Drag = 8.0f;
-  MoveEntity(State, Entity, dt, &MoveSpec, ddP);
-}
-
-internal void
-UpdateMonstar(state *State, entity Entity, r32 dt)
-{
-}
-
-internal void
-UpdateSword(state *State, entity Entity, r32 dt)
-{  
-  move_spec MoveSpec = DefaultMoveSpec();
-  MoveSpec.UnitMaxAccelVector = false;
-  MoveSpec.Speed = 0.0f;
-  MoveSpec.Drag = 0.0f;
-
-  v2 OldP = Entity.High->P;
-  MoveEntity(State, Entity, dt, &MoveSpec, V2(0, 0));
-  r32 DistanceTraveled = Length(VSub(Entity.High->P,
-				     OldP));
-  Entity.Low->Sim.DistanceRemaining -= DistanceTraveled;
-  if(Entity.Low->Sim.DistanceRemaining < 0.0f)
-    {
-      ChangeEntityLocation(&State->WorldArena, State->World,
-			   Entity.LowIndex, Entity.Low, &Entity.Low->Sim.P, 0);
-    }
-}
-
-internal void
-DrawHitpoints(low_entity *LowEntity, entity_visible_piece_group *Group)
-{
-  if(LowEntity->HitPointMax >= 1)
+  if(Entity->HitPointMax >= 1)
     {
       v2 HealthDim = {0.2f, 0.2f};
       r32 SpacingX = 1.5f*HealthDim.X;
-      v2 HitP = {-0.5f*(LowEntity->HitPointMax - 1)*SpacingX, -0.2f};
+      v2 HitP = {-0.5f*(Entity->HitPointMax - 1)*SpacingX, -0.2f};
       v2 dHitP = {SpacingX, 0.0f};
       for(u32 HealthIndex = 0;
-	  HealthIndex < LowEntity->HitPointMax;
+	  HealthIndex < Entity->HitPointMax;
 	  ++HealthIndex)
 	{
-	  hit_point *HitPoint = LowEntity->HitPoints + HealthIndex;
+	  hit_point *HitPoint = Entity->HitPoints + HealthIndex;
 	  v4 Color = {1.0f, 0.0f, 0.0f, 1.0f};
 	  if(HitPoint->FilledAmount == 0)
 	    {
@@ -610,8 +529,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   if(!Memory->isInitialized)
     {
       AddLowEntity(State, EntityType_Null, 0);
-      State->HighEntityCount = 1;
-      
+            
       State->Backdrop
 	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_background.bmp");
       State->Shadow
@@ -661,9 +579,9 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       //NOTE We will do this much differently once we have a system
       //     for the assets like fonts and bitmaps.
       /*InitializeArena(&State->BitmapArena, Megabytes(1),
-		      (u8*)Memory->PermanentStorage + sizeof(state));
-      InitializeArena(&State->Font.GlyphArena, Memory->PermanentStorageSize - sizeof(state),
-		      (u8*)Memory->PermanentStorage + sizeof(state) + Megabytes(1));
+	(u8*)Memory->PermanentStorage + sizeof(state));
+	InitializeArena(&State->Font.GlyphArena, Memory->PermanentStorageSize - sizeof(state),
+	(u8*)Memory->PermanentStorage + sizeof(state) + Megabytes(1));
       */
       InitializeArena(&State->WorldArena, Memory->PermanentStorageSize - sizeof(state),
 		      (u8*)Memory->PermanentStorage + sizeof(state));
@@ -853,96 +771,79 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       ++ControllerIndex)
     {
       controller_input *Controller = GetController(Input, ControllerIndex);
-      u32 LowIndex = State->PlayerIndexForController[ControllerIndex];
-      if(LowIndex == 0)
+      controlled_hero *ConHero = State->ControlledHeroes + ControllerIndex;
+      if(ConHero->EntityIndex == 0)
 	{
 	  if(Controller->Start.EndedDown)
 	    {
-	      u32 EntityIndex = AddPlayer(State).LowIndex;
-	      State->PlayerIndexForController[ControllerIndex] = EntityIndex;
+	      controlled_hero ZeroHero = {};
+	      *ConHero = ZeroHero;
+	      
+	      ConHero->EntityIndex = AddPlayer(State).LowIndex;
 	    }
 	}
       else
 	{
-	  entity ControllingEntity = ForceEntityIntoHigh(State, LowIndex);
-	  v2 ddEntity = {};
-
+	  ConHero->ddP = V2(0, 0);
 	  if(Controller->IsAnalog)
 	    {
-	      ddEntity = (v2){Controller->StickAverageX,
-			      Controller->StickAverageY};
+	      ConHero->ddP = (v2){Controller->StickAverageX,
+				  Controller->StickAverageY};
 	    }
 	  else
 	    {
 	      if(Controller->MoveUp.EndedDown)
 		{
-		  ddEntity.Y = 1.0f;
+		  ConHero->ddP.Y = 1.0f;
 		}
 	      if(Controller->MoveDown.EndedDown)
 		{
-		  ddEntity.Y = -1.0f;
+		  ConHero->ddP.Y = -1.0f;
 		}
 	      if(Controller->MoveLeft.EndedDown)
 		{
-		  ddEntity.X = -1.0f;
+		  ConHero->ddP.X = -1.0f;
 		}
 	      if(Controller->MoveRight.EndedDown)
 		{
-		  ddEntity.X = 1.0f;
+		  ConHero->ddP.X = 1.0f;
 		}	  
 	    }
- 
+
+	  ConHero->dSword = V2(0, 0);	  
 	  if(Controller->Start.EndedDown)
 	    {
-	      ControllingEntity.High->dZ = 3.0f;
+	      ConHero->dZ = 3.0f;
 	    }
 
-	  v2 dSword = {};
  	  if(Controller->ActionUp.EndedDown)
 	    {
-	      dSword = V2(0.0f, 1.0f);
+	      ConHero->dSword = V2(0.0f, 1.0f);
 	    }
  	  if(Controller->ActionDown.EndedDown)
 	    {
-	      dSword = V2(0.0f, -1.0f);
+	      ConHero->dSword = V2(0.0f, -1.0f);
 	    } 
 	  if(Controller->ActionLeft.EndedDown)
 	    {
-	      dSword = V2(-1.0f, 0.0f);
+	      ConHero->dSword = V2(-1.0f, 0.0f);
 	    }
 	  if(Controller->ActionRight.EndedDown)
 	    {
-	      dSword = V2(1.0f, 0.0f);
-	    }
-	  
-	  move_spec MoveSpec = DefaultMoveSpec();
-	  MoveSpec.UnitMaxAccelVector = true;
-	  MoveSpec.Speed = 50.0f;
-	  MoveSpec.Drag = 8.0f;
-	  MoveEntity(State, ControllingEntity,
-		     Input->dtForFrame, &MoveSpec, ddEntity);
-	  if((dSword.X != 0.0f) || (dSword.Y != 0.0f))
-	    {
-	      low_entity *LowSword = GetLowEntity(State, ControllingEntity.Low->Sim.SwordLowIndex);
-	      if(LowSword && !IsValid(LowSword->P))
-		{
-		  world_position SwordP = ControllingEntity.Low->Sim.P;
-		  ChangeEntityLocation(&State->WorldArena, World, ControllingEntity.Low->Sim.SwordLowIndex, LowSword, 0, &SwordP);	  
-		  entity Sword = ForceEntityIntoHigh(State, ControllingEntity.Low->Sim.SwordLowIndex);
-
-		  Sword.Low->Sim.DistanceRemaining = 5.0f;
-		  Sword.High->dP = VMulS(5.0f, dSword);
-		}
+	      ConHero->dSword = V2(1.0f, 0.0f);
 	    }
 	}
     }
-  
+
   u32 TileSpanX = 17*3;
   u32 TileSpanY = 9*3;
   rectangle2 CameraBounds = RectCenterDim(V2(0,0),
 					  VMulS(World->TileSideInMeters,
 						V2((r32)TileSpanX, (r32)TileSpanY)));
-  sim_region *SimRegion = BeginSim(SimArena, World, State->CameraP, CameraBounds);
+
+  memory_arena SimArena;
+  InitializeArena(&SimArena, Memory->TransientStorageSize, Memory->TransientStorage);
+  sim_region *SimRegion = BeginSim(&SimArena, State, World, State->CameraP, CameraBounds);
 
 #if 1
   DrawRectangle(Buffer,
@@ -959,34 +860,60 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
   entity_visible_piece_group PieceGroup = {};
   PieceGroup.State = State;
-  entity *Entity = SimRegion->Entites;
+  sim_entity *Entity = SimRegion->Entities;
   for(u32 EntityIndex = 0;
       EntityIndex < SimRegion->EntityCount;
-      ++EntityIndex)
+      ++EntityIndex, ++Entity)
     {
-      PieceGroup.Count = 0;
-	
-      low_entity *LowEntity = State->LowEntities + HighEntity->StorageIndex;
-
+      PieceGroup.Count = 0;      
       r32 dt  = Input->dtForFrame;
 
-      r32 ShadowAlpha = 1.0f - 0.5f*HighEntity->Z;
+      r32 ShadowAlpha = 1.0f - 0.5f*Entity->Z;
       if(ShadowAlpha < 0)
 	{
 	  ShadowAlpha = 0;
 	}
 
-      hero_bitmaps *Hero = &State->HeroBitmaps[LowEntity->FacingDirection];
-      switch(LowEntity->Type)
+      hero_bitmaps *Hero = &State->HeroBitmaps[Entity->FacingDirection];
+      switch(Entity->Type)
 	{
 	case EntityType_Hero:
 	  {
+	    for(u32 ControlIndex = 0;
+		ControlIndex < ArrayCount(State->ControlledHeroes);
+		++ControlIndex)
+	      {
+		controlled_hero *ConHero = State->ControlledHeroes + ControlIndex;
+
+		if(ConHero->EntityIndex == Entity->StorageIndex)
+		  {
+		    Entity->dZ = ConHero->dZ;
+		    move_spec MoveSpec = DefaultMoveSpec();
+		    MoveSpec.UnitMaxAccelVector = true;
+		    MoveSpec.Speed = 50.0f;
+		    MoveSpec.Drag = 8.0f;
+		    MoveEntity(SimRegion, Entity,
+			       Input->dtForFrame, &MoveSpec, ConHero->ddP);
+		    if((ConHero->dSword.X != 0.0f) ||
+		       (ConHero->dSword.Y != 0.0f))
+		      {
+			sim_entity *Sword = Entity->Sword.Ptr;
+			if(Sword)
+			  {
+			    Sword->P = Entity->P;
+			    Sword->DistanceRemaining = 5.0f;
+			    Sword->dP = VMulS(5.0f, ConHero->dSword);
+			  }
+		      }
+		  }
+	      }
+	  
 	    PushBitmap(&PieceGroup, &State->Shadow, V2(0, 0), 0 ,Hero->Align, ShadowAlpha, 0.0f);
 	    PushBitmap(&PieceGroup, &Hero->Torso, V2(0, 0), 0 ,Hero->Align, 1.0f, 1.0f);
 	    PushBitmap(&PieceGroup, &Hero->Cape,  V2(0, 0), 0 ,Hero->Align, 1.0f, 1.0f);
 	    PushBitmap(&PieceGroup, &Hero->Head,  V2(0, 0), 0 ,Hero->Align, 1.0f, 1.0f);	
 
-	    DrawHitpoints(LowEntity, &PieceGroup);
+	    DrawHitpoints(Entity, &PieceGroup);
 	    	    
 	  } break;
 	case EntityType_Wall:
@@ -995,26 +922,26 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  } break;
 	case EntityType_Sword:
 	  {
-	    UpdateSword(State, Entity, dt);
+	    UpdateSword(SimRegion, Entity, dt);
 	    PushBitmap(&PieceGroup, &State->Shadow, V2(0, 0), 0 ,Hero->Align, ShadowAlpha, 0.0f);
 	    PushBitmap(&PieceGroup, &State->Sword, V2(0, 0), 0 ,V2(29, 10), 1.0f, 1.0f);
 	  } break;
 	case EntityType_Familiar:
 	  {
-	    UpdateFamiliar(State, Entity, dt);
-	    Entity.High->tBob += dt;
-	    if(Entity.High->tBob > (2.0f * Pi32))
+	    UpdateFamiliar(SimRegion, Entity, dt);
+	    Entity->tBob += dt;
+	    if(Entity->tBob > (2.0f * Pi32))
 	      {
-		Entity.High->tBob -= 2.0f * Pi32;
+		Entity->tBob -= 2.0f * Pi32;
 	      }
-	    r32 BobSin = Sin(2.0f*Entity.High->tBob);
+	    r32 BobSin = Sin(2.0f*Entity->tBob);
 	    PushBitmap(&PieceGroup, &State->Shadow, V2(0, 0), 0, Hero->Align, (0.5f*ShadowAlpha) + 0.2f*BobSin, 0.0f);
 	    PushBitmap(&PieceGroup, &Hero->Head, V2(0, 0), 0.25f*BobSin, Hero->Align, 1.0f, 1.0f);
 	  } break;
 	case EntityType_Monstar:
 	  {
-	    DrawHitpoints(LowEntity, &PieceGroup);
-	    UpdateMonstar(State, Entity, dt);
+	    DrawHitpoints(Entity, &PieceGroup);
+	    UpdateMonstar(SimRegion, Entity, dt);
 	    PushBitmap(&PieceGroup, &State->Shadow, V2(0, 0), 0 ,Hero->Align, ShadowAlpha, 1.0f);
 	    PushBitmap(&PieceGroup, &Hero->Torso, V2(0, 0), 0 ,Hero->Align, 1.0f, 1.0f);
 	  } break;
@@ -1025,8 +952,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	}
       
       r32 ddZ = -9.8f;
-      HighEntity->Z = 0.5f * ddZ * Square(dt) + Entity->dZ*dt + Entity->Z;
-      HighEntity->dZ = ddZ * dt + Entity->dZ;
+      Entity->Z = 0.5f * ddZ * Square(dt) + Entity->dZ*dt + Entity->Z;
+      Entity->dZ = ddZ * dt + Entity->dZ;
       if(Entity->Z < 0)
 	{
 	  Entity->Z = 0;
@@ -1070,6 +997,14 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	    }
 	}
     }
+
+  world_position WorldOrigin = {};
+  world_difference Diff = Subtract(SimRegion->World, &WorldOrigin, &SimRegion->Origin);
+  DrawRectangle(Buffer,
+		Diff.dXY,
+		V2(10.0f,
+		   10.0f),
+		1.0f, 1.0f, 0.0f);
   
   EndSim(SimRegion, State);
 }

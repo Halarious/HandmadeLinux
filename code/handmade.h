@@ -62,16 +62,6 @@ typedef struct
 
 //NOTE: Services the platform layer provides to the game
 
-void
-ZeroSize(memory_index Size, void* Memory)
-{
-  u8* Byte = (u8*) Memory;
-  while(Size--)
-    {
-      *Byte++ = 0;
-    }
-}
-
 inline u32
 SafeTruncateUInt64(u64 Value)
 {
@@ -81,10 +71,10 @@ SafeTruncateUInt64(u64 Value)
 }
 
 internal void
-InitializeArena(memory_arena* Arena, memory_index Size, u8* StorageBase)
+InitializeArena(memory_arena* Arena, memory_index Size, void* StorageBase)
 {
   Arena->Size = Size;
-  Arena->Base = StorageBase;
+  Arena->Base = (u8*)StorageBase;
   Arena->Used = 0;
 }
 
@@ -100,10 +90,22 @@ PushSize_(memory_arena* Arena, memory_index Size)
   return(Result);
 }
 
+#define ZeroStruct(Instance) ZeroSize(sizeof(Instance), &(Instance))
+internal inline void
+ZeroSize(memory_index Size, void *Ptr)
+{
+  u8 *Byte = (u8*)Ptr;
+  while(--Size)
+    {
+      *Byte++ = 0;
+    }
+}
+
 #include "handmade_intrinsics.h"
 #include "handmade_math.h"
 #include "handmade_world.h"
 #include "handmade_sim_region.h"
+#include "handmade_entity.h"
 
 typedef struct
 {
@@ -133,6 +135,15 @@ typedef struct
 
 typedef struct
 {
+  u32 EntityIndex;
+  
+  v2 ddP;
+  v2 dSword;
+  r32 dZ;
+}controlled_hero;
+
+typedef struct
+{
   memory_arena WorldArena;
   memory_arena BitmapArena;
   font         Font;
@@ -141,7 +152,7 @@ typedef struct
   u32 CameraFollowingEntityIndex;
   world_position CameraP;
   
-  u32 PlayerIndexForController[ArrayCount(((input*)0)->Controllers)];
+  controlled_hero ControlledHeroes[ArrayCount(((input*)0)->Controllers)];
 
   r32 MetersToPixels;
   

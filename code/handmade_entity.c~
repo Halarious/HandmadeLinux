@@ -1,0 +1,69 @@
+
+internal void
+UpdateFamiliar(state *State, entity Entity, r32 dt)
+{
+  entity ClosestHero = {};
+  r32 ClosestHeroDSq = Square(10.0f);
+  for(u32 HighEntityIndex = 1;
+      HighEntityIndex < State->HighEntityCount;
+      ++HighEntityIndex)
+    {
+      entity TestEntity = EntityFromHighIndex(State, HighEntityIndex);
+
+      if((HighEntityIndex != Entity.Low->Sim.HighEntityIndex) &&
+	 ((TestEntity.Low->Sim.Type == EntityType_Hero)))
+	{
+	  r32 TestDSq = LengthSq(VSub(TestEntity.High->P,
+				      Entity.High->P));
+	  if(TestEntity.Low->Sim.Type == EntityType_Hero)
+	    {
+	      TestDSq *= 0.75f;
+	    }
+	  if(ClosestHeroDSq > TestDSq)
+	    {
+	      ClosestHero = TestEntity;
+	      ClosestHeroDSq = TestDSq; 
+	    }
+	}
+    }
+  
+  v2 ddP = {};
+  if((ClosestHero.High) && (ClosestHeroDSq > Square(3.0f)))
+    {
+      r32 Acceleration = 0.5f;
+      r32 OneOverLength = Acceleration / SquareRoot(ClosestHeroDSq);
+      ddP = VMulS(OneOverLength,
+		  VSub(ClosestHero.High->P, Entity.High->P));
+    }
+
+  move_spec MoveSpec = DefaultMoveSpec();
+  MoveSpec.UnitMaxAccelVector = true;
+  MoveSpec.Speed = 50.0f;
+  MoveSpec.Drag = 8.0f;
+  MoveEntity(State, Entity, dt, &MoveSpec, ddP);
+}
+
+internal void
+UpdateMonstar(state *State, entity Entity, r32 dt)
+{
+}
+
+internal void
+UpdateSword(state *State, entity Entity, r32 dt)
+{  
+  move_spec MoveSpec = DefaultMoveSpec();
+  MoveSpec.UnitMaxAccelVector = false;
+  MoveSpec.Speed = 0.0f;
+  MoveSpec.Drag = 0.0f;
+
+  v2 OldP = Entity.High->P;
+  MoveEntity(State, Entity, dt, &MoveSpec, V2(0, 0));
+  r32 DistanceTraveled = Length(VSub(Entity.High->P,
+				     OldP));
+  Entity.Low->Sim.DistanceRemaining -= DistanceTraveled;
+  if(Entity.Low->Sim.DistanceRemaining < 0.0f)
+    {
+      ChangeEntityLocation(&State->WorldArena, State->World,
+			   Entity.LowIndex, Entity.Low, &Entity.Low->Sim.P, 0);
+    }
+}
