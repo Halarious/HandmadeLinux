@@ -334,19 +334,6 @@ DrawRectangle(offscreen_buffer *Buffer,
     }
 }
 
-internal inline low_entity*
-GetLowEntity(state *State, u32 Index)
-{
-  low_entity *Result = 0;
-  
-  if((Index > 0) && (Index < State->LowEntityCount))
-    {
-      Result = State->LowEntities + Index; 
-    }
-
-  return(Result);
-}
-
 internal inline v2
 GetCameraSpaceP(state *State, low_entity *LowEntity)
 {
@@ -372,7 +359,7 @@ AddLowEntity(state *State, entity_type Type, world_position *P)
   low_entity  ZeroLow  = {};
   low_entity *LowEntity = State->LowEntities + EntityIndex;
   *LowEntity = ZeroLow;
-  LowEntity->Type = Type;
+  LowEntity->Sim.Type = Type;
 
   ChangeEntityLocation(&State->WorldArena, State->World, EntityIndex,
 		       LowEntity, 0, P);
@@ -390,9 +377,9 @@ AddWall(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
   world_position P = ChunkPositionFromTilePosition(State->World, AbsTileX, AbsTileY, AbsTileZ);
   add_low_entity_result Entity = AddLowEntity(State, EntityType_Wall, &P);
   
-  Entity.Low->Height = State->World->TileSideInMeters;
-  Entity.Low->Width  = Entity.Low->Height;
-  Entity.Low->Collides = true;
+  Entity.Low->Sim.Height = State->World->TileSideInMeters;
+  Entity.Low->Sim.Width  = Entity.Low->Sim.Height;
+  Entity.Low->Sim.Collides = true;
 
   return(Entity);
 }
@@ -400,13 +387,13 @@ AddWall(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
 internal void
 InitHitPoint(low_entity *EntityLow, u32 HitPointCount)
 {
-  Assert(HitPointCount <= ArrayCount(EntityLow->HitPoints));
-  EntityLow->HitPointMax = HitPointCount;
+  Assert(HitPointCount <= ArrayCount(EntityLow->Sim.HitPoints));
+  EntityLow->Sim.HitPointMax = HitPointCount;
   for(u32 HitPointIndex = 0;
-      HitPointIndex < EntityLow->HitPointMax;
+      HitPointIndex < EntityLow->Sim.HitPointMax;
       ++HitPointIndex)
     {
-      hit_point *HitPoint = EntityLow->HitPoints + HitPointIndex;
+      hit_point *HitPoint = EntityLow->Sim.HitPoints + HitPointIndex;
       HitPoint->Flags = 0;
       HitPoint->FilledAmount = HIT_POINT_SUB_COUNT;
     }
@@ -417,9 +404,9 @@ AddSword(state *State)
 {
   add_low_entity_result Entity = AddLowEntity(State, EntityType_Sword, 0);
 
-  Entity.Low->Height = 0.5f;//1.4f;
-  Entity.Low->Width  = 1.0f;// * Entity->Height;
-  Entity.Low->Collides = false;
+  Entity.Low->Sim.Height = 0.5f;//1.4f;
+  Entity.Low->Sim.Width  = 1.0f;// * Entity->Height;
+  Entity.Low->Sim.Collides = false;
 
   return(Entity);
 }
@@ -431,12 +418,12 @@ AddPlayer(state *State)
   add_low_entity_result Entity = AddLowEntity(State, EntityType_Hero, &P);
 
   InitHitPoint(Entity.Low, 3);
-  Entity.Low->Height = 0.5f;
-  Entity.Low->Width  = 1.0f;
-  Entity.Low->Collides = true;
+  Entity.Low->Sim.Height = 0.5f;
+  Entity.Low->Sim.Width  = 1.0f;
+  Entity.Low->Sim.Collides = true;
 
   add_low_entity_result Sword = AddSword(State);
-  Entity.Low->SwordLowIndex = Sword.LowIndex;
+  Entity.Low->Sim.Sword.Index = Sword.LowIndex;
   
   if(State->CameraFollowingEntityIndex == 0)
     {
@@ -453,9 +440,9 @@ AddMonstar(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
   add_low_entity_result Entity = AddLowEntity(State, EntityType_Monstar, &P);
 
   InitHitPoint(Entity.Low, 3);
-  Entity.Low->Height = 0.5f;//1.4f;
-  Entity.Low->Width  = 1.0f;// * Entity->Height;
-  Entity.Low->Collides = true;
+  Entity.Low->Sim.Height = 0.5f;//1.4f;
+  Entity.Low->Sim.Width  = 1.0f;// * Entity->Height;
+  Entity.Low->Sim.Collides = true;
 
   return(Entity);
 }
@@ -466,43 +453,12 @@ AddFamiliar(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
   world_position P = ChunkPositionFromTilePosition(State->World, AbsTileX, AbsTileY, AbsTileZ);
   add_low_entity_result Entity = AddLowEntity(State, EntityType_Familiar, &P);
   
-  Entity.Low->Height = 0.5f;//1.4f;
-  Entity.Low->Width  = 1.0f;// * Entity->Height;
-  Entity.Low->Collides = true;
+  Entity.Low->Sim.Height = 0.5f;//1.4f;
+  Entity.Low->Sim.Width  = 1.0f;// * Entity->Height;
+  Entity.Low->Sim.Collides = true;
 
   return(Entity);
 }
-
-internal bool32
-TestWall(r32 WallX, r32 RelX, r32 RelY, r32 PlayerDeltaX, r32 PlayerDeltaY,
-	 r32 *tMin, r32 MinY, r32 MaxY)
-{
-  bool32 Hit = false;
-
-  r32 Epsilon = 0.001f;
-  if(PlayerDeltaX != 0.0f)
-    {
-      r32 tResult = (WallX - RelX) / PlayerDeltaX;
-      r32 Y = RelY + (tResult * PlayerDeltaY);
-      if((tResult >= 0.0f) && (*tMin > tResult))
-	{
-	  if((Y >= MinY) && (Y <= MaxY))
-	    {
-	      *tMin = Maximum(0.0f, tResult - Epsilon);
-	      Hit = true;
-	    }
-	}
-    }
-
-  return(Hit);
-}
-
-typedef struct
-{
-  bool32 UnitMaxAccelVector;
-  r32 Speed;
-  r32 Drag;
-} move_spec;
 
 internal inline move_spec
 DefaultMoveSpec()
@@ -514,167 +470,6 @@ DefaultMoveSpec()
   Result.Drag = 0.0f;
 
   return(Result);
-}
-
-internal void
-MoveEntity(state *State, entity Entity, r32 dt, move_spec *MoveSpec, v2 ddEntity)
-{
-  world *World = State->World; 
-
-  if(MoveSpec->UnitMaxAccelVector)
-    {
-      r32 ddPSqLength = LengthSq(ddEntity);
-      if(ddPSqLength > 1.0f)
-	{
-	  ddEntity = VMulS(1.0f / SquareRoot(ddPSqLength), ddEntity);
-	}
-    }
-  
-  ddEntity = VMulS(MoveSpec->Speed, ddEntity);
-
-  ddEntity = VAdd(ddEntity,
-		  VMulS(-MoveSpec->Drag, Entity.High->dP));
-
-  v2 OldPlayerP = Entity.High->P;
-  v2 PlayerDelta = VAdd(VMulS(0.5f ,
-			      VMulS(Square(dt),
-				    ddEntity)),
-			VMulS(dt, Entity.High->dP));
-  Entity.High->dP = VAdd(VMulS(dt, ddEntity),
-		    Entity.High->dP);
-  v2 NewPlayerP = VAdd(OldPlayerP, PlayerDelta);
-  /*
-  u32 MinTileX = Minimum(OldPlayerP.AbsTileX, NewPlayerP.AbsTileX);
-  u32 MinTileY = Minimum(OldPlayerP.AbsTileY, NewPlayerP.AbsTileY);
-  u32 MaxTileX = Maximum(OldPlayerP.AbsTileX, NewPlayerP.AbsTileX);
-  u32 MaxTileY = Maximum(OldPlayerP.AbsTileY, NewPlayerP.AbsTileY);
-
-  u32 EntityTileWidth = CeilReal32ToInt32(Entity.Low->Width / World->TileSideInMeters);
-  u32 EntityTileHeight = CeilReal32ToInt32(Entity.Low->Height / World->TileSideInMeters);
-  
-  MinTileX -= EntityTileWidth;
-  MinTileY -= EntityTileHeight;
-  MaxTileX += EntityTileWidth;
-  MaxTileY += EntityTileHeight;
-
-  u32 AbsTileZ = Entity.High->P.AbsTileZ;
-  */
-  for(u32 Iteration = 0;
-      Iteration < 4;
-      ++Iteration)
-    {
-      r32 tMin = 1.0f;
-      v2 WallNormal = {};
-      s32 HitHighEntityIndex = 0;
-      
-      v2 DesiredPosition = VAdd(Entity.High->P, PlayerDelta);
-
-      if(Entity.Low->Collides)
-	{
-	  for(u32 TestHighEntityIndex = 1;
-	      TestHighEntityIndex < State->HighEntityCount;
-	      ++TestHighEntityIndex)
-	    {	
-	      if(TestHighEntityIndex != Entity.Low->HighEntityIndex)
-		{
-		  entity TestEntity;
-		  TestEntity.High = State->HighEntities_ + TestHighEntityIndex; ;
-		  TestEntity.LowIndex = TestEntity.High->LowEntityIndex;
-		  TestEntity.Low  = State->LowEntities + TestEntity.LowIndex;
-		  if(TestEntity.Low->Collides)
-		    {
-		      r32 DiameterW = TestEntity.Low->Width + Entity.Low->Width;
-		      r32 DiameterH = TestEntity.Low->Height + Entity.Low->Height;
-		      v2 MinCorner = (v2){-0.5f*DiameterW,
-					  -0.5f*DiameterH};
-		      v2 MaxCorner = (v2){0.5f*DiameterW,
-					  0.5f*DiameterH};
-
-		      v2 Rel = VSub(Entity.High->P, TestEntity.High->P);
-	  
-		      if(TestWall(MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
-				  &tMin, MinCorner.Y, MaxCorner.Y))
-			{
-			  HitHighEntityIndex = TestHighEntityIndex;
-			  WallNormal = (v2){-1, 0};
-			}
-		      if(TestWall(MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
-				  &tMin, MinCorner.Y, MaxCorner.Y))
-			{
-			  HitHighEntityIndex = TestHighEntityIndex;
-			  WallNormal = (v2){1, 0};
-			}
-		      if(TestWall(MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
-				  &tMin, MinCorner.X, MaxCorner.X))
-			{
-			  HitHighEntityIndex = TestHighEntityIndex;
-			  WallNormal = (v2){0, -1};
-			}
-		      if(TestWall(MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
-				  &tMin, MinCorner.X, MaxCorner.X))
-			{
-			  HitHighEntityIndex = TestHighEntityIndex;
-			  WallNormal = (v2){0, 1};
-			}
-		    }
-		}
-	    }
-	}
-      
-      Entity.High->P = VAdd(Entity.High->P,
-			    VMulS(tMin, PlayerDelta));
-      if(HitHighEntityIndex)
-	{
-	  Entity.High->dP = VSub(Entity.High->dP,
-				 VMulS(1 * Inner(Entity.High->dP, WallNormal),
-				       WallNormal));
-	  PlayerDelta = VSub(DesiredPosition, Entity.High->P);
-	  PlayerDelta = VSub(PlayerDelta,
-			     VMulS(1 * Inner(PlayerDelta, WallNormal),
-				   WallNormal));
-	  
-	  high_entity *HitHigh = State->HighEntities_ + HitHighEntityIndex;
-	  low_entity  *HitLow  = State->LowEntities + HitHigh->LowEntityIndex;
-	  //Entity.High->P.ChunkZ += HitLow->dAbsTileZ;
-	}
-      else
-	{
-	  break;
-	}
-    }
-  
-  if((Entity.High->dP.X == 0) &&
-     (Entity.High->dP.Y == 0))
-    {
-      
-    }
-  else if(AbsoluteValue(Entity.High->dP.X) > AbsoluteValue(Entity.High->dP.Y))
-    {
-      if(Entity.High->dP.X > 0)
-	{
-	  Entity.High->FacingDirection = 0;
-	}
-      else
-	{
-	  Entity.High->FacingDirection = 2;
-	}
-    }
-  else 
-    {
-      if(Entity.High->dP.Y > 0)
-	{
-	  Entity.High->FacingDirection = 1;
-	}
-      else
-	{
-	  Entity.High->FacingDirection = 3;
-	}
-      
-    }
-
-  world_position NewP = MapIntoChunkSpace(World, State->CameraP, Entity.High->P);
-  ChangeEntityLocation(&State->WorldArena, World, Entity.LowIndex,
-		       Entity.Low, &Entity.Low->P, &NewP);
 }
 
 internal inline void
@@ -713,22 +508,6 @@ PushRect(entity_visible_piece_group *Group, v2 Offset, r32 OffsetZ,
 	    Color, EntityZC);
 }
 
-internal entity
-EntityFromHighIndex(state *State, u32 HighEntityIndex)
-{
-  entity Result = {};
-
-  if(HighEntityIndex)
-    {
-      Assert(HighEntityIndex < ArrayCount(State->HighEntities_));
-      Result.High = State->HighEntities_ + HighEntityIndex;
-      Result.LowIndex = Result.High->LowEntityIndex;
-      Result.Low  = State->LowEntities + Result.LowIndex;
-    }
-
-  return(Result);
-}
-
 internal void
 UpdateFamiliar(state *State, entity Entity, r32 dt)
 {
@@ -740,12 +519,12 @@ UpdateFamiliar(state *State, entity Entity, r32 dt)
     {
       entity TestEntity = EntityFromHighIndex(State, HighEntityIndex);
 
-      if((HighEntityIndex != Entity.Low->HighEntityIndex) &&
-	 ((TestEntity.Low->Type == EntityType_Hero)))
+      if((HighEntityIndex != Entity.Low->Sim.HighEntityIndex) &&
+	 ((TestEntity.Low->Sim.Type == EntityType_Hero)))
 	{
 	  r32 TestDSq = LengthSq(VSub(TestEntity.High->P,
 				      Entity.High->P));
-	  if(TestEntity.Low->Type == EntityType_Hero)
+	  if(TestEntity.Low->Sim.Type == EntityType_Hero)
 	    {
 	      TestDSq *= 0.75f;
 	    }
@@ -790,11 +569,11 @@ UpdateSword(state *State, entity Entity, r32 dt)
   MoveEntity(State, Entity, dt, &MoveSpec, V2(0, 0));
   r32 DistanceTraveled = Length(VSub(Entity.High->P,
 				     OldP));
-  Entity.Low->DistanceRemaining -= DistanceTraveled;
-  if(Entity.Low->DistanceRemaining < 0.0f)
+  Entity.Low->Sim.DistanceRemaining -= DistanceTraveled;
+  if(Entity.Low->Sim.DistanceRemaining < 0.0f)
     {
       ChangeEntityLocation(&State->WorldArena, State->World,
-			   Entity.LowIndex, Entity.Low, &Entity.Low->P, 0);
+			   Entity.LowIndex, Entity.Low, &Entity.Low->Sim.P, 0);
     }
 }
 
@@ -1063,8 +842,6 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		      CameraTileY + FamiliarOffsetY, CameraTileZ);
 	}
       
-      SetCamera(State, NewCameraP);
- 
       Memory->isInitialized = true;
     }
 
@@ -1146,14 +923,14 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		     Input->dtForFrame, &MoveSpec, ddEntity);
 	  if((dSword.X != 0.0f) || (dSword.Y != 0.0f))
 	    {
-	      low_entity *LowSword = GetLowEntity(State, ControllingEntity.Low->SwordLowIndex);
+	      low_entity *LowSword = GetLowEntity(State, ControllingEntity.Low->Sim.SwordLowIndex);
 	      if(LowSword && !IsValid(LowSword->P))
 		{
-		  world_position SwordP = ControllingEntity.Low->P;
-		  ChangeEntityLocation(&State->WorldArena, World, ControllingEntity.Low->SwordLowIndex, LowSword, 0, &SwordP);	  
-		  entity Sword = ForceEntityIntoHigh(State, ControllingEntity.Low->SwordLowIndex);
+		  world_position SwordP = ControllingEntity.Low->Sim.P;
+		  ChangeEntityLocation(&State->WorldArena, World, ControllingEntity.Low->Sim.SwordLowIndex, LowSword, 0, &SwordP);	  
+		  entity Sword = ForceEntityIntoHigh(State, ControllingEntity.Low->Sim.SwordLowIndex);
 
-		  Sword.Low->DistanceRemaining = 5.0f;
+		  Sword.Low->Sim.DistanceRemaining = 5.0f;
 		  Sword.High->dP = VMulS(5.0f, dSword);
 		}
 	    }

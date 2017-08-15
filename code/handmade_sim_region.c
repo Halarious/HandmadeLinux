@@ -1,15 +1,91 @@
 
-internal sim_entity*
-_AddEntity(sim_region *SimRegion)
+internal sim_entity_hash* 
+GetHashFromStorageIndex(sim_region *SimRegion, u32 StorageIndex)
 {
+  Assert(StorageIndex);
+
+  sim_entity_hash *Result = 0;
+  u32 HashValue = StorageIndex;
+  for(u32 Offset = 0;
+      Offset < ArrayCount(SimRegion->Hash);
+      ++Offset)
+    {
+      sim_entity_hash *Entry = SimRegion->Hash +
+	((HashValue + Offset) & (ArrayCount(SimRegion->Hash) - 1));
+      if((Entry->Index == 0) || (Entry->Index == StorageIndex))
+	{
+	  Result = Entry;
+	  break;
+	}
+    }
+  
+  return(Result);
+}
+
+internal void 
+MapStorageIndexToEntity(sim_region *SimRegion, u32 StorageIndex, sim_entity* Entity)
+{
+  sim_entity_hash *Entry = GetHashFromStorageIndex(SimRegion, StorageIndex);
+  Assert((Entry->Index == StorageIndex) ||
+	 (Entry->Index == 0));
+
+  Entry->Index = StorageIndex;
+  Entry->Ptr = Entity;
+}
+
+internal inline sim_entity*
+CheckEntityByStorageIndex(sim_region *SimRegion, u32 StorageIndex)
+{
+  sim_entity_hash *Entry = GetHashFromStorageIndex(SimRegion, StorageIndex);
+  sim_entity *Result = Entry->Ptr;
+  return(Result);
+}
+
+internal sim_entity*
+_AddEntity(state *State, sim_region *SimRegion, u32 StorageIndex, low_entity *Source);
+
+internal inline void 
+LoadEntityRefernce(state *State, sim_region *SimRegion, entity_reference *Ref)
+{
+  if(Ref->Index)
+    {
+      sim_entity_hash *Entry = GetHashFromStorageIndex(SimRegion, Ref->Index);
+      if(Entry->Ptr == 0)
+	{
+	  _AddEntity(State, SimRegion, Ref->Index, GetLowEntity(State, Ref->Index));
+	}
+      
+      Ref->Ptr = Entry->Ptr;
+    }
+}
+
+internal inline void
+StoreEntityReference(entity_reference *Ref)
+{
+  if(Ref->Ptr != 0)
+    {
+      Ref->Index = Ref->Ptr->StorageIndex;
+    }
+}
+
+internal sim_entity*
+_AddEntity(state *State, sim_region *SimRegion, u32 StorageIndex, low_entity *Source)
+{
+  Assert(StorageIndex);
   sim_entity *Entity = 0;
   
   if(SimRegion->EntityCount < SimRegion->MaxEntityCount)
     {
       Entity = SimRegion->Entities + SimRegion->EntityCount++;
-
-      sim_entity ZeroEntity = {};
-      *Entity = ZeroEntity;
+      MapStorageIndexToEntity(SimRegion, StorageIndex, Entity);
+      
+      if(Source)
+	{
+	  *Entity = Source->Sim;
+	  LoadEntityRefernce(State, SimRegion, &Entity->Sword);
+	}
+      
+      Entity->StorageIndex = StorageIndex;
     }
   else
     {
@@ -31,9 +107,9 @@ GetSimSpaceP(sim_region *SimRegion, low_entity *Stored)
 
 
 internal sim_entity*
-AddEntity(sim_region *SimRegion, low_entity *Source, v2 *SimP)
+AddEntity(state *State, sim_region *SimRegion, u32 StorageIndex, low_entity *Source, v2 *SimP)
 {
-  sim_entity* Dest = _AddEntity(SimRegion);
+  sim_entity* Dest = _AddEntity(State, SimRegion, StorageIndex, Source);
   if(Dest)
     {
       if(SimP)
@@ -91,7 +167,7 @@ BeginSim(memory_arena *SimArena, state* State, world* World, world_position Orig
 		      v2 SimSpaceP = GetSimSpaceP(SimRegion, Low);
 		      if(IsInRectangle(SimRegion->Bounds, SimSpaceP))
 			{
-			  AddEntity(SimRegion, Low, &SimSpaceP);
+			  AddEntity(State, SimRegion, LowEntityIndex, Low, &SimSpaceP);
 			}
 		      
 		    }
@@ -112,18 +188,20 @@ EndSim(sim_region *SimRegion, state *State)
       ++EntityIndex, ++Entity)
     {
       low_entity *Stored = State->LowEntities + Entity->StorageIndex;
+
+      Stored->Sim = *Entity;
+      StoreEntityReference(&Stored->Sim.Sword);
       
+	
       world_position NewP = MapIntoChunkSpace(SimRegion->World, SimRegion->Origin, Entity->P);
       ChangeEntityLocation(&State->WorldArena, State->World, Entity->StorageIndex,
 			   Stored, &Stored->P, &NewP);
-      
-      entity CameraFollowingEntity = ForceEntityIntoHigh(State,
-							 State->CameraFollowingEntityIndex);
-      if(CameraFollowingEntity.High)
-	{
+
+      if(Entity->StorageIndex == State->CameraFollowingEntityIndex)
+	{      
 	  world_position NewCameraP = State->CameraP;
       
-	  State->CameraP.ChunkZ = CameraFollowingEntity.Low->P.ChunkZ;
+	  State->CameraP.ChunkZ = Stored->P.ChunkZ;
 #if 0
 	  if(CameraFollowingEntity.High->P.X > (9.0f * World->TileSideInMeters))
 	    {
@@ -142,11 +220,168 @@ EndSim(sim_region *SimRegion, state *State)
 	      NewCameraP.AbsTileY -= 9;
 	    }
 #else
-	  NewCameraP = CameraFollowingEntity.Low->P;
+	  NewCameraP = Stored->P;
 #endif
 
-	  SetCamera(State, NewCameraP);
 	}
+    }
+}
 
+internal bool32
+TestWall(r32 WallX, r32 RelX, r32 RelY, r32 PlayerDeltaX, r32 PlayerDeltaY,
+	 r32 *tMin, r32 MinY, r32 MaxY)
+{
+  bool32 Hit = false;
+
+  r32 Epsilon = 0.001f;
+  if(PlayerDeltaX != 0.0f)
+    {
+      r32 tResult = (WallX - RelX) / PlayerDeltaX;
+      r32 Y = RelY + (tResult * PlayerDeltaY);
+      if((tResult >= 0.0f) && (*tMin > tResult))
+	{
+	  if((Y >= MinY) && (Y <= MaxY))
+	    {
+	      *tMin = Maximum(0.0f, tResult - Epsilon);
+	      Hit = true;
+	    }
+	}
+    }
+
+  return(Hit);
+}
+
+internal void
+MoveEntity(sim_region *SimRegion, sim_entity *Entity, r32 dt, move_spec *MoveSpec, v2 ddEntity)
+{
+  world *World = SimRegion->World; 
+
+  if(MoveSpec->UnitMaxAccelVector)
+    {
+      r32 ddPSqLength = LengthSq(ddEntity);
+      if(ddPSqLength > 1.0f)
+	{
+	  ddEntity = VMulS(1.0f / SquareRoot(ddPSqLength), ddEntity);
+	}
+    }
+  
+  ddEntity = VMulS(MoveSpec->Speed, ddEntity);
+
+  ddEntity = VAdd(ddEntity,
+		  VMulS(-MoveSpec->Drag, Entity->dP));
+
+  v2 OldPlayerP = Entity->P;
+  v2 PlayerDelta = VAdd(VMulS(0.5f ,
+			      VMulS(Square(dt),
+				    ddEntity)),
+			VMulS(dt, Entity->dP));
+  Entity->dP = VAdd(VMulS(dt, ddEntity),
+			 Entity->dP);
+  v2 NewPlayerP = VAdd(OldPlayerP, PlayerDelta);
+
+  for(u32 Iteration = 0;
+      Iteration < 4;
+      ++Iteration)
+    {
+      r32 tMin = 1.0f;
+      v2 WallNormal = {};
+      sim_entity *HitEntity = 0;
+      
+      v2 DesiredPosition = VAdd(Entity->P, PlayerDelta);
+
+      if(Entity->Collides)
+	{
+	  for(u32 TestHighEntityIndex = 1;
+	      TestHighEntityIndex < SimRegion->EntityCount;
+	      ++TestHighEntityIndex)
+	    {
+	      sim_entity *TestEntity = SimRegion->Entities + TestHighEntityIndex; 
+	      if(Entity != TestEntity)
+		{
+		  if(TestEntity->Collides)
+		    {
+		      r32 DiameterW = TestEntity->Width + Entity->Width;
+		      r32 DiameterH = TestEntity->Height + Entity->Height;
+		      v2 MinCorner = (v2){-0.5f*DiameterW,
+					  -0.5f*DiameterH};
+		      v2 MaxCorner = (v2){0.5f*DiameterW,
+					  0.5f*DiameterH};
+
+		      v2 Rel = VSub(Entity->P, TestEntity->P);
+	  
+		      if(TestWall(MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
+				  &tMin, MinCorner.Y, MaxCorner.Y))
+			{
+			  HitEntity = TestEntity;
+			  WallNormal = (v2){-1, 0};
+			}
+		      if(TestWall(MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
+				  &tMin, MinCorner.Y, MaxCorner.Y))
+			{
+			  HitEntity = TestEntity;
+			  WallNormal = (v2){1, 0};
+			}
+		      if(TestWall(MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
+				  &tMin, MinCorner.X, MaxCorner.X))
+			{
+			  HitEntity = TestEntity;
+			  WallNormal = (v2){0, -1};
+			}
+		      if(TestWall(MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
+				  &tMin, MinCorner.X, MaxCorner.X))
+			{
+			  HitEntity = TestEntity;
+			  WallNormal = (v2){0, 1};
+			}
+		    }
+		}
+	    }
+	}
+      
+      Entity->P = VAdd(Entity->P,
+			    VMulS(tMin, PlayerDelta));
+      if(HitEntity)
+	{
+	  Entity->dP = VSub(Entity->dP,
+				 VMulS(1 * Inner(Entity->dP, WallNormal),
+				       WallNormal));
+	  PlayerDelta = VSub(DesiredPosition, Entity->P);
+	  PlayerDelta = VSub(PlayerDelta,
+			     VMulS(1 * Inner(PlayerDelta, WallNormal),
+				   WallNormal));
+	}
+      else
+	{
+	  break;
+	}
+    }
+  
+  if((Entity->dP.X == 0) &&
+     (Entity->dP.Y == 0))
+    {
+      
+    }
+  else if(AbsoluteValue(Entity->dP.X) > AbsoluteValue(Entity->dP.Y))
+    {
+      if(Entity->dP.X > 0)
+	{
+	  Entity->FacingDirection = 0;
+	}
+      else
+	{
+	  Entity->FacingDirection = 2;
+	}
+    }
+  else 
+    {
+      if(Entity->dP.Y > 0)
+	{
+	  Entity->FacingDirection = 1;
+	}
+      else
+	{
+	  Entity->FacingDirection = 3;
+	}
+      
     }
 }

@@ -114,43 +114,10 @@ typedef struct
   loaded_bitmap Torso;
 } hero_bitmaps;
 
-typedef enum
-{
-  EntityType_Null,
-  EntityType_Hero,
-  EntityType_Wall,
-  EntityType_Familiar,
-  EntityType_Monstar,
-  EntityType_Sword,
-} entity_type;
-
-#define HIT_POINT_SUB_COUNT 4
 typedef struct
 {
-  u8 Flags;
-  u8 FilledAmount;
-} hit_point; 
-
-typedef struct
-{
-  entity_type Type;
-
   world_position P;  
-  r32 Height;
-  r32 Width;
-
-  v2 dP;
-  u32 FacingDirection;
-  r32 tBob;
-   
-  s32 ChunkZ;
-  bool32 Collides;
-
-  u32 HitPointMax;
-  hit_point HitPoints[16];
-
-  u32 SwordLowIndex;
-  r32 DistanceRemaining;
+  sim_entity Sim;
 } low_entity;
 
 typedef struct
@@ -195,3 +162,16 @@ typedef struct
   u32 Count;
   entity_visible_piece Pieces[32];
 } entity_visible_piece_group;
+
+internal inline low_entity*
+GetLowEntity(state *State, u32 Index)
+{
+  low_entity *Result = 0;
+  
+  if((Index > 0) && (Index < State->LowEntityCount))
+    {
+      Result = State->LowEntities + Index; 
+    }
+
+  return(Result);
+}
