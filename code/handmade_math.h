@@ -146,6 +146,13 @@ LengthSq(v2 V)
   return(Result);
 }
 
+internal inline r32
+Length(v2 V)
+{
+  r32 Result = SquareRoot(LengthSq(V));
+  return(Result);
+}
+
 typedef struct
 {
   v2 Min;

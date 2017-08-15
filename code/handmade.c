@@ -463,9 +463,10 @@ OffsetAndCheckFrequencyByArea(state *State, v2 Offset, rectangle2 HighFrequencyB
       )
     {
       high_entity *High = State->HighEntities_ + HighEntityIndex;
-            
+      low_entity *Low = State->LowEntities + High->LowEntityIndex;
+      
       High->P = VAdd(High->P, Offset);
-      if(IsInRectangle(HighFrequencyBounds, High->P))
+      if(IsValid(Low->P) && IsInRectangle(HighFrequencyBounds, High->P))
 	{
 	  ++HighEntityIndex;
 	}
@@ -617,21 +618,43 @@ TestWall(r32 WallX, r32 RelX, r32 RelY, r32 PlayerDeltaX, r32 PlayerDeltaY,
   return(Hit);
 }
 
+typedef struct
+{
+  bool32 UnitMaxAccelVector;
+  r32 Speed;
+  r32 Drag;
+} move_spec;
+
+internal inline move_spec
+DefaultMoveSpec()
+{  
+  move_spec Result;
+
+  Result.UnitMaxAccelVector = false;
+  Result.Speed = 1.0f;
+  Result.Drag = 0.0f;
+
+  return(Result);
+}
+
 internal void
-MoveEntity(state *State, entity Entity, r32 dt, v2 ddEntity)
+MoveEntity(state *State, entity Entity, r32 dt, move_spec *MoveSpec, v2 ddEntity)
 {
   world *World = State->World; 
 
-  r32 ddPSqLength = LengthSq(ddEntity);
-  if(ddPSqLength > 1.0f)
+  if(MoveSpec->UnitMaxAccelVector)
     {
-      ddEntity = VMulS(1.0f / SquareRoot(ddPSqLength), ddEntity);
+      r32 ddPSqLength = LengthSq(ddEntity);
+      if(ddPSqLength > 1.0f)
+	{
+	  ddEntity = VMulS(1.0f / SquareRoot(ddPSqLength), ddEntity);
+	}
     }
   
-  r32 PlayerSpeed = 50.0f;
-  ddEntity = VMulS(PlayerSpeed, ddEntity);
+  ddEntity = VMulS(MoveSpec->Speed, ddEntity);
+
   ddEntity = VAdd(ddEntity,
-		  VMulS(-8.0f, Entity.High->dP));
+		  VMulS(-MoveSpec->Drag, Entity.High->dP));
 
   v2 OldPlayerP = Entity.High->P;
   v2 PlayerDelta = VAdd(VMulS(0.5f ,
@@ -667,50 +690,53 @@ MoveEntity(state *State, entity Entity, r32 dt, v2 ddEntity)
       
       v2 DesiredPosition = VAdd(Entity.High->P, PlayerDelta);
 
-      for(u32 TestHighEntityIndex = 1;
-	  TestHighEntityIndex < State->HighEntityCount;
-	  ++TestHighEntityIndex)
-	{	
-	  if(TestHighEntityIndex != Entity.Low->HighEntityIndex)
-	    {
-	      entity TestEntity;
-	      TestEntity.High = State->HighEntities_ + TestHighEntityIndex; ;
-	      TestEntity.LowIndex = TestEntity.High->LowEntityIndex;
-	      TestEntity.Low  = State->LowEntities + TestEntity.LowIndex;
-	      if(TestEntity.Low->Collides)
+      if(Entity.Low->Collides)
+	{
+	  for(u32 TestHighEntityIndex = 1;
+	      TestHighEntityIndex < State->HighEntityCount;
+	      ++TestHighEntityIndex)
+	    {	
+	      if(TestHighEntityIndex != Entity.Low->HighEntityIndex)
 		{
-		  r32 DiameterW = TestEntity.Low->Width + Entity.Low->Width;
-		  r32 DiameterH = TestEntity.Low->Height + Entity.Low->Height;
-		  v2 MinCorner = (v2){-0.5f*DiameterW,
-				      -0.5f*DiameterH};
-		  v2 MaxCorner = (v2){0.5f*DiameterW,
-				      0.5f*DiameterH};
+		  entity TestEntity;
+		  TestEntity.High = State->HighEntities_ + TestHighEntityIndex; ;
+		  TestEntity.LowIndex = TestEntity.High->LowEntityIndex;
+		  TestEntity.Low  = State->LowEntities + TestEntity.LowIndex;
+		  if(TestEntity.Low->Collides)
+		    {
+		      r32 DiameterW = TestEntity.Low->Width + Entity.Low->Width;
+		      r32 DiameterH = TestEntity.Low->Height + Entity.Low->Height;
+		      v2 MinCorner = (v2){-0.5f*DiameterW,
+					  -0.5f*DiameterH};
+		      v2 MaxCorner = (v2){0.5f*DiameterW,
+					  0.5f*DiameterH};
 
-		  v2 Rel = VSub(Entity.High->P, TestEntity.High->P);
+		      v2 Rel = VSub(Entity.High->P, TestEntity.High->P);
 	  
-		  if(TestWall(MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
-			      &tMin, MinCorner.Y, MaxCorner.Y))
-		    {
-		      HitHighEntityIndex = TestHighEntityIndex;
-		      WallNormal = (v2){-1, 0};
-		    }
-		  if(TestWall(MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
-			      &tMin, MinCorner.Y, MaxCorner.Y))
-		    {
-		      HitHighEntityIndex = TestHighEntityIndex;
-		      WallNormal = (v2){1, 0};
-		    }
-		  if(TestWall(MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
-			      &tMin, MinCorner.X, MaxCorner.X))
-		    {
-		      HitHighEntityIndex = TestHighEntityIndex;
-		      WallNormal = (v2){0, -1};
-		    }
-		  if(TestWall(MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
-			      &tMin, MinCorner.X, MaxCorner.X))
-		    {
-		      HitHighEntityIndex = TestHighEntityIndex;
-		      WallNormal = (v2){0, 1};
+		      if(TestWall(MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
+				  &tMin, MinCorner.Y, MaxCorner.Y))
+			{
+			  HitHighEntityIndex = TestHighEntityIndex;
+			  WallNormal = (v2){-1, 0};
+			}
+		      if(TestWall(MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
+				  &tMin, MinCorner.Y, MaxCorner.Y))
+			{
+			  HitHighEntityIndex = TestHighEntityIndex;
+			  WallNormal = (v2){1, 0};
+			}
+		      if(TestWall(MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
+				  &tMin, MinCorner.X, MaxCorner.X))
+			{
+			  HitHighEntityIndex = TestHighEntityIndex;
+			  WallNormal = (v2){0, -1};
+			}
+		      if(TestWall(MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
+				  &tMin, MinCorner.X, MaxCorner.X))
+			{
+			  HitHighEntityIndex = TestHighEntityIndex;
+			  WallNormal = (v2){0, 1};
+			}
 		    }
 		}
 	    }
@@ -921,12 +947,37 @@ UpdateFamiliar(state *State, entity Entity, r32 dt)
       ddP = VMulS(OneOverLength,
 		  VSub(ClosestHero.High->P, Entity.High->P));
     }
-  MoveEntity(State, Entity, dt, ddP);
+
+  move_spec MoveSpec = DefaultMoveSpec();
+  MoveSpec.UnitMaxAccelVector = true;
+  MoveSpec.Speed = 50.0f;
+  MoveSpec.Drag = 8.0f;
+  MoveEntity(State, Entity, dt, &MoveSpec, ddP);
 }
 
 internal void
 UpdateMonstar(state *State, entity Entity, r32 dt)
 {
+}
+
+internal void
+UpdateSword(state *State, entity Entity, r32 dt)
+{  
+  move_spec MoveSpec = DefaultMoveSpec();
+  MoveSpec.UnitMaxAccelVector = false;
+  MoveSpec.Speed = 0.0f;
+  MoveSpec.Drag = 0.0f;
+
+  v2 OldP = Entity.High->P;
+  MoveEntity(State, Entity, dt, &MoveSpec, V2(0, 0));
+  r32 DistanceTraveled = Length(VSub(Entity.High->P,
+				     OldP));
+  Entity.Low->DistanceRemaining -= DistanceTraveled;
+  if(Entity.Low->DistanceRemaining < 0.0f)
+    {
+      ChangeEntityLocation(&State->WorldArena, State->World,
+			   Entity.LowIndex, Entity.Low, &Entity.Low->P, 0);
+    }
 }
 
 internal void
@@ -1254,11 +1305,11 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  v2 dSword = {};
  	  if(Controller->ActionUp.EndedDown)
 	    {
-	      dSword = V2(0.0f, -1.0f);
+	      dSword = V2(0.0f, 1.0f);
 	    }
  	  if(Controller->ActionDown.EndedDown)
 	    {
-	      dSword = V2(0.0f, 1.0f);
+	      dSword = V2(0.0f, -1.0f);
 	    } 
 	  if(Controller->ActionLeft.EndedDown)
 	    {
@@ -1268,16 +1319,24 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	    {
 	      dSword = V2(1.0f, 0.0f);
 	    }
-	  	  	  
+	  
+	  move_spec MoveSpec = DefaultMoveSpec();
+	  MoveSpec.UnitMaxAccelVector = true;
+	  MoveSpec.Speed = 50.0f;
+	  MoveSpec.Drag = 8.0f;
 	  MoveEntity(State, ControllingEntity,
-		     Input->dtForFrame, ddEntity);
-	  if((dSword.X != 0.0f) || (dSword.X != 0.0f))
+		     Input->dtForFrame, &MoveSpec, ddEntity);
+	  if((dSword.X != 0.0f) || (dSword.Y != 0.0f))
 	    {
-	      low_entity *Sword = GetLowEntity(State, ControllingEntity.Low->SwordLowIndex);
-	      if(Sword && !IsValid(Sword->P))
+	      low_entity *LowSword = GetLowEntity(State, ControllingEntity.Low->SwordLowIndex);
+	      if(LowSword && !IsValid(LowSword->P))
 		{
 		  world_position SwordP = ControllingEntity.Low->P;
-		  ChangeEntityLocation(&State->WorldArena, World, ControllingEntity.Low->SwordLowIndex, Sword, 0, &SwordP);	  
+		  ChangeEntityLocation(&State->WorldArena, World, ControllingEntity.Low->SwordLowIndex, LowSword, 0, &SwordP);	  
+		  entity Sword = ForceEntityIntoHigh(State, ControllingEntity.Low->SwordLowIndex);
+
+		  Sword.Low->DistanceRemaining = 5.0f;
+		  Sword.High->dP = VMulS(5.0f, dSword);
 		}
 	    }
 	}
@@ -1369,6 +1428,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  } break;
 	case EntityType_Sword:
 	  {
+	    UpdateSword(State, Entity, dt);
 	    PushBitmap(&PieceGroup, &State->Shadow, V2(0, 0), 0 ,Hero->Align, ShadowAlpha, 0.0f);
 	    PushBitmap(&PieceGroup, &State->Sword, V2(0, 0), 0 ,V2(29, 10), 1.0f, 1.0f);
 	  } break;
