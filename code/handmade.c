@@ -494,14 +494,9 @@ AddLowEntity(state *State, entity_type Type, world_position *P)
   *LowEntity = ZeroLow;
   LowEntity->Type = Type;
 
-  if(P)
-    {
-      LowEntity->P = *P;
-
-      ChangeEntityLocation(&State->WorldArena, State->World, EntityIndex,
-			   0, P);
-    }
-
+  ChangeEntityLocation(&State->WorldArena, State->World, EntityIndex,
+		       LowEntity, 0, P);
+  
   add_low_entity_result Result;
   Result.Low = LowEntity;
   Result.LowIndex  = EntityIndex;
@@ -522,23 +517,52 @@ AddWall(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
   return(Entity);
 }
 
+internal void
+InitHitPoint(low_entity *EntityLow, u32 HitPointCount)
+{
+  Assert(HitPointCount <= ArrayCount(EntityLow->HitPoints));
+  EntityLow->HitPointMax = HitPointCount;
+  for(u32 HitPointIndex = 0;
+      HitPointIndex < EntityLow->HitPointMax;
+      ++HitPointIndex)
+    {
+      hit_point *HitPoint = EntityLow->HitPoints + HitPointIndex;
+      HitPoint->Flags = 0;
+      HitPoint->FilledAmount = HIT_POINT_SUB_COUNT;
+    }
+}
+
+internal add_low_entity_result
+AddSword(state *State)
+{
+  add_low_entity_result Entity = AddLowEntity(State, EntityType_Sword, 0);
+
+  Entity.Low->Height = 0.5f;//1.4f;
+  Entity.Low->Width  = 1.0f;// * Entity->Height;
+  Entity.Low->Collides = false;
+
+  return(Entity);
+}
+
 internal add_low_entity_result
 AddPlayer(state *State)
 {
   world_position P = State->CameraP;
   add_low_entity_result Entity = AddLowEntity(State, EntityType_Hero, &P);
 
-  Entity.Low->HitPointMax = 3;//1.4f;
-  Entity.Low->HitPoints[2].FilledAmount = HIT_POINT_SUB_COUNT;
-  Entity.Low->HitPoints[0] = Entity.Low->HitPoints[1] = Entity.Low->HitPoints[2];
-  Entity.Low->Height = 0.5f;//1.4f;
-  Entity.Low->Width  = 1.0f;// * Entity->Height;
+  InitHitPoint(Entity.Low, 3);
+  Entity.Low->Height = 0.5f;
+  Entity.Low->Width  = 1.0f;
   Entity.Low->Collides = true;
+
+  add_low_entity_result Sword = AddSword(State);
+  Entity.Low->SwordLowIndex = Sword.LowIndex;
   
   if(State->CameraFollowingEntityIndex == 0)
     {
       State->CameraFollowingEntityIndex = Entity.LowIndex;
     }
+
   return(Entity);
 }
 
@@ -547,7 +571,8 @@ AddMonstar(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
 {
   world_position P = ChunkPositionFromTilePosition(State->World, AbsTileX, AbsTileY, AbsTileZ);
   add_low_entity_result Entity = AddLowEntity(State, EntityType_Monstar, &P);
-  
+
+  InitHitPoint(Entity.Low, 3);
   Entity.Low->Height = 0.5f;//1.4f;
   Entity.Low->Width  = 1.0f;// * Entity->Height;
   Entity.Low->Collides = true;
@@ -744,9 +769,7 @@ MoveEntity(state *State, entity Entity, r32 dt, v2 ddEntity)
 
   world_position NewP = MapIntoChunkSpace(World, State->CameraP, Entity.High->P);
   ChangeEntityLocation(&State->WorldArena, World, Entity.LowIndex,
-		       &Entity.Low->P, &NewP);
-  Entity.Low->P = NewP;
-  
+		       Entity.Low, &Entity.Low->P, &NewP);
 }
 
 internal void
@@ -906,6 +929,33 @@ UpdateMonstar(state *State, entity Entity, r32 dt)
 {
 }
 
+internal void
+DrawHitpoints(low_entity *LowEntity, entity_visible_piece_group *Group)
+{
+  if(LowEntity->HitPointMax >= 1)
+    {
+      v2 HealthDim = {0.2f, 0.2f};
+      r32 SpacingX = 1.5f*HealthDim.X;
+      v2 HitP = {-0.5f*(LowEntity->HitPointMax - 1)*SpacingX, -0.2f};
+      v2 dHitP = {SpacingX, 0.0f};
+      for(u32 HealthIndex = 0;
+	  HealthIndex < LowEntity->HitPointMax;
+	  ++HealthIndex)
+	{
+	  hit_point *HitPoint = LowEntity->HitPoints + HealthIndex;
+	  v4 Color = {1.0f, 0.0f, 0.0f, 1.0f};
+	  if(HitPoint->FilledAmount == 0)
+	    {
+	      Color.R = 0.2f;
+	      Color.G = 0.2f;
+	      Color.B = 0.2f;
+	    }
+	  PushRect(Group, HitP, 0, HealthDim, Color, 0.0f);
+	  HitP = VAdd(HitP, dHitP);
+	}
+    }
+}
+
 extern UPDATE_AND_RENDER(UpdateAndRender)
 {  
   state* State = (state*) Memory->PermanentStorage;
@@ -920,6 +970,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_shadow.bmp");
       State->Tree
 	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/tree00.bmp");
+      State->Sword
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/rock03.bmp");
 
       hero_bitmaps *Bitmap = State->HeroBitmaps;
       
@@ -1193,13 +1245,41 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		  ddEntity.X = 1.0f;
 		}	  
 	    }
-
-	  if(Controller->ActionUp.EndedDown)
+ 
+	  if(Controller->Start.EndedDown)
 	    {
 	      ControllingEntity.High->dZ = 3.0f;
 	    }
+
+	  v2 dSword = {};
+ 	  if(Controller->ActionUp.EndedDown)
+	    {
+	      dSword = V2(0.0f, -1.0f);
+	    }
+ 	  if(Controller->ActionDown.EndedDown)
+	    {
+	      dSword = V2(0.0f, 1.0f);
+	    } 
+	  if(Controller->ActionLeft.EndedDown)
+	    {
+	      dSword = V2(-1.0f, 0.0f);
+	    }
+	  if(Controller->ActionRight.EndedDown)
+	    {
+	      dSword = V2(1.0f, 0.0f);
+	    }
+	  	  	  
 	  MoveEntity(State, ControllingEntity,
 		     Input->dtForFrame, ddEntity);
+	  if((dSword.X != 0.0f) || (dSword.X != 0.0f))
+	    {
+	      low_entity *Sword = GetLowEntity(State, ControllingEntity.Low->SwordLowIndex);
+	      if(Sword && !IsValid(Sword->P))
+		{
+		  world_position SwordP = ControllingEntity.Low->P;
+		  ChangeEntityLocation(&State->WorldArena, World, ControllingEntity.Low->SwordLowIndex, Sword, 0, &SwordP);	  
+		}
+	    }
 	}
     }
 
@@ -1280,33 +1360,17 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	    PushBitmap(&PieceGroup, &Hero->Cape,  V2(0, 0), 0 ,Hero->Align, 1.0f, 1.0f);
 	    PushBitmap(&PieceGroup, &Hero->Head,  V2(0, 0), 0 ,Hero->Align, 1.0f, 1.0f);	
 
-	    if(LowEntity->HitPointMax >= 1)
-	      {
-		v2 HealthDim = {0.2f, 0.2f};
-		r32 SpacingX = 1.5f*HealthDim.X;
-		v2 HitP = {-0.5f*(LowEntity->HitPointMax - 1)*SpacingX, -0.2f};
-		v2 dHitP = {SpacingX, 0.0f};
-		for(u32 HealthIndex = 0;
-		    HealthIndex < LowEntity->HitPointMax;
-		    ++HealthIndex)
-		  {
-		    hit_point *HitPoint = LowEntity->HitPoints + HealthIndex;
-		    v4 Color = {1.0f, 0.0f, 0.0f, 1.0f};
-		    if(HitPoint->FilledAmount == 0)
-		      {
-			Color.R = 0.2f;
-			Color.G = 0.2f;
-			Color.B = 0.2f;
-		      }
-		    PushRect(&PieceGroup, HitP, 0, HealthDim, Color, 0.0f);
-		    HitP = VAdd(HitP, dHitP);
-		  }
-	      }
-	    
+	    DrawHitpoints(LowEntity, &PieceGroup);
+	    	    
 	  } break;
 	case EntityType_Wall:
 	  {
 	    PushBitmap(&PieceGroup, &State->Tree, V2(0, 0), 0 ,V2(40, 80), 1.0f, 1.0f);
+	  } break;
+	case EntityType_Sword:
+	  {
+	    PushBitmap(&PieceGroup, &State->Shadow, V2(0, 0), 0 ,Hero->Align, ShadowAlpha, 0.0f);
+	    PushBitmap(&PieceGroup, &State->Sword, V2(0, 0), 0 ,V2(29, 10), 1.0f, 1.0f);
 	  } break;
 	case EntityType_Familiar:
 	  {
@@ -1322,6 +1386,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  } break;
 	case EntityType_Monstar:
 	  {
+	    DrawHitpoints(LowEntity, &PieceGroup);
 	    UpdateMonstar(State, Entity, dt);
 	    PushBitmap(&PieceGroup, &State->Shadow, V2(0, 0), 0 ,Hero->Align, ShadowAlpha, 1.0f);
 	    PushBitmap(&PieceGroup, &Hero->Torso, V2(0, 0), 0 ,Hero->Align, 1.0f, 1.0f);

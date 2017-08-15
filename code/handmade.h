@@ -120,6 +120,7 @@ typedef enum
   EntityType_Wall,
   EntityType_Familiar,
   EntityType_Monstar,
+  EntityType_Sword,
 } entity_type;
 
 typedef struct
@@ -149,7 +150,6 @@ typedef struct
   entity_type Type;
 
   world_position P;  
-
   r32 Height;
   r32 Width;
 
@@ -160,6 +160,9 @@ typedef struct
 
   u32 HitPointMax;
   hit_point HitPoints[16];
+
+  u32 SwordLowIndex;
+  r32 DistanceRemaining;
 } low_entity;
 
 typedef struct
@@ -206,6 +209,7 @@ typedef struct
   hero_bitmaps HeroBitmaps[4];
 
   loaded_bitmap Tree;
+  loaded_bitmap Sword;
 } state;
 
 typedef struct
