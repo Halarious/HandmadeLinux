@@ -217,7 +217,7 @@ ChangeEntityLocationRaw(memory_arena *Arena, world *World, u32 LowEntityIndex,
 	    {
 	      bool32 NotFound = true;
 	      world_entity_block *FirstBlock = &Chunk->FirstBlock; 
-	      for(world_entity_block *Block = &Chunk->FirstBlock;
+	      for(world_entity_block *Block = FirstBlock;
 		  Block && NotFound;
 		  Block = Block->Next)
 		{
@@ -226,8 +226,9 @@ ChangeEntityLocationRaw(memory_arena *Arena, world *World, u32 LowEntityIndex,
 		      ++Index)
 		    {
 		      if(Block->LowEntityIndex[Index] == LowEntityIndex)
-			{			  
-			  FirstBlock->LowEntityIndex[Index] =
+			{
+			  Assert(FirstBlock->EntityCount > 0);
+			  Block->LowEntityIndex[Index] =
 			    FirstBlock->LowEntityIndex[--FirstBlock->EntityCount];
 			  if(FirstBlock->EntityCount == 0)
 			    {
@@ -292,3 +293,4 @@ ChangeEntityLocation(memory_arena *Arena, world *World,
       LowEntity->P = NullPosition();
     }
 }
+

@@ -193,7 +193,6 @@ EndSim(sim_region *SimRegion, state *State)
 
       Stored->Sim = *Entity;
       StoreEntityReference(&Stored->Sim.Sword);
-      
 	
       world_position NewP = MapIntoChunkSpace(SimRegion->World, SimRegion->Origin, Entity->P);
       ChangeEntityLocation(&State->WorldArena, State->World, Entity->StorageIndex,
