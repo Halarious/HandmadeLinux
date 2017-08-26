@@ -142,6 +142,16 @@ typedef struct
   r32 dZ;
 }controlled_hero;
 
+typedef struct pairwise_collision_rule pairwise_collision_rule;
+struct pairwise_collision_rule
+{
+  bool32 ShouldCollide;
+  u32 StorageIndexA;
+  u32 StorageIndexB;
+
+  pairwise_collision_rule *NextInHash;
+};
+
 typedef struct
 {
   memory_arena WorldArena;
@@ -165,6 +175,9 @@ typedef struct
 
   loaded_bitmap Tree;
   loaded_bitmap Sword;
+
+  pairwise_collision_rule *CollisionRuleHash[256];
+  pairwise_collision_rule *FirstFreeCollisionRule;
 } state;
 
 typedef struct
@@ -186,3 +199,9 @@ GetLowEntity(state *State, u32 Index)
 
   return(Result);
 }
+
+internal void
+AddCollisionRule(state *State, u32 StorageIndexA, u32 StorageIndexB, bool32 ShouldCollide);
+
+internal void
+ClearCollisionRuleFor(state *State, u32 StorageIndex);

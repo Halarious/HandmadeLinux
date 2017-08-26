@@ -411,6 +411,82 @@ AddSword(state *State)
   return(Entity);
 }
 
+internal void
+AddCollisionRule(state *State, u32 StorageIndexA, u32 StorageIndexB, bool32 ShouldCollide)
+{
+  if(StorageIndexA > StorageIndexB)
+    {
+      u32 Temp = StorageIndexA;
+      StorageIndexA = StorageIndexB;
+      StorageIndexB = Temp;
+    }
+
+  pairwise_collision_rule *Found = 0;
+  u32 HashBucket = StorageIndexA & (ArrayCount(State->CollisionRuleHash) - 1);
+  for(pairwise_collision_rule *Rule = State->CollisionRuleHash[HashBucket];
+      Rule;
+      Rule = Rule->NextInHash)
+    {
+      if((Rule->StorageIndexA == StorageIndexA) &&
+	 (Rule->StorageIndexB == StorageIndexB))
+	{
+	  Found = Rule;
+	  break;
+	}
+    }
+
+  if(!Found)
+    {
+      Found = State->FirstFreeCollisionRule;
+      if(Found)
+	{
+	  State->FirstFreeCollisionRule = Found->NextInHash;
+	}
+      else
+	{
+	  Found = PushStruct(&State->WorldArena, pairwise_collision_rule);
+	}
+      
+      Found->NextInHash = State->CollisionRuleHash[HashBucket];
+      State->CollisionRuleHash[HashBucket] = Found;
+
+    }
+  
+  if(Found)
+    {
+      Found->StorageIndexA = StorageIndexA;
+      Found->StorageIndexB = StorageIndexB;
+      Found->ShouldCollide = ShouldCollide;
+    }
+}
+
+internal void
+ClearCollisionRuleFor(state *State, u32 StorageIndex)
+{
+  for(u32 HashBucket = 0;
+      HashBucket < ArrayCount(State->CollisionRuleHash);
+      ++ HashBucket)
+    {
+      for(pairwise_collision_rule **Rule = &State->CollisionRuleHash[HashBucket];
+	  *Rule;)
+	{
+	  if(((*Rule)->StorageIndexA == StorageIndex) ||
+	     ((*Rule)->StorageIndexB == StorageIndex))
+	    {
+	      pairwise_collision_rule *RemovedRule = *Rule;
+	      *Rule = (*Rule)->NextInHash;
+
+	      RemovedRule->NextInHash = State->FirstFreeCollisionRule;
+	      State->FirstFreeCollisionRule = RemovedRule;
+	    }
+	  else
+	    {
+	      Rule = &((*Rule)->NextInHash);
+	    }
+	}
+    }  
+}
+
 internal add_low_entity_result
 AddPlayer(state *State)
 {
@@ -424,6 +500,8 @@ AddPlayer(state *State)
   
   add_low_entity_result Sword = AddSword(State);
   Entity.Low->Sim.Sword.Index = Sword.LowIndex;
+
+  AddCollisionRule(State, Sword.LowIndex, Entity.LowIndex, false);
   
   if(State->CameraFollowingEntityIndex == 0)
     {
@@ -915,6 +993,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 				Sword->DistanceLimit = 5.0f;
 				MakeEntitySpatial(Sword, Entity->P,
 						  VMulS(5.0f, ConHero->dSword));
+				AddCollisionRule(State, Sword->StorageIndex, Entity->StorageIndex, false);
 			      }
 			  }
 		      }
@@ -940,6 +1019,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
 		if(Entity->DistanceLimit == 0.0f)
 		  {
+		    ClearCollisionRuleFor(State, Entity->StorageIndex);
 		    MakeEntityNonSpatial(Entity);
 		  }
 
@@ -1009,7 +1089,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
 	  if(!IsSet(Entity, EntityFlag_Nonspatial))
 	    {	      
-	      MoveEntity(SimRegion, Entity,
+	      MoveEntity(State, SimRegion, Entity,
 			 Input->dtForFrame, &MoveSpec, ddP);
 	    }
 	  
