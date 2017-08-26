@@ -33,7 +33,8 @@ typedef union
 struct sim_entity
 {
   u32 StorageIndex;
-
+  bool32 Updatable;
+  
   entity_type Type;
   u32 Flags;
 
@@ -60,8 +61,9 @@ struct sim_entity
 
 typedef enum
 {
-  EntityFlag_Collides = (1 << 1),
-  EntityFlag_Nonspatial = (1 << 2),
+  EntityFlag_Collides = (1 << 0),
+  EntityFlag_Nonspatial = (1 << 1),
+  
 
   EntityFlag_Simming = (1 << 30),
 } sim_entity_flags;
@@ -75,8 +77,10 @@ typedef struct
 typedef struct
 {
   world *World;
+  
   world_position Origin;
   rectangle2 Bounds;
+  rectangle2 UpdatableBounds;
   
   u32 MaxEntityCount;
   u32 EntityCount;

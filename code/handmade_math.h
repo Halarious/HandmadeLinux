@@ -214,6 +214,17 @@ RectCenterHalfDim(v2 Center, v2 HalfDim)
 }
 
 internal inline rectangle2
+AddRadiusTo(rectangle2 A, r32 RadiusW, r32 RadiusH)
+{
+  rectangle2 Result;
+
+  Result.Min = VSub(A.Min, V2(RadiusW, RadiusW));
+  Result.Max = VAdd(A.Max, V2(RadiusH, RadiusH));
+
+  return(Result);  
+}
+
+internal inline rectangle2
 RectCenterDim(v2 Center, v2 Dim)
 {
   rectangle2 Result = RectCenterHalfDim(Center,
@@ -230,3 +241,4 @@ IsInRectangle(rectangle2 Rectangle, v2 Test)
 		   (Test.Y  < Rectangle.Max.Y));
   return(Result);
 }
+
