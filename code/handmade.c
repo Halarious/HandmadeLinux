@@ -912,7 +912,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 			    sim_entity *Sword = Entity->Sword.Ptr;
 			    if(Sword && IsSet(Sword, EntityFlag_Nonspatial))
 			      {
-				Sword->DistanceRemaining = 5.0f;
+				Sword->DistanceLimit = 5.0f;
 				MakeEntitySpatial(Sword, Entity->P,
 						  VMulS(5.0f, ConHero->dSword));
 			      }
@@ -938,11 +938,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		MoveSpec.Speed = 0.0f;
 		MoveSpec.Drag = 0.0f;
 
-		v2 OldP = Entity->P;
-		r32 DistanceTraveled = Length(VSub(Entity->P,
-						   OldP));
-		Entity->DistanceRemaining -= DistanceTraveled;
-		if(Entity->DistanceRemaining < 0.0f)
+		if(Entity->DistanceLimit == 0.0f)
 		  {
 		    MakeEntityNonSpatial(Entity);
 		  }
@@ -1012,7 +1008,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	    }
 
 	  if(!IsSet(Entity, EntityFlag_Nonspatial))
-	    {
+	    {	      
 	      MoveEntity(SimRegion, Entity,
 			 Input->dtForFrame, &MoveSpec, ddP);
 	    }

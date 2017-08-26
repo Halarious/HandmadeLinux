@@ -44,6 +44,8 @@ struct sim_entity
   r32 Z;
   r32 dZ;
 
+  r32 DistanceLimit;
+  
   s32 ChunkZ;
   
   r32 Height;
@@ -56,7 +58,6 @@ struct sim_entity
   hit_point HitPoints[16];
 
   entity_reference Sword;
-  r32 DistanceRemaining;
 };
 
 typedef enum
