@@ -412,6 +412,33 @@ AddSword(state *State)
 }
 
 internal void
+ClearCollisionRuleFor(state *State, u32 StorageIndex)
+{
+  for(u32 HashBucket = 0;
+      HashBucket < ArrayCount(State->CollisionRuleHash);
+      ++ HashBucket)
+    {
+      for(pairwise_collision_rule **Rule = &State->CollisionRuleHash[HashBucket];
+	  *Rule;)
+	{
+	  if(((*Rule)->StorageIndexA == StorageIndex) ||
+	     ((*Rule)->StorageIndexB == StorageIndex))
+	    {
+	      pairwise_collision_rule *RemovedRule = *Rule;
+	      *Rule = (*Rule)->NextInHash;
+
+	      RemovedRule->NextInHash = State->FirstFreeCollisionRule;
+	      State->FirstFreeCollisionRule = RemovedRule;
+	    }
+	  else
+	    {
+	      Rule = &((*Rule)->NextInHash);
+	    }
+	}
+    }  
+}
+
+internal void
 AddCollisionRule(state *State, u32 StorageIndexA, u32 StorageIndexB, bool32 ShouldCollide)
 {
   if(StorageIndexA > StorageIndexB)
@@ -458,33 +485,6 @@ AddCollisionRule(state *State, u32 StorageIndexA, u32 StorageIndexB, bool32 Shou
       Found->StorageIndexB = StorageIndexB;
       Found->ShouldCollide = ShouldCollide;
     }
-}
-
-internal void
-ClearCollisionRuleFor(state *State, u32 StorageIndex)
-{
-  for(u32 HashBucket = 0;
-      HashBucket < ArrayCount(State->CollisionRuleHash);
-      ++ HashBucket)
-    {
-      for(pairwise_collision_rule **Rule = &State->CollisionRuleHash[HashBucket];
-	  *Rule;)
-	{
-	  if(((*Rule)->StorageIndexA == StorageIndex) ||
-	     ((*Rule)->StorageIndexB == StorageIndex))
-	    {
-	      pairwise_collision_rule *RemovedRule = *Rule;
-	      *Rule = (*Rule)->NextInHash;
-
-	      RemovedRule->NextInHash = State->FirstFreeCollisionRule;
-	      State->FirstFreeCollisionRule = RemovedRule;
-	    }
-	  else
-	    {
-	      Rule = &((*Rule)->NextInHash);
-	    }
-	}
-    }  
 }
 
 internal add_low_entity_result

@@ -218,8 +218,8 @@ AddRadiusTo(rectangle2 A, r32 RadiusW, r32 RadiusH)
 {
   rectangle2 Result;
 
-  Result.Min = VSub(A.Min, V2(RadiusW, RadiusW));
-  Result.Max = VAdd(A.Max, V2(RadiusH, RadiusH));
+  Result.Min = VSub(A.Min, V2(RadiusW, RadiusH));
+  Result.Max = VAdd(A.Max, V2(RadiusW, RadiusH));
 
   return(Result);  
 }
