@@ -28,27 +28,28 @@ typedef union
 {
   sim_entity* Ptr;
   u32 Index;
-}entity_reference;
+} entity_reference;
 
 struct sim_entity
 {
-  entity_type Type;
   u32 StorageIndex;
-  
-  v2 P;
 
+  entity_type Type;
+  u32 Flags;
+
+  v2 P;
+  v2 dP;
+  
   r32 Z;
   r32 dZ;
 
+  s32 ChunkZ;
+  
   r32 Height;
   r32 Width;
 
-  v2 dP;
   u32 FacingDirection;
-  r32 tBob;
-   
-  s32 ChunkZ;
-  bool32 Collides;
+  r32 tBob;   
 
   u32 HitPointMax;
   hit_point HitPoints[16];
@@ -56,6 +57,14 @@ struct sim_entity
   entity_reference Sword;
   r32 DistanceRemaining;
 };
+
+typedef enum
+{
+  EntityFlag_Collides = (1 << 1),
+  EntityFlag_Nonspatial = (1 << 2),
+
+  EntityFlag_Simming = (1 << 30),
+} sim_entity_flags;
 
 typedef struct
 {

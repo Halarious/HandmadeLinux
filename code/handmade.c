@@ -351,18 +351,19 @@ typedef struct
 } add_low_entity_result;
 
 internal add_low_entity_result
-AddLowEntity(state *State, entity_type Type, world_position *P)
+AddLowEntity(state *State, entity_type Type, world_position P)
 {  
   Assert(State->LowEntityCount < ArrayCount(State->LowEntities));
   u32 EntityIndex = State->LowEntityCount++;
 
-  low_entity  ZeroLow  = {};
   low_entity *LowEntity = State->LowEntities + EntityIndex;
+  low_entity  ZeroLow  = {};
   *LowEntity = ZeroLow;
   LowEntity->Sim.Type = Type;
+  LowEntity->P = NullPosition();
 
   ChangeEntityLocation(&State->WorldArena, State->World, EntityIndex,
-		       LowEntity, 0, P);
+		       LowEntity, P);
   
   add_low_entity_result Result;
   Result.Low = LowEntity;
@@ -375,11 +376,11 @@ internal add_low_entity_result
 AddWall(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
 {
   world_position P = ChunkPositionFromTilePosition(State->World, AbsTileX, AbsTileY, AbsTileZ);
-  add_low_entity_result Entity = AddLowEntity(State, EntityType_Wall, &P);
+  add_low_entity_result Entity = AddLowEntity(State, EntityType_Wall, P);
   
   Entity.Low->Sim.Height = State->World->TileSideInMeters;
   Entity.Low->Sim.Width  = Entity.Low->Sim.Height;
-  Entity.Low->Sim.Collides = true;
+  AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
 
   return(Entity);
 }
@@ -402,12 +403,11 @@ InitHitPoint(low_entity *EntityLow, u32 HitPointCount)
 internal add_low_entity_result
 AddSword(state *State)
 {
-  add_low_entity_result Entity = AddLowEntity(State, EntityType_Sword, 0);
+  add_low_entity_result Entity = AddLowEntity(State, EntityType_Sword, NullPosition());
 
   Entity.Low->Sim.Height = 0.5f;//1.4f;
   Entity.Low->Sim.Width  = 1.0f;// * Entity->Height;
-  Entity.Low->Sim.Collides = false;
-
+    
   return(Entity);
 }
 
@@ -415,13 +415,13 @@ internal add_low_entity_result
 AddPlayer(state *State)
 {
   world_position P = State->CameraP;
-  add_low_entity_result Entity = AddLowEntity(State, EntityType_Hero, &P);
+  add_low_entity_result Entity = AddLowEntity(State, EntityType_Hero, P);
 
   InitHitPoint(Entity.Low, 3);
   Entity.Low->Sim.Height = 0.5f;
   Entity.Low->Sim.Width  = 1.0f;
-  Entity.Low->Sim.Collides = true;
-
+  AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
+  
   add_low_entity_result Sword = AddSword(State);
   Entity.Low->Sim.Sword.Index = Sword.LowIndex;
   
@@ -437,13 +437,13 @@ internal add_low_entity_result
 AddMonstar(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
 {
   world_position P = ChunkPositionFromTilePosition(State->World, AbsTileX, AbsTileY, AbsTileZ);
-  add_low_entity_result Entity = AddLowEntity(State, EntityType_Monstar, &P);
+  add_low_entity_result Entity = AddLowEntity(State, EntityType_Monstar, P);
 
   InitHitPoint(Entity.Low, 3);
   Entity.Low->Sim.Height = 0.5f;//1.4f;
   Entity.Low->Sim.Width  = 1.0f;// * Entity->Height;
-  Entity.Low->Sim.Collides = true;
-
+  AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
+  
   return(Entity);
 }
 
@@ -451,12 +451,12 @@ internal add_low_entity_result
 AddFamiliar(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
 {
   world_position P = ChunkPositionFromTilePosition(State->World, AbsTileX, AbsTileY, AbsTileZ);
-  add_low_entity_result Entity = AddLowEntity(State, EntityType_Familiar, &P);
+  add_low_entity_result Entity = AddLowEntity(State, EntityType_Familiar, P);
   
   Entity.Low->Sim.Height = 0.5f;//1.4f;
   Entity.Low->Sim.Width  = 1.0f;// * Entity->Height;
-  Entity.Low->Sim.Collides = true;
-
+  AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
+  
   return(Entity);
 }
 
@@ -528,7 +528,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   state* State = (state*) Memory->PermanentStorage;
   if(!Memory->isInitialized)
     {
-      AddLowEntity(State, EntityType_Null, 0);
+      AddLowEntity(State, EntityType_Null, NullPosition());
             
       State->Backdrop
 	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_background.bmp");
@@ -747,7 +747,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 						 CameraTileX,
 						 CameraTileY,
 						 CameraTileZ);
- 
+      State->CameraP = NewCameraP;
+      
       AddMonstar(State, CameraTileX + 2, CameraTileY + 2, CameraTileZ);
       for(u32 FamiliarIndex = 0;
 	  FamiliarIndex < 1;
@@ -785,6 +786,9 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       else
 	{
 	  ConHero->ddP = V2(0, 0);
+	  ConHero->dSword  = V2(0, 0);
+	  ConHero->dZ  = 0.0f;
+	  
 	  if(Controller->IsAnalog)
 	    {
 	      ConHero->ddP = (v2){Controller->StickAverageX,
@@ -887,7 +891,11 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
 		if(ConHero->EntityIndex == Entity->StorageIndex)
 		  {
-		    Entity->dZ = ConHero->dZ;
+		    if(ConHero->dZ != 0.0f)
+		      {
+			Entity->dZ = ConHero->dZ;
+		      }
+		    
 		    move_spec MoveSpec = DefaultMoveSpec();
 		    MoveSpec.UnitMaxAccelVector = true;
 		    MoveSpec.Speed = 50.0f;
@@ -898,11 +906,11 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		       (ConHero->dSword.Y != 0.0f))
 		      {
 			sim_entity *Sword = Entity->Sword.Ptr;
-			if(Sword)
+			if(Sword && IsSet(Sword, EntityFlag_Nonspatial))
 			  {
-			    Sword->P = Entity->P;
 			    Sword->DistanceRemaining = 5.0f;
-			    Sword->dP = VMulS(5.0f, ConHero->dSword);
+			    MakeEntitySpatial(Sword, Entity->P,
+					      VMulS(5.0f, ConHero->dSword));
 			  }
 		      }
 		  }

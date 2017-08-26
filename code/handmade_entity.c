@@ -61,19 +61,26 @@ UpdateMonstar(sim_region *SimRegion, sim_entity *Entity, r32 dt)
 
 internal void
 UpdateSword(sim_region *SimRegion, sim_entity *Entity, r32 dt)
-{  
-  move_spec MoveSpec = DefaultMoveSpec();
-  MoveSpec.UnitMaxAccelVector = false;
-  MoveSpec.Speed = 0.0f;
-  MoveSpec.Drag = 0.0f;
-
-  v2 OldP = Entity->P;
-  MoveEntity(SimRegion, Entity, dt, &MoveSpec, V2(0, 0));
-  r32 DistanceTraveled = Length(VSub(Entity->P,
-				     OldP));
-  Entity->DistanceRemaining -= DistanceTraveled;
-  if(Entity->DistanceRemaining < 0.0f)
+{
+  if(IsSet(Entity, EntityFlag_Nonspatial))
     {
-      Assert(!"Need to make etities be able to not be there");
+    }
+  else
+    {
+      move_spec MoveSpec = DefaultMoveSpec();
+      MoveSpec.UnitMaxAccelVector = false;
+      MoveSpec.Speed = 0.0f;
+      MoveSpec.Drag = 0.0f;
+
+      v2 OldP = Entity->P;
+      MoveEntity(SimRegion, Entity, dt, &MoveSpec, V2(0, 0));
+      r32 DistanceTraveled = Length(VSub(Entity->P,
+					 OldP));
+      Entity->DistanceRemaining -= DistanceTraveled;
+      if(Entity->DistanceRemaining < 0.0f)
+	{
+	  MakeEntityNonSpatial(Entity);
+	}
     }
 }
+
