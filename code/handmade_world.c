@@ -23,19 +23,20 @@ IsValid(world_position P)
 }
 
 internal inline bool32
-IsCannonical(world* World, r32 TileRel)
+IsCannonical(r32 ChunkDim, r32 TileRel)
 {
   r32 Epsilon = 0.0001f;
-  bool32 Result = ((TileRel >= -(0.5f * World->ChunkSideInMeters + Epsilon)) &&
-		   (TileRel <=  (0.5f * World->ChunkSideInMeters + Epsilon)));
+  bool32 Result = ((TileRel >= -(0.5f * ChunkDim + Epsilon)) &&
+		   (TileRel <=  (0.5f * ChunkDim + Epsilon)));
   return(Result);
 }
 
 internal inline bool32
-IsCannonicalV(world* World, v2 Offset)
+IsCannonicalV(world* World, v3 Offset)
 {
-  bool32 Result = ((IsCannonical(World, Offset.X)) &&
-		   (IsCannonical(World, Offset.Y)));
+  bool32 Result = ((IsCannonical(World->ChunkDimInMeters.X, Offset.X)) &&
+		   (IsCannonical(World->ChunkDimInMeters.Y, Offset.Y)) &&
+		   (IsCannonical(World->ChunkDimInMeters.Z, Offset.Z)));
   return(Result);
 }
 
@@ -101,8 +102,11 @@ GetWorldChunk(world *World, s32 ChunkX, s32 ChunkY, s32 ChunkZ,
 internal void
 InitializeWorld(world *World, r32 TileSideInMeters)
 {
-  World->TileSideInMeters = TileSideInMeters;
-  World->ChunkSideInMeters = (r32)TILES_PER_CHUNK*TileSideInMeters;
+  World->TileSideInMeters  = TileSideInMeters;
+  World->TileDepthInMeters = TileSideInMeters;
+  World->ChunkDimInMeters = V3((r32)TILES_PER_CHUNK*TileSideInMeters,
+			       (r32)TILES_PER_CHUNK*TileSideInMeters,
+			       (r32)TileSideInMeters);
   World->FirstFree = 0;
   
   for(u32 ChunkIndex = 0;
@@ -115,24 +119,25 @@ InitializeWorld(world *World, r32 TileSideInMeters)
 }
 
 internal inline void
-RecanonicalizeCoord(world *World, s32 *Tile, r32 *TileRel)
+RecanonicalizeCoord(r32 ChunkDim, s32 *Tile, r32 *TileRel)
 {
   //NOTE: Apparently the world is assumed to be toroidal
-  s32 Offset = RoundReal32ToInt32(*TileRel / World->ChunkSideInMeters);
+  s32 Offset = RoundReal32ToInt32(*TileRel / ChunkDim);
   *Tile += Offset;
-  *TileRel -= Offset*World->ChunkSideInMeters;
+  *TileRel -= Offset*ChunkDim;
 
-  Assert(IsCannonical(World, *TileRel));
+  Assert(IsCannonical(ChunkDim, *TileRel));
 }
 
 internal inline world_position
-MapIntoChunkSpace(world *World, world_position BasePosition, v2 Offset)
+MapIntoChunkSpace(world *World, world_position BasePosition, v3 Offset)
 {
   world_position Result = BasePosition;
 
-  Result.Offset_ = VAdd(Result.Offset_, Offset);
-  RecanonicalizeCoord(World, &Result.ChunkX, &Result.Offset_.X);
-  RecanonicalizeCoord(World, &Result.ChunkY, &Result.Offset_.Y);
+  Result.Offset_ = V3Add(Result.Offset_, Offset);
+  RecanonicalizeCoord(World->ChunkDimInMeters.X, &Result.ChunkX, &Result.Offset_.X);
+  RecanonicalizeCoord(World->ChunkDimInMeters.Y, &Result.ChunkY, &Result.Offset_.Y);
+  RecanonicalizeCoord(World->ChunkDimInMeters.Z, &Result.ChunkY, &Result.Offset_.Z);
 
   return(Result);
 }
@@ -141,47 +146,28 @@ internal world_position
 ChunkPositionFromTilePosition(world *World,
 			      s32 AbsTileX, s32 AbsTileY, s32 AbsTileZ)
 {
-  world_position Result = {};
+  world_position BasePos = {};
 
-  Result.ChunkX = (AbsTileX / TILES_PER_CHUNK);
-  Result.ChunkY = (AbsTileY / TILES_PER_CHUNK);;
-  Result.ChunkZ = (AbsTileZ / TILES_PER_CHUNK);;
-  if(AbsTileX < 0)
-    {
-      --Result.ChunkX;
-    }
-  if(AbsTileY < 0)
-    {
-      --Result.ChunkY;
-    }
-  if(AbsTileZ < 0)
-    {
-      --Result.ChunkZ;
-    }
-  
-  Result.Offset_.X = (r32)((AbsTileX - TILES_PER_CHUNK/2) - (Result.ChunkX*TILES_PER_CHUNK)) * World->TileSideInMeters;
-  Result.Offset_.Y = (r32)((AbsTileY - TILES_PER_CHUNK/2) - (Result.ChunkY*TILES_PER_CHUNK)) * World->TileSideInMeters;
+  v3 Offset = V3Hadamard(World->ChunkDimInMeters,
+			 V3((r32)AbsTileX, (r32)AbsTileY, (r32)AbsTileZ));
+  world_position Result = MapIntoChunkSpace(World, BasePos, Offset);
 
   Assert(IsCannonicalV(World, Result.Offset_));
   
   return(Result);
 }
 
-internal inline world_difference
+internal inline v3
 Subtract(world *World, world_position *A, world_position* B)
 {
-  world_difference Result = {};
-
-  v2 dTileXY = (v2){(r32)A->ChunkX - (r32)B->ChunkX,
-		    (r32)A->ChunkY - (r32)B->ChunkY};
-  r32 dTileZ = (r32)A->ChunkZ - (r32)B->ChunkZ;
+  v3 dTile = (v3){(r32)A->ChunkX - (r32)B->ChunkX,
+		  (r32)A->ChunkY - (r32)B->ChunkY,
+		  (r32)A->ChunkZ - (r32)B->ChunkZ};
+    
+  v3 Result = V3Add(V3Hadamard(World->ChunkDimInMeters,
+			       dTile),
+		    V3Sub(A->Offset_, B->Offset_));
   
-  Result.dXY = VAdd(VMulS(World->ChunkSideInMeters,
-			  dTileXY),
-		    VSub(A->Offset_, B->Offset_));
-  
-  Result.dZ = dTileZ * World->ChunkSideInMeters + 0.0f;
-
   return(Result);
 }
 

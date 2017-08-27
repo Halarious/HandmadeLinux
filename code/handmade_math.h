@@ -23,6 +23,16 @@ typedef union
     r32 G;
     r32 B;
   };
+  struct
+  {
+    v2 XY;
+    r32 Ignored0_;
+  };
+  struct
+  {
+    r32 Ignored1_;
+    v2 YZ;
+  };
   r32 E[3];
 } v3;
 
@@ -44,6 +54,18 @@ typedef union
   };
   r32 E[4];
 } v4;
+
+typedef struct
+{
+  v2 Min;
+  v2 Max;
+} rectangle2;
+
+typedef struct
+{
+  v3 Min;
+  v3 Max;
+} rectangle3;
 
 internal inline v2
 V2(r32 X, r32 Y)
@@ -68,6 +90,18 @@ V3(r32 X, r32 Y, r32 Z)
   return(Result);  
 }
 
+internal inline v3
+ToV3(v2 XY, r32 Z)
+{
+  v3 Result;
+
+  Result.X = XY.X;
+  Result.Y = XY.Y;
+  Result.Z = Z;
+  
+  return(Result);  
+}
+
 internal inline v4
 V4(r32 X, r32 Y, r32 Z, r32 W)
 {
@@ -81,8 +115,19 @@ V4(r32 X, r32 Y, r32 Z, r32 W)
   return(Result);  
 }
 
+internal inline r32
+Square(r32 V)
+{
+  r32 Result = V*V;
+  return(Result);
+}
+
+///
+///
+///
+
 internal inline v2
-VMulS(r32 S, v2 V)
+V2MulS(r32 S, v2 V)
 {
   v2 Result;
 
@@ -93,7 +138,7 @@ VMulS(r32 S, v2 V)
 }
 
 internal inline v2
-VNeg(v2 V)
+V2Neg(v2 V)
 {
   v2 Result;
 
@@ -104,7 +149,7 @@ VNeg(v2 V)
 }
 
 internal inline v2
-VAdd(v2 A, v2 B)
+V2Add(v2 A, v2 B)
 {
   v2 Result;
 
@@ -115,7 +160,7 @@ VAdd(v2 A, v2 B)
 }
 
 internal inline v2
-VSub(v2 A, v2 B)
+V2Sub(v2 A, v2 B)
 {
   v2 Result;
 
@@ -125,63 +170,142 @@ VSub(v2 A, v2 B)
   return(Result);
 }
 
-internal inline r32
-Square(r32 V)
+internal inline v2
+V2Hadamard(v2 A, v2 B)
 {
-  r32 Result = V*V;
+  v2 Result = V2(A.X * B.X,  A.Y * B.Y);
   return(Result);
 }
 
 internal inline r32
-Inner(v2 A, v2 B)
+V2Inner(v2 A, v2 B)
 {
   r32 Result = A.X * B.X + A.Y * B.Y;
   return(Result);
 }
 
 internal inline r32
-LengthSq(v2 V)
+V2LengthSq(v2 V)
 {
-  r32 Result = Inner(V, V);
+  r32 Result = V2Inner(V, V);
   return(Result);
 }
 
 internal inline r32
-Length(v2 V)
+V2Length(v2 V)
 {
-  r32 Result = SquareRoot(LengthSq(V));
+  r32 Result = SquareRoot(V2LengthSq(V));
   return(Result);
 }
 
-typedef struct
+///
+///
+///
+
+
+internal inline v3
+V3MulS(r32 S, v3 V)
 {
-  v2 Min;
-  v2 Max;
-} rectangle2;
+  v3 Result;
+
+  Result.X = S * V.X;
+  Result.Y = S * V.Y;
+  Result.Z = S * V.Z;
+
+  return(Result);  
+}
+
+internal inline v3
+V3Neg(v3 V)
+{
+  v3 Result;
+
+  Result.X = -V.X;
+  Result.Y = -V.Y;
+  Result.Z = -V.Z;
+
+  return(Result);
+}
+
+internal inline v3
+V3Add(v3 A, v3 B)
+{
+  v3 Result;
+
+  Result.X = A.X + B.X;
+  Result.Y = A.Y + B.Y;
+  Result.Z = A.Z + B.Z;
+  
+  return(Result);
+}
+
+internal inline v3
+V3Sub(v3 A, v3 B)
+{
+  v3 Result;
+
+  Result.X = A.X - B.X;
+  Result.Y = A.Y - B.Y;
+  Result.Z = A.Z - B.Z;
+  
+  return(Result);
+}
+
+internal inline v3
+V3Hadamard(v3 A, v3 B)
+{
+  v3 Result = V3(A.X * B.X,  A.Y * B.Y, A.Z * B.Z);
+  return(Result);
+}
+
+internal inline r32
+V3Inner(v3 A, v3 B)
+{
+  r32 Result = A.X * B.X + A.Y * B.Y + A.Z * B.Z;
+  return(Result);
+}
+
+internal inline r32
+V3LengthSq(v3 V)
+{
+  r32 Result = V3Inner(V, V);
+  return(Result);
+}
+
+internal inline r32
+V3Length(v3 V)
+{
+  r32 Result = SquareRoot(V3LengthSq(V));
+  return(Result);
+}
+
+///
+///
+///
 
 internal inline v2
-GetMinCorner(rectangle2 Rect)
+GetMinCorner2(rectangle2 Rect)
 {
   v2 Result = Rect.Min;
   return(Result);  
 }
 
 internal inline v2
-GetMaxCorner(rectangle2 Rect)
+GetMaxCorner2(rectangle2 Rect)
 {
   v2 Result = Rect.Max;
   return(Result);
 }
 
 internal inline v2
-GetCenter(rectangle2 Rect)
+GetCenter2(rectangle2 Rect)
 {
-  v2 Result = VMulS(0.5f, VAdd(Rect.Min, Rect.Max));
+  v2 Result = V2MulS(0.5f, V2Add(Rect.Min, Rect.Max));
   return(Result);  
 }
 
 internal inline rectangle2
-RectMinMax(v2 Min, v2 Max)
+RectMinMax2(v2 Min, v2 Max)
 {
   rectangle2 Result;
 
@@ -192,48 +316,48 @@ RectMinMax(v2 Min, v2 Max)
 }
 
 internal inline rectangle2
-RectMinDim(v2 Min, v2 Dim)
+RectMinDim2(v2 Min, v2 Dim)
 {
   rectangle2 Result;
 
   Result.Min = Min;
-  Result.Max = VAdd(Min, Dim);
+  Result.Max = V2Add(Min, Dim);
 
   return(Result);
 }
 
 internal inline rectangle2
-RectCenterHalfDim(v2 Center, v2 HalfDim)
+RectCenterHalfDim2(v2 Center, v2 HalfDim)
 {
   rectangle2 Result;
 
-  Result.Min = VSub(Center, HalfDim);
-  Result.Max = VAdd(Center, HalfDim);
+  Result.Min = V2Sub(Center, HalfDim);
+  Result.Max = V2Add(Center, HalfDim);
 
   return(Result);
 }
 
 internal inline rectangle2
-AddRadiusTo(rectangle2 A, r32 RadiusW, r32 RadiusH)
+AddRadiusTo2(rectangle2 A, v2 Radius)
 {
   rectangle2 Result;
 
-  Result.Min = VSub(A.Min, V2(RadiusW, RadiusH));
-  Result.Max = VAdd(A.Max, V2(RadiusW, RadiusH));
+  Result.Min = V2Sub(A.Min, Radius);
+  Result.Max = V2Add(A.Max, Radius);
 
   return(Result);  
 }
 
 internal inline rectangle2
-RectCenterDim(v2 Center, v2 Dim)
+RectCenterDim2(v2 Center, v2 Dim)
 {
-  rectangle2 Result = RectCenterHalfDim(Center,
-					VMulS(0.5f, Dim));
+  rectangle2 Result = RectCenterHalfDim2(Center,
+					 V2MulS(0.5f, Dim));
   return(Result);
 }
 
 internal inline bool32
-IsInRectangle(rectangle2 Rectangle, v2 Test)
+IsInRectangle2(rectangle2 Rectangle, v2 Test)
 {
   bool32 Result = ((Test.X >= Rectangle.Min.X) &&
 		   (Test.Y >= Rectangle.Min.Y) &&
@@ -242,3 +366,90 @@ IsInRectangle(rectangle2 Rectangle, v2 Test)
   return(Result);
 }
 
+///
+///
+///
+
+
+internal inline v3
+GetMinCorner(rectangle3 Rect)
+{
+  v3 Result = Rect.Min;
+  return(Result);  
+}
+
+internal inline v3
+GetMaxCorner(rectangle3 Rect)
+{
+  v3 Result = Rect.Max;
+  return(Result);
+}
+
+internal inline v3
+GetCenter(rectangle3 Rect)
+{
+  v3 Result = V3MulS(0.5f, V3Add(Rect.Min, Rect.Max));
+  return(Result);  
+}
+
+internal inline rectangle3
+RectMinMax(v3 Min, v3 Max)
+{
+  rectangle3 Result;
+
+  Result.Min = Min;
+  Result.Max = Max;
+
+  return(Result);
+}
+
+internal inline rectangle3
+RectMinDim(v3 Min, v3 Dim)
+{
+  rectangle3 Result;
+
+  Result.Min = Min;
+  Result.Max = V3Add(Min, Dim);
+
+  return(Result);
+}
+
+internal inline rectangle3
+RectCenterHalfDim(v3 Center, v3 HalfDim)
+{
+  rectangle3 Result;
+
+  Result.Min = V3Sub(Center, HalfDim);
+  Result.Max = V3Add(Center, HalfDim);
+
+  return(Result);
+}
+
+internal inline rectangle3
+AddRadiusTo(rectangle3 A, v3 Radius)
+{
+  rectangle3 Result;
+
+  Result.Min = V3Sub(A.Min, Radius);
+  Result.Max = V3Add(A.Max, Radius);
+
+  return(Result);  
+}
+
+internal inline rectangle3
+RectCenterDim(v3 Center, v3 Dim)
+{
+  rectangle3 Result = RectCenterHalfDim(Center,
+					V3MulS(0.5f, Dim));
+  return(Result);
+}
+
+internal inline bool32
+IsInRectangle(rectangle3 Rectangle, v3 Test)
+{
+  bool32 Result = ((Test.X >= Rectangle.Min.X) &&
+		   (Test.Y >= Rectangle.Min.Y) &&
+		   (Test.X  < Rectangle.Max.X) &&
+		   (Test.Y  < Rectangle.Max.Y));
+  return(Result);
+}
