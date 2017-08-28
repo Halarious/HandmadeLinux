@@ -25,7 +25,7 @@ IsValid(world_position P)
 internal inline bool32
 IsCannonical(r32 ChunkDim, r32 TileRel)
 {
-  r32 Epsilon = 0.0001f;
+  r32 Epsilon = 0.01f;
   bool32 Result = ((TileRel >= -(0.5f * ChunkDim + Epsilon)) &&
 		   (TileRel <=  (0.5f * ChunkDim + Epsilon)));
   return(Result);
@@ -148,8 +148,8 @@ ChunkPositionFromTilePosition(world *World,
 {
   world_position BasePos = {};
 
-  v3 Offset = V3Hadamard(World->ChunkDimInMeters,
-			 V3((r32)AbsTileX, (r32)AbsTileY, (r32)AbsTileZ));
+  v3 Offset = V3MulS(World->TileSideInMeters,
+		     V3((r32)AbsTileX, (r32)AbsTileY, (r32)AbsTileZ));
   world_position Result = MapIntoChunkSpace(World, BasePos, Offset);
 
   Assert(IsCannonicalV(World, Result.Offset_));

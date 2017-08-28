@@ -110,6 +110,14 @@ _AddEntity(state *State, sim_region *SimRegion, u32 StorageIndex, low_entity *So
   return(Entity);
 }
 
+internal inline bool32
+EntityOverlapsRectangle(v3 P, v3 Dim, rectangle3 Rect)
+{
+  rectangle3 Grown = AddRadiusTo(Rect, V3MulS(0.5f, Dim));
+  bool32 Result = IsInRectangle(Grown, P);
+  return(Result);
+}
+
 internal sim_entity*
 AddEntity(state *State, sim_region *SimRegion, u32 StorageIndex, low_entity *Source, v3 *SimP)
 {
@@ -119,7 +127,7 @@ AddEntity(state *State, sim_region *SimRegion, u32 StorageIndex, low_entity *Sou
       if(SimP)
 	{
 	  Dest->P = *SimP;
-	  Dest->Updatable = IsInRectangle(SimRegion->UpdatableBounds, Dest->P);
+	  Dest->Updatable = EntityOverlapsRectangle(Dest->P, Dest->Dim, SimRegion->UpdatableBounds);
 	}
       else
 	{
@@ -131,17 +139,24 @@ AddEntity(state *State, sim_region *SimRegion, u32 StorageIndex, low_entity *Sou
 }
 
 internal sim_region*
-BeginSim(memory_arena *SimArena, state* State, world* World, world_position Origin, rectangle3 Bounds)
+BeginSim(memory_arena *SimArena, state* State, world* World, world_position Origin, rectangle3 Bounds, r32 dt)
 {
   sim_region *SimRegion = PushStruct(SimArena, sim_region);
   ZeroStruct(SimRegion->Hash);
 
-  r32 UpdateSafetyMargin  = 1.0f;
+  SimRegion->MaxEntityRadius = 5.0f;
+  SimRegion->MaxEntityVelocity = 30.0f;
+  r32 UpdateSafetyMargin  = SimRegion->MaxEntityRadius + SimRegion->MaxEntityVelocity*dt;
   r32 UpdateSafetyMarginZ = 1.0f;  
+
   SimRegion->World  = World;
   SimRegion->Origin = Origin;
-  SimRegion->UpdatableBounds = Bounds;
-  SimRegion->Bounds = AddRadiusTo(SimRegion->UpdatableBounds, V3(UpdateSafetyMargin, UpdateSafetyMargin, UpdateSafetyMarginZ));
+  SimRegion->UpdatableBounds = AddRadiusTo(Bounds, V3(SimRegion->MaxEntityRadius,
+						      SimRegion->MaxEntityRadius,
+						      SimRegion->MaxEntityRadius));
+  SimRegion->Bounds = AddRadiusTo(SimRegion->UpdatableBounds, V3(UpdateSafetyMargin,
+								 UpdateSafetyMargin,
+								 UpdateSafetyMarginZ));
   
   SimRegion->MaxEntityCount = 4096;
   SimRegion->EntityCount = 0;
@@ -175,7 +190,7 @@ BeginSim(memory_arena *SimArena, state* State, world* World, world_position Orig
 		      if(!IsSet(&Low->Sim, EntityFlag_Nonspatial))
 			{
 			  v3 SimSpaceP = GetSimSpaceP(SimRegion, Low);
-			  if(IsInRectangle(SimRegion->Bounds, SimSpaceP))
+			  if(EntityOverlapsRectangle(SimSpaceP, Low->Sim.Dim, SimRegion->Bounds))
 			    {
 			      AddEntity(State, SimRegion, LowEntityIndex, Low, &SimSpaceP);
 			    }
@@ -234,7 +249,9 @@ EndSim(sim_region *SimRegion, state *State)
 	      NewCameraP.AbsTileY -= 9;
 	    }
 #else
+	  r32 CamZOffset = NewCameraP.Offset_.Z;
 	  NewCameraP = Stored->P;
+	  NewCameraP.Offset_.Z = CamZOffset;
 #endif
 	  State->CameraP = NewCameraP;
 	}
@@ -363,6 +380,7 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
 			V3MulS(dt, Entity->dP));
   Entity->dP = V3Add(V3MulS(dt, ddEntity),
 			 Entity->dP);
+  Assert(V3LengthSq(Entity->dP) <= Square(SimRegion->MaxEntityVelocity));
   v3 NewPlayerP = V3Add(OldPlayerP, PlayerDelta);
   
   r32 DistanceRemaining = Entity->DistanceLimit;
@@ -399,9 +417,9 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
 		  sim_entity *TestEntity = SimRegion->Entities + TestHighEntityIndex; 
 		  if(ShouldCollide(State, Entity, TestEntity))
 		    {
-		      v3 MinkowskiDiameter = {TestEntity->Width + Entity->Width,
-					      TestEntity->Height + Entity->Height,
-					      2.0f*World->TileDepthInMeters};
+		      v3 MinkowskiDiameter = {TestEntity->Dim.X + Entity->Dim.X,
+					      TestEntity->Dim.Y + Entity->Dim.Y,
+					      TestEntity->Dim.Z + Entity->Dim.Z};
 
 		      v3 MinCorner = V3MulS(-0.5f, MinkowskiDiameter);
 		      v3 MaxCorner = V3MulS( 0.5f, MinkowskiDiameter);
@@ -471,6 +489,7 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
   if(Entity->P.Z < 0)
     {
       Entity->P.Z = 0;
+      Entity->dP.Z = 0;
     }
   
   if(Entity->DistanceLimit != 0.0f)

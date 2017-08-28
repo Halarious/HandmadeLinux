@@ -32,6 +32,7 @@ typedef union
 
 struct sim_entity
 {
+  world_chunk *OldChunk;
   u32 StorageIndex;
   bool32 Updatable;
   
@@ -42,10 +43,9 @@ struct sim_entity
   v3 dP;
 
   r32 DistanceLimit;
-  
-  r32 Height;
-  r32 Width;
 
+  v3 Dim;
+  
   u32 FacingDirection;
   r32 tBob;   
 
@@ -73,6 +73,8 @@ typedef struct
 typedef struct
 {
   world *World;
+  r32 MaxEntityRadius;
+  r32 MaxEntityVelocity;
   
   world_position Origin;
   rectangle3 Bounds;
