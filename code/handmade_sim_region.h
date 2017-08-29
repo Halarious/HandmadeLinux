@@ -14,6 +14,7 @@ typedef enum
   EntityType_Familiar,
   EntityType_Monstar,
   EntityType_Sword,
+  EntityType_Stairwell,
 } entity_type;
 
 #define HIT_POINT_SUB_COUNT 4

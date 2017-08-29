@@ -375,6 +375,19 @@ AddWall(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
   return(Entity);
 }
 
+internal add_low_entity_result
+AddStair(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
+{
+  world_position P = ChunkPositionFromTilePosition(State->World, AbsTileX, AbsTileY, AbsTileZ);
+  add_low_entity_result Entity = AddLowEntity(State, EntityType_Stairwell, P);
+  
+  Entity.Low->Sim.Dim.Y = State->World->TileSideInMeters;
+  Entity.Low->Sim.Dim.X  = Entity.Low->Sim.Dim.Y;
+  Entity.Low->Sim.Dim.Z  = State->World->TileDepthInMeters;
+  
+  return(Entity);
+}
+
 internal void
 InitHitPoint(low_entity *EntityLow, u32 HitPointCount)
 {
@@ -463,10 +476,9 @@ AddCollisionRule(state *State, u32 StorageIndexA, u32 StorageIndexB, bool32 Shou
 	{
 	  Found = PushStruct(&State->WorldArena, pairwise_collision_rule);
 	}
-      
+            
       Found->NextInHash = State->CollisionRuleHash[HashBucket];
       State->CollisionRuleHash[HashBucket] = Found;
-
     }
   
   if(Found)
@@ -606,6 +618,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/tree00.bmp");
       State->Sword
 	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/rock03.bmp");
+      State->Stairwell
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/rock02.bmp");
 
       hero_bitmaps *Bitmap = State->HeroBitmaps;
       
@@ -684,7 +698,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	{
 	  Assert(RandomNumberIndex < ArrayCount(RandomNumberTable));
 	  u32 RandomChoice;
-	  if(1)//(DoorUp || DoorDown)
+	  if(DoorUp || DoorDown)
 	    {
 	      RandomChoice = RandomNumberTable[RandomNumberIndex++] % 2;
 	    }
@@ -726,40 +740,35 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		  u32 AbsTileX = ScreenX * TilesPerWidth  + TileX;
 		  u32 AbsTileY = ScreenY * TilesPerHeight + TileY;
 
-		  u32 TileValue = 1;
+		  bool32 ShouldBeDoor = false;
 		  if((TileX == 0) && (!DoorLeft || (TileY != (TilesPerHeight/2))))
 		    { 
-		      TileValue = 2;
+		      ShouldBeDoor = true;
 		    }		  
 		  if((TileX == (TilesPerWidth - 1)) && (!DoorRight || (TileY != (TilesPerHeight/2))))
 		    {
-		      TileValue = 2;
+		      ShouldBeDoor = true;
 		    }
 		  if((TileY == 0) && (!DoorBottom || (TileX != (TilesPerWidth/2))))
 		    {
-		      TileValue = 2;
+		      ShouldBeDoor = true;
 		    }
 		  if((TileY == (TilesPerHeight - 1)) && (!DoorTop || (TileX != (TilesPerWidth/2))))
 		    {
-		      TileValue = 2;
+		      ShouldBeDoor = true;
 		    }
-		  		  
-		  if((TileX == 10) && (TileY == 6))
-		    {
-		      if(DoorUp)
-			{
-			  TileValue = 3;
-			}
-		      if(DoorDown)
-			{
-			  TileValue = 4;
-			}
-		    }
-		  
-		  if(TileValue == 2)
+
+		  if(ShouldBeDoor)
 		    {
 		      AddWall(State, AbsTileX, AbsTileY, AbsTileZ);
 		    }
+		  else if(CreatedZDoor)
+		    {
+		      if((TileX == 10) && (TileY == 6))
+			{
+			  AddStair(State, AbsTileX, AbsTileY, DoorDown ?  (AbsTileZ - 1) : AbsTileZ);
+			}
+		    }		  
 		}
 	    }
 
@@ -817,7 +826,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 						 CameraTileZ);
       State->CameraP = NewCameraP;
       
-      AddMonstar(State, CameraTileX + 2, CameraTileY + 2, CameraTileZ);
+      AddMonstar(State, CameraTileX - 3, CameraTileY + 2, CameraTileZ);
       for(u32 FamiliarIndex = 0;
 	  FamiliarIndex < 1;
 	  ++FamiliarIndex)
@@ -1003,6 +1012,10 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	    case EntityType_Wall:
 	      {
 		PushBitmap(&PieceGroup, &State->Tree, V2(0, 0), 0 ,V2(40, 80), 1.0f, 1.0f);
+	      } break;
+	    case EntityType_Stairwell:
+	      {
+		PushBitmap(&PieceGroup, &State->Stairwell, V2(0, 0), 0 ,V2(37, 37), 1.0f, 1.0f);
 	      } break;
 	    case EntityType_Sword:
 	      {

@@ -142,6 +142,12 @@ typedef struct
   r32 dZ;
 }controlled_hero;
 
+typedef enum 
+{
+  PairCollisionFlag_ShouldCollide = 0x1,
+  PairCollisionFlag_Temporary = 0x2,
+} pairwise_collision_rule_flag;
+
 typedef struct pairwise_collision_rule pairwise_collision_rule;
 struct pairwise_collision_rule
 {
@@ -175,7 +181,8 @@ typedef struct
 
   loaded_bitmap Tree;
   loaded_bitmap Sword;
-
+  loaded_bitmap Stairwell;
+  
   pairwise_collision_rule *CollisionRuleHash[256];
   pairwise_collision_rule *FirstFreeCollisionRule;
 } state;
@@ -202,6 +209,6 @@ GetLowEntity(state *State, u32 Index)
 
 internal void
 AddCollisionRule(state *State, u32 StorageIndexA, u32 StorageIndexB, bool32 ShouldCollide);
-
 internal void
 ClearCollisionRuleFor(state *State, u32 StorageIndex);
+
