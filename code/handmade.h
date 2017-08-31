@@ -142,16 +142,10 @@ typedef struct
   r32 dZ;
 }controlled_hero;
 
-typedef enum 
-{
-  PairCollisionFlag_ShouldCollide = 0x1,
-  PairCollisionFlag_Temporary = 0x2,
-} pairwise_collision_rule_flag;
-
 typedef struct pairwise_collision_rule pairwise_collision_rule;
 struct pairwise_collision_rule
 {
-  bool32 ShouldCollide;
+  bool32 CanCollide;
   u32 StorageIndexA;
   u32 StorageIndexB;
 
@@ -208,7 +202,7 @@ GetLowEntity(state *State, u32 Index)
 }
 
 internal void
-AddCollisionRule(state *State, u32 StorageIndexA, u32 StorageIndexB, bool32 ShouldCollide);
+AddCollisionRule(state *State, u32 StorageIndexA, u32 StorageIndexB, bool32 CanCollide);
 internal void
 ClearCollisionRuleFor(state *State, u32 StorageIndex);
 

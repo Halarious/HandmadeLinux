@@ -144,13 +144,15 @@ MapIntoChunkSpace(world *World, world_position BasePosition, v3 Offset)
 
 internal world_position
 ChunkPositionFromTilePosition(world *World,
-			      s32 AbsTileX, s32 AbsTileY, s32 AbsTileZ)
+			      s32 AbsTileX, s32 AbsTileY, s32 AbsTileZ,
+			      v3 AdditionalOffset)
 {
   world_position BasePos = {};
 
   v3 Offset = V3MulS(World->TileSideInMeters,
 		     V3((r32)AbsTileX, (r32)AbsTileY, (r32)AbsTileZ));
-  world_position Result = MapIntoChunkSpace(World, BasePos, Offset);
+  world_position Result = MapIntoChunkSpace(World, BasePos,
+					    V3Add(Offset, AdditionalOffset));
 
   Assert(IsCannonicalV(World, Result.Offset_));
   
@@ -287,12 +289,12 @@ ChangeEntityLocation(memory_arena *Arena, world *World,
   if(NewP)
     {
       LowEntity->P = *NewP;
-      ClearFlag(&LowEntity->Sim, EntityFlag_Nonspatial);
+      ClearFlags(&LowEntity->Sim, EntityFlag_Nonspatial);
     }
   else
     {
       LowEntity->P = NullPosition();
-      AddFlag(&LowEntity->Sim, EntityFlag_Nonspatial);
+      AddFlags(&LowEntity->Sim, EntityFlag_Nonspatial);
     }
 }
 

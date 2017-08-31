@@ -122,6 +122,32 @@ Square(r32 V)
   return(Result);
 }
 
+internal inline r32
+Lerp(r32 A, r32 t, r32 B)
+{
+  r32 Result = (1.0f - t)*A + t*B;
+  return(Result);
+}
+
+internal inline r32
+Clamp(r32 Min, r32 Value, r32 Max)
+{
+  r32 Result = Value;
+
+  if(Result < Min)
+    {
+      Result = Min;
+    }
+  else if(Result > Max)
+    {
+      Result = Max;
+    }
+  
+  return(Result);
+}
+#define Clamp01(Value) Clamp(0.0f, Value, 1.0f)
+
+
 ///
 ///
 ///
@@ -276,6 +302,18 @@ internal inline r32
 V3Length(v3 V)
 {
   r32 Result = SquareRoot(V3LengthSq(V));
+  return(Result);
+}
+
+internal inline v3
+V3Clamp01(v3 V)
+{
+  v3 Result;
+
+  Result.X = Clamp01(V.X);
+  Result.Y = Clamp01(V.Y);
+  Result.Z = Clamp01(V.Z);
+  
   return(Result);
 }
 
@@ -469,4 +507,29 @@ RectanglesIntersect(rectangle3 A, rectangle3 B)
   return(Result);
 }
 
+internal inline r32
+SafeRatioN(r32 Numerator, r32 Divisor, r32 N)
+{
+  r32 Result = N;
 
+  if(Divisor != 0.0f)
+    {
+      Result = Numerator / Divisor;
+    }
+
+  return(Result);
+}
+#define SafeRatio0(Numerator, Divisor) SafeRatioN(Numerator, Divisor, 0.0f)
+#define SafeRatio1(Numerator, Divisor) SafeRatioN(Numerator, Divisor, 1.0f)
+
+internal inline v3
+GetBarycentric(rectangle3 R, v3 P)
+{
+  v3 Result;
+
+  Result.X = SafeRatio0((P.X - R.Min.X), (R.Max.X - R.Min.X));
+  Result.Y = SafeRatio0((P.Y - R.Min.Y), (R.Max.Y - R.Min.Y));
+  Result.Z = SafeRatio0((P.Z - R.Min.Z), (R.Max.Z - R.Min.Z));
+
+  return(Result);
+}

@@ -365,12 +365,12 @@ AddLowEntity(state *State, entity_type Type, world_position P)
 internal add_low_entity_result
 AddWall(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
 {
-  world_position P = ChunkPositionFromTilePosition(State->World, AbsTileX, AbsTileY, AbsTileZ);
+  world_position P = ChunkPositionFromTilePosition(State->World, AbsTileX, AbsTileY, AbsTileZ, V3(0, 0, 0));
   add_low_entity_result Entity = AddLowEntity(State, EntityType_Wall, P);
   
   Entity.Low->Sim.Dim.Y = State->World->TileSideInMeters;
   Entity.Low->Sim.Dim.X  = Entity.Low->Sim.Dim.Y;
-  AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
+  AddFlags(&Entity.Low->Sim, EntityFlag_Collides);
 
   return(Entity);
 }
@@ -378,12 +378,13 @@ AddWall(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
 internal add_low_entity_result
 AddStair(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
 {
-  world_position P = ChunkPositionFromTilePosition(State->World, AbsTileX, AbsTileY, AbsTileZ);
+  world_position P = ChunkPositionFromTilePosition(State->World, AbsTileX, AbsTileY, AbsTileZ,
+						   V3(0.0f, 0.0f, 0.5f*State->World->TileDepthInMeters));
   add_low_entity_result Entity = AddLowEntity(State, EntityType_Stairwell, P);
   
   Entity.Low->Sim.Dim.Y = State->World->TileSideInMeters;
   Entity.Low->Sim.Dim.X  = Entity.Low->Sim.Dim.Y;
-  Entity.Low->Sim.Dim.Z  = State->World->TileDepthInMeters;
+  Entity.Low->Sim.Dim.Z  = 1.2f * State->World->TileDepthInMeters;
   
   return(Entity);
 }
@@ -410,7 +411,8 @@ AddSword(state *State)
 
   Entity.Low->Sim.Dim.Y = 0.5f;//1.4f;
   Entity.Low->Sim.Dim.X  = 1.0f;// * Entity->Height;
-    
+  AddFlags(&Entity.Low->Sim, EntityFlag_Moveable);
+ 
   return(Entity);
 }
 
@@ -442,7 +444,7 @@ ClearCollisionRuleFor(state *State, u32 StorageIndex)
 }
 
 internal void
-AddCollisionRule(state *State, u32 StorageIndexA, u32 StorageIndexB, bool32 ShouldCollide)
+AddCollisionRule(state *State, u32 StorageIndexA, u32 StorageIndexB, bool32 CanCollide)
 {
   if(StorageIndexA > StorageIndexB)
     {
@@ -485,7 +487,7 @@ AddCollisionRule(state *State, u32 StorageIndexA, u32 StorageIndexB, bool32 Shou
     {
       Found->StorageIndexA = StorageIndexA;
       Found->StorageIndexB = StorageIndexB;
-      Found->ShouldCollide = ShouldCollide;
+      Found->CanCollide = CanCollide;
     }
 }
 
@@ -498,7 +500,7 @@ AddPlayer(state *State)
   InitHitPoint(Entity.Low, 3);
   Entity.Low->Sim.Dim.Y = 0.5f;
   Entity.Low->Sim.Dim.X  = 1.0f;
-  AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
+  AddFlags(&Entity.Low->Sim, EntityFlag_Collides|EntityFlag_Moveable);
   
   add_low_entity_result Sword = AddSword(State);
   Entity.Low->Sim.Sword.Index = Sword.LowIndex;
@@ -516,26 +518,28 @@ AddPlayer(state *State)
 internal add_low_entity_result
 AddMonstar(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
 {
-  world_position P = ChunkPositionFromTilePosition(State->World, AbsTileX, AbsTileY, AbsTileZ);
+  world_position P = ChunkPositionFromTilePosition(State->World, AbsTileX, AbsTileY, AbsTileZ,
+						   V3(0,0,0));
   add_low_entity_result Entity = AddLowEntity(State, EntityType_Monstar, P);
 
   InitHitPoint(Entity.Low, 3);
   Entity.Low->Sim.Dim.Y = 0.5f;//1.4f;
   Entity.Low->Sim.Dim.X  = 1.0f;// * Entity->Height;
-  AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
-  
+  AddFlags(&Entity.Low->Sim, EntityFlag_Collides|EntityFlag_Moveable);
+    
   return(Entity);
 }
 
 internal add_low_entity_result
 AddFamiliar(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
 {
-  world_position P = ChunkPositionFromTilePosition(State->World, AbsTileX, AbsTileY, AbsTileZ);
+  world_position P = ChunkPositionFromTilePosition(State->World, AbsTileX, AbsTileY, AbsTileZ,
+						   V3(0,0,0));
   add_low_entity_result Entity = AddLowEntity(State, EntityType_Familiar, P);
   
   Entity.Low->Sim.Dim.Y = 0.5f;//1.4f;
   Entity.Low->Sim.Dim.X  = 1.0f;// * Entity->Height;
-  AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
+  AddFlags(&Entity.Low->Sim, EntityFlag_Collides|EntityFlag_Moveable);
   
   return(Entity);
 }
@@ -823,7 +827,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       NewCameraP = ChunkPositionFromTilePosition(World,
 						 CameraTileX,
 						 CameraTileY,
-						 CameraTileZ);
+						 CameraTileZ,
+						 V3(0,0,0));
       State->CameraP = NewCameraP;
       
       AddMonstar(State, CameraTileX - 3, CameraTileY + 2, CameraTileZ);
@@ -1015,7 +1020,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	      } break;
 	    case EntityType_Stairwell:
 	      {
-		PushBitmap(&PieceGroup, &State->Stairwell, V2(0, 0), 0 ,V2(37, 37), 1.0f, 1.0f);
+		PushRect(&PieceGroup, V2(0,0), 0, Entity->Dim.XY, V4(1, 1, 0, 1), 0.0f);
 	      } break;
 	    case EntityType_Sword:
 	      {
@@ -1089,7 +1094,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	      } break;
 	    }
 
-	  if(!IsSet(Entity, EntityFlag_Nonspatial))
+	  if(!IsSet(Entity, EntityFlag_Nonspatial) &&
+	     IsSet(Entity, EntityFlag_Moveable))
 	    {	      
 	      MoveEntity(State, SimRegion, Entity,
 			 Input->dtForFrame, &MoveSpec, ddP);
