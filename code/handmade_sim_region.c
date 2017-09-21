@@ -303,16 +303,8 @@ CanCollide(state *State, sim_entity *A, sim_entity *B)
     
       if(!IsSet(A, EntityFlag_Nonspatial) &&
 	 !IsSet(B, EntityFlag_Nonspatial))
-	{
-      
+	{      
 	  Result = true;
-	}
-    
-      if(A->Type == EntityType_Stairwell ||
-	 B->Type == EntityType_Stairwell)
-	{
-      
-	  Result = false;
 	}
 
       u32 HashBucket = A->StorageIndex & (ArrayCount(State->CollisionRuleHash) - 1);
@@ -393,6 +385,24 @@ HandleOverlap(state *State, sim_entity *Mover, sim_entity *Region, r32 dt, r32 *
     }  
 }
 
+internal bool32
+SpeculativeCollide(sim_entity *Mover, sim_entity *Region)
+{
+  bool32 Result = true;
+  
+  if(Region->Type == EntityType_Stairwell)
+    {
+      rectangle3 RegionRect = RectCenterDim(Region->P, Region->Dim);
+      v3 Bary = V3Clamp01(GetBarycentric(RegionRect, Mover->P));
+      
+      r32 Ground = Lerp(RegionRect.Min.Z, Bary.Y, RegionRect.Max.Z);
+      r32 StepHeight = 0.1f;
+      Result = (AbsoluteValue(Mover->P.Z - Ground) > StepHeight);
+    }
+
+  return(Result);
+}
+
 internal void
 MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
 	   move_spec *MoveSpec, v3 ddEntity)
@@ -413,8 +423,12 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
   ddEntity = V3MulS(MoveSpec->Speed, ddEntity);
   ddEntity = V3Add(ddEntity,
 		  V3MulS(-MoveSpec->Drag, Entity->dP));
-  ddEntity = V3Add(ddEntity,
-		   V3(0, 0, -9.8f));
+  if(!IsSet(Entity,EntityFlag_ZSupported))
+    {
+      ddEntity = V3Add(ddEntity,
+		       V3(0, 0, -9.8f));
+    }
+  
   v3 OldPlayerP = Entity->P;
   v3 PlayerDelta = V3Add(V3MulS(0.5f ,
 			      V3MulS(Square(dt),
@@ -457,8 +471,7 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
 		  ++TestHighEntityIndex)
 		{
 		  sim_entity *TestEntity = SimRegion->Entities + TestHighEntityIndex; 
-		  if(CanCollide(State, Entity, TestEntity) &&
-		     (TestEntity->P.Z == Entity->P.Z))
+		  if(CanCollide(State, Entity, TestEntity))
 		    {
 		      v3 MinkowskiDiameter = {TestEntity->Dim.X + Entity->Dim.X,
 					      TestEntity->Dim.Y + Entity->Dim.Y,
@@ -468,31 +481,47 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
 		      v3 MaxCorner = V3MulS( 0.5f, MinkowskiDiameter);
 
 		      v3 Rel = V3Sub(Entity->P, TestEntity->P);
-	  
+
+		      r32 tMinTest = tMin;
+		      v3 TestWallNormal = {};
+		      sim_entity *TestHitEntity = 0;
 		      if(TestWall(MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
-				  &tMin, MinCorner.Y, MaxCorner.Y))
+				  &tMinTest, MinCorner.Y, MaxCorner.Y))
 			{
-			  HitEntity = TestEntity;
-			  WallNormal = V3(-1, 0, 0);
+			  TestHitEntity = TestEntity;
+			  TestWallNormal = V3(-1, 0, 0);
 			}
 		      if(TestWall(MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
-				  &tMin, MinCorner.Y, MaxCorner.Y))
+				  &tMinTest, MinCorner.Y, MaxCorner.Y))
 			{
-			  HitEntity = TestEntity;
-			  WallNormal = V3(1, 0, 0);
+			  TestHitEntity = TestEntity;
+			  TestWallNormal = V3(1, 0, 0);
 			}
 		      if(TestWall(MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
-				  &tMin, MinCorner.X, MaxCorner.X))
+				  &tMinTest, MinCorner.X, MaxCorner.X))
 			{
-			  HitEntity = TestEntity;
-			  WallNormal = V3(0, -1, 0);
+			  TestHitEntity = TestEntity;
+			  TestWallNormal = V3(0, -1, 0);
 			}
 		      if(TestWall(MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
-				  &tMin, MinCorner.X, MaxCorner.X))
+				  &tMinTest, MinCorner.X, MaxCorner.X))
 			{
-			  HitEntity = TestEntity;
-			  WallNormal = V3(0, 1, 0);
-			}			
+			  TestHitEntity = TestEntity;
+			  TestWallNormal = V3(0, 1, 0);
+			}
+
+		      if(TestHitEntity)
+			{
+			  v3 TestP = V3Add(Entity->P,
+					   V3MulS(tMinTest,
+						  PlayerDelta));
+			  if(SpeculativeCollide(Entity, TestEntity))
+			    {
+			      tMin = tMinTest;
+			      WallNormal = TestWallNormal;
+			      HitEntity  = TestHitEntity;
+			    }
+			}
 		    }
 		}
 	    }
@@ -527,7 +556,6 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
     }
 
   r32 Ground = 0.0f;
-
   {
     rectangle3 EntityRect = RectCenterDim(Entity->P, Entity->Dim);
 
@@ -548,10 +576,17 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
       }
   }
     
-  if(Entity->P.Z < Ground)
+  if((Entity->P.Z <= Ground) ||
+     (IsSet(Entity, EntityFlag_ZSupported) &&
+      (Entity->dP.Z == 0.0f))) 
     {
       Entity->P.Z = Ground;
       Entity->dP.Z = 0;
+      AddFlags(Entity, EntityFlag_ZSupported);
+    }
+  else
+    {
+      ClearFlags(Entity, EntityFlag_ZSupported);
     }
   
   if(Entity->DistanceLimit != 0.0f)

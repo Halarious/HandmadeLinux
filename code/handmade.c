@@ -381,10 +381,11 @@ AddStair(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
   world_position P = ChunkPositionFromTilePosition(State->World, AbsTileX, AbsTileY, AbsTileZ,
 						   V3(0.0f, 0.0f, 0.5f*State->World->TileDepthInMeters));
   add_low_entity_result Entity = AddLowEntity(State, EntityType_Stairwell, P);
-  
-  Entity.Low->Sim.Dim.Y = State->World->TileSideInMeters;
-  Entity.Low->Sim.Dim.X  = Entity.Low->Sim.Dim.Y;
-  Entity.Low->Sim.Dim.Z  = 1.2f * State->World->TileDepthInMeters;
+
+  Entity.Low->Sim.Dim.X  = State->World->TileSideInMeters;
+  Entity.Low->Sim.Dim.Y  = 2.0f*State->World->TileSideInMeters;
+  Entity.Low->Sim.Dim.Z  = State->World->TileDepthInMeters;
+  AddFlags(&Entity.Low->Sim, EntityFlag_Collides);
   
   return(Entity);
 }
@@ -768,7 +769,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		    }
 		  else if(CreatedZDoor)
 		    {
-		      if((TileX == 10) && (TileY == 6))
+		      if((TileX == 10) && (TileY == 5))
 			{
 			  AddStair(State, AbsTileX, AbsTileY, DoorDown ?  (AbsTileZ - 1) : AbsTileZ);
 			}
@@ -1042,6 +1043,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		sim_entity *ClosestHero = 0;
 		r32 ClosestHeroDSq = Square(10.0f);
 
+#if 0
 		sim_entity *TestEntity = SimRegion->Entities;
 		for(u32 TestEntityIndex = 1;
 		    TestEntityIndex < SimRegion->EntityCount;
@@ -1058,7 +1060,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 			  }
 		      }
 		  }
-  
+#endif
+		
 		if((ClosestHero) && (ClosestHeroDSq > Square(3.0f)))
 		  {
 		    r32 Acceleration = 0.5f;
@@ -1100,9 +1103,11 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	      MoveEntity(State, SimRegion, Entity,
 			 Input->dtForFrame, &MoveSpec, ddP);
 	    }
-	  
-	  r32 EntityGroundPointX = ScreenCenterX + MetersToPixels*Entity->P.X;
-	  r32 EntityGroundPointY = ScreenCenterY - MetersToPixels*Entity->P.Y;
+
+	  r32 ZFudge = (1.0f + 0.1f * Entity->P.Z);
+	    
+	  r32 EntityGroundPointX = ScreenCenterX + MetersToPixels*ZFudge*Entity->P.X;
+	  r32 EntityGroundPointY = ScreenCenterY - MetersToPixels*ZFudge*Entity->P.Y;
 	  r32 EntityZ = -MetersToPixels*Entity->P.Z;
 #if 0
 	  v2 PlayerLeftTop = {PlayerGroundPointX - 0.5f * MetersToPixels*LowEntity->Width,

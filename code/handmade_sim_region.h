@@ -61,7 +61,7 @@ typedef enum
   EntityFlag_Collides = (1 << 0),
   EntityFlag_Nonspatial = (1 << 1),
   EntityFlag_Moveable = (1 << 2),
-  
+  EntityFlag_ZSupported = (1 << 3),
 
   EntityFlag_Simming = (1 << 30),
 } sim_entity_flags;
@@ -85,6 +85,6 @@ typedef struct
   u32 MaxEntityCount;
   u32 EntityCount;
   sim_entity *Entities;
-
+  
   sim_entity_hash Hash[4096]; 
 } sim_region;
