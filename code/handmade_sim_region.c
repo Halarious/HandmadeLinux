@@ -236,7 +236,7 @@ EndSim(sim_region *SimRegion, state *State)
 	{      
 	  world_position NewCameraP = State->CameraP;
       
-	  State->CameraP.ChunkZ = Stored->P.ChunkZ;
+	  NewCameraP.ChunkZ = Stored->P.ChunkZ;
 #if 0
 	  if(CameraFollowingEntity.High->P.X > (9.0f * World->TileSideInMeters))
 	    {
@@ -321,7 +321,7 @@ CanCollide(state *State, sim_entity *A, sim_entity *B)
 	  Rule = Rule->NextInHash)
 	{
 	  if((Rule->StorageIndexA == A->StorageIndex) &&
-	     (Rule->StorageIndexA == A->StorageIndex))
+	     (Rule->StorageIndexB == B->StorageIndex))
 	    {
 	      Result = Rule->CanCollide;
 	      break;
@@ -531,7 +531,7 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
   {
     rectangle3 EntityRect = RectCenterDim(Entity->P, Entity->Dim);
 
-    for(u32 TestHighEntityIndex = 1;
+    for(u32 TestHighEntityIndex = 0;
 	TestHighEntityIndex < SimRegion->EntityCount;
 	++TestHighEntityIndex)
       {

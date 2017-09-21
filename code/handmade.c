@@ -962,7 +962,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  r32 ShadowAlpha = 1.0f - 0.5f*Entity->P.Z;
 	  if(ShadowAlpha < 0)
 	    {
-	      ShadowAlpha = 0;
+	      ShadowAlpha = 0.0f;
 	    }
 
 	  move_spec MoveSpec = DefaultMoveSpec();;

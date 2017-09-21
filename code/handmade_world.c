@@ -137,7 +137,7 @@ MapIntoChunkSpace(world *World, world_position BasePosition, v3 Offset)
   Result.Offset_ = V3Add(Result.Offset_, Offset);
   RecanonicalizeCoord(World->ChunkDimInMeters.X, &Result.ChunkX, &Result.Offset_.X);
   RecanonicalizeCoord(World->ChunkDimInMeters.Y, &Result.ChunkY, &Result.Offset_.Y);
-  RecanonicalizeCoord(World->ChunkDimInMeters.Z, &Result.ChunkY, &Result.Offset_.Z);
+  RecanonicalizeCoord(World->ChunkDimInMeters.Z, &Result.ChunkZ, &Result.Offset_.Z);
 
   return(Result);
 }
