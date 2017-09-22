@@ -33,3 +33,23 @@ MakeEntitySpatial(sim_entity *Entity, v3 P, v3 dP)
   Entity->P  = P;
   Entity->dP = dP;
 }
+
+internal inline v3
+GetEntityGroundPoint(sim_entity *Entity)
+{
+  v3 Result = V3Add(Entity->P, V3(0.0f, 0.0f, -0.5f*Entity->Dim.Z));
+  return(Result);
+}
+
+internal inline r32
+GetStairGround(sim_entity *Entity, v3 AtGroundPoint)
+{
+  Assert(Entity->Type == EntityType_Stairwell);
+  
+  rectangle3 RegionRect = RectCenterDim(Entity->P, Entity->Dim);
+  v3 Bary = V3Clamp01(GetBarycentric(RegionRect, AtGroundPoint));
+  r32 Result = RegionRect.Min.Z + Bary.Y*Entity->WalkableHeight;
+
+  return(Result);
+}
+

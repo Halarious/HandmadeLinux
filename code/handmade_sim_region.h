@@ -54,6 +54,8 @@ struct sim_entity
   hit_point HitPoints[16];
 
   entity_reference Sword;
+
+  r32 WalkableHeight;
 };
 
 typedef enum

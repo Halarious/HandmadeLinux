@@ -378,10 +378,7 @@ HandleOverlap(state *State, sim_entity *Mover, sim_entity *Region, r32 dt, r32 *
 {
   if(Region->Type == EntityType_Stairwell)
     {
-      rectangle3 RegionRect = RectCenterDim(Region->P, Region->Dim);
-      v3 Bary = V3Clamp01(GetBarycentric(RegionRect, Mover->P));
-
-      *Ground = Lerp(RegionRect.Min.Z, Bary.Y, RegionRect.Max.Z);
+      *Ground = GetStairGround(Region, GetEntityGroundPoint(Mover));
     }  
 }
 
@@ -392,13 +389,15 @@ SpeculativeCollide(sim_entity *Mover, sim_entity *Region)
   
   if(Region->Type == EntityType_Stairwell)
     {
-      rectangle3 RegionRect = RectCenterDim(Region->P, Region->Dim);
-      v3 Bary = V3Clamp01(GetBarycentric(RegionRect, Mover->P));
-
-      r32 Ground = Lerp(RegionRect.Min.Z, Bary.Y, RegionRect.Max.Z);
+      
       r32 StepHeight = 0.1f;
-      Result = ((AbsoluteValue(Mover->P.Z - Ground) > StepHeight) ||
+#if 0
+      Result = ((AbsoluteValue(GetEntityGroundPoint(Mover).Z - Ground) > StepHeight) ||
 		((Bary.Y > 0.1f) && (Bary.Y < 0.9f)));
+#endif
+      v3 MoverGroundPoint = GetEntityGroundPoint(Mover);
+      r32 Ground = GetStairGround(Region, MoverGroundPoint);
+      Result = (AbsoluteValue(GetEntityGroundPoint(Mover).Z - Ground) > StepHeight);
     }
 
   return(Result);
@@ -562,6 +561,7 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
     }
 
   r32 Ground = 0.0f;
+  
   {
     rectangle3 EntityRect = RectCenterDim(Entity->P, Entity->Dim);
 
@@ -581,7 +581,8 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
 	  }
       }
   }
-    
+
+  Ground += Entity->P.Z - GetEntityGroundPoint(Entity).Z;
   if((Entity->P.Z <= Ground) ||
      (IsSet(Entity, EntityFlag_ZSupported) &&
       (Entity->dP.Z == 0.0f))) 
