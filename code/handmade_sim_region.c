@@ -394,10 +394,11 @@ SpeculativeCollide(sim_entity *Mover, sim_entity *Region)
     {
       rectangle3 RegionRect = RectCenterDim(Region->P, Region->Dim);
       v3 Bary = V3Clamp01(GetBarycentric(RegionRect, Mover->P));
-      
+
       r32 Ground = Lerp(RegionRect.Min.Z, Bary.Y, RegionRect.Max.Z);
       r32 StepHeight = 0.1f;
-      Result = (AbsoluteValue(Mover->P.Z - Ground) > StepHeight);
+      Result = ((AbsoluteValue(Mover->P.Z - Ground) > StepHeight) ||
+		((Bary.Y > 0.1f) && (Bary.Y < 0.9f)));
     }
 
   return(Result);
@@ -484,33 +485,33 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
 
 		      r32 tMinTest = tMin;
 		      v3 TestWallNormal = {};
-		      sim_entity *TestHitEntity = 0;
+		      bool32 HitThis = false;
 		      if(TestWall(MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
 				  &tMinTest, MinCorner.Y, MaxCorner.Y))
 			{
-			  TestHitEntity = TestEntity;
+			  HitThis = true;
 			  TestWallNormal = V3(-1, 0, 0);
 			}
 		      if(TestWall(MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
 				  &tMinTest, MinCorner.Y, MaxCorner.Y))
 			{
-			  TestHitEntity = TestEntity;
+			  HitThis = true;
 			  TestWallNormal = V3(1, 0, 0);
 			}
 		      if(TestWall(MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
 				  &tMinTest, MinCorner.X, MaxCorner.X))
 			{
-			  TestHitEntity = TestEntity;
+			  HitThis = true;
 			  TestWallNormal = V3(0, -1, 0);
 			}
 		      if(TestWall(MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
 				  &tMinTest, MinCorner.X, MaxCorner.X))
 			{
-			  TestHitEntity = TestEntity;
+			  HitThis = true;
 			  TestWallNormal = V3(0, 1, 0);
 			}
 
-		      if(TestHitEntity)
+		      if(HitThis)
 			{
 			  v3 TestP = V3Add(Entity->P,
 					   V3MulS(tMinTest,
@@ -519,7 +520,7 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
 			    {
 			      tMin = tMinTest;
 			      WallNormal = TestWallNormal;
-			      HitEntity  = TestHitEntity;
+			      HitEntity  = TestEntity;
 			    }
 			}
 		    }
