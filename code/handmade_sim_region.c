@@ -483,44 +483,49 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
 
 		      v3 Rel = V3Sub(Entity->P, TestEntity->P);
 
-		      r32 tMinTest = tMin;
-		      v3 TestWallNormal = {};
-		      bool32 HitThis = false;
-		      if(TestWall(MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
-				  &tMinTest, MinCorner.Y, MaxCorner.Y))
+		      if((Rel.Z >= MinCorner.Z) &&
+			 (Rel.Z <  MaxCorner.Z))
 			{
-			  HitThis = true;
-			  TestWallNormal = V3(-1, 0, 0);
-			}
-		      if(TestWall(MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
-				  &tMinTest, MinCorner.Y, MaxCorner.Y))
-			{
-			  HitThis = true;
-			  TestWallNormal = V3(1, 0, 0);
-			}
-		      if(TestWall(MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
-				  &tMinTest, MinCorner.X, MaxCorner.X))
-			{
-			  HitThis = true;
-			  TestWallNormal = V3(0, -1, 0);
-			}
-		      if(TestWall(MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
-				  &tMinTest, MinCorner.X, MaxCorner.X))
-			{
-			  HitThis = true;
-			  TestWallNormal = V3(0, 1, 0);
-			}
+			  r32 tMinTest = tMin;
+			  v3 TestWallNormal = {};
 
-		      if(HitThis)
-			{
-			  v3 TestP = V3Add(Entity->P,
-					   V3MulS(tMinTest,
-						  PlayerDelta));
-			  if(SpeculativeCollide(Entity, TestEntity))
+			  bool32 HitThis = false;
+			  if(TestWall(MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
+				      &tMinTest, MinCorner.Y, MaxCorner.Y))
 			    {
-			      tMin = tMinTest;
-			      WallNormal = TestWallNormal;
-			      HitEntity  = TestEntity;
+			      HitThis = true;
+			      TestWallNormal = V3(-1, 0, 0);
+			    }
+			  if(TestWall(MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
+				      &tMinTest, MinCorner.Y, MaxCorner.Y))
+			    {
+			      HitThis = true;
+			      TestWallNormal = V3(1, 0, 0);
+			    }
+			  if(TestWall(MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
+				      &tMinTest, MinCorner.X, MaxCorner.X))
+			    {
+			      HitThis = true;
+			      TestWallNormal = V3(0, -1, 0);
+			    }
+			  if(TestWall(MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
+				      &tMinTest, MinCorner.X, MaxCorner.X))
+			    {
+			      HitThis = true;
+			      TestWallNormal = V3(0, 1, 0);
+			    }
+
+			  if(HitThis)
+			    {
+			      v3 TestP = V3Add(Entity->P,
+					       V3MulS(tMinTest,
+						      PlayerDelta));
+			      if(SpeculativeCollide(Entity, TestEntity))
+				{
+				  tMin = tMinTest;
+				  WallNormal = TestWallNormal;
+				  HitEntity  = TestEntity;
+				}
 			    }
 			}
 		    }

@@ -100,13 +100,13 @@ GetWorldChunk(world *World, s32 ChunkX, s32 ChunkY, s32 ChunkZ,
 }
 
 internal void
-InitializeWorld(world *World, r32 TileSideInMeters)
+InitializeWorld(world *World, r32 TileSideInMeters, r32 TileDepthInMeters)
 {
   World->TileSideInMeters  = TileSideInMeters;
-  World->TileDepthInMeters = TileSideInMeters;
-  World->ChunkDimInMeters = V3((r32)TILES_PER_CHUNK*TileSideInMeters,
-			       (r32)TILES_PER_CHUNK*TileSideInMeters,
-			       (r32)TileSideInMeters);
+  World->TileDepthInMeters = TileDepthInMeters;
+  World->ChunkDimInMeters  = V3((r32)TILES_PER_CHUNK*TileSideInMeters,
+				(r32)TILES_PER_CHUNK*TileSideInMeters,
+				(r32)TileDepthInMeters);
   World->FirstFree = 0;
   
   for(u32 ChunkIndex = 0;
@@ -149,8 +149,9 @@ ChunkPositionFromTilePosition(world *World,
 {
   world_position BasePos = {};
 
-  v3 Offset = V3MulS(World->TileSideInMeters,
-		     V3((r32)AbsTileX, (r32)AbsTileY, (r32)AbsTileZ));
+  v3 TileDim = V3(World->TileSideInMeters, World->TileSideInMeters, World->TileDepthInMeters);
+  v3 Offset  = V3Hadamard(TileDim,
+			  V3((r32)AbsTileX, (r32)AbsTileY, (r32)AbsTileZ));
   world_position Result = MapIntoChunkSpace(World, BasePos,
 					    V3Add(Offset, AdditionalOffset));
 

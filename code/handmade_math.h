@@ -498,12 +498,12 @@ IsInRectangle(rectangle3 Rectangle, v3 Test)
 internal inline bool32
 RectanglesIntersect(rectangle3 A, rectangle3 B)
 {
-  bool32 Result = !((B.Max.X < A.Min.X) ||
-		    (B.Min.X > A.Max.X) ||
-		    (B.Max.Y < A.Min.Y) ||
-		    (B.Min.Y > A.Max.Y) ||
-		    (B.Max.Z < A.Min.Z) ||
-		    (B.Min.Z > A.Max.Z));
+  bool32 Result = !((B.Max.X <= A.Min.X) ||
+		    (B.Min.X >= A.Max.X) ||
+		    (B.Max.Y <= A.Min.Y) ||
+		    (B.Min.Y >= A.Max.Y) ||
+		    (B.Max.Z <= A.Min.Z) ||
+		    (B.Min.Z >= A.Max.Z));
   return(Result);
 }
 

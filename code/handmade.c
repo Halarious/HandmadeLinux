@@ -363,57 +363,12 @@ AddLowEntity(state *State, entity_type Type, world_position P)
 }
 
 internal add_low_entity_result
-AddWall(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
+AddGroundedEntity(state *State, entity_type Type, world_position P, v3 Dim)
 {
-  world_position P = ChunkPositionFromTilePosition(State->World, AbsTileX, AbsTileY, AbsTileZ, V3(0, 0, 0));
-  add_low_entity_result Entity = AddLowEntity(State, EntityType_Wall, P);
-  
-  Entity.Low->Sim.Dim.Y = State->World->TileSideInMeters;
-  Entity.Low->Sim.Dim.X  = Entity.Low->Sim.Dim.Y;
-  AddFlags(&Entity.Low->Sim, EntityFlag_Collides);
+  world_position OffsetP = MapIntoChunkSpace(State->World, P, V3(0.0f, 0.0f, 0.5f*Dim.Z));
+  add_low_entity_result Entity = AddLowEntity(State, Type, OffsetP);
+  Entity.Low->Sim.Dim = Dim;
 
-  return(Entity);
-}
-
-internal add_low_entity_result
-AddStair(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
-{
-  world_position P = ChunkPositionFromTilePosition(State->World, AbsTileX, AbsTileY, AbsTileZ,
-						   V3(0.0f, 0.0f, 0.5f*State->World->TileDepthInMeters));
-  add_low_entity_result Entity = AddLowEntity(State, EntityType_Stairwell, P);
-
-  Entity.Low->Sim.Dim.X  = State->World->TileSideInMeters;
-  Entity.Low->Sim.Dim.Y  = 2.0f*State->World->TileSideInMeters;
-  Entity.Low->Sim.Dim.Z  = State->World->TileDepthInMeters;
-  AddFlags(&Entity.Low->Sim, EntityFlag_Collides);
-  
-  return(Entity);
-}
-
-internal void
-InitHitPoint(low_entity *EntityLow, u32 HitPointCount)
-{
-  Assert(HitPointCount <= ArrayCount(EntityLow->Sim.HitPoints));
-  EntityLow->Sim.HitPointMax = HitPointCount;
-  for(u32 HitPointIndex = 0;
-      HitPointIndex < EntityLow->Sim.HitPointMax;
-      ++HitPointIndex)
-    {
-      hit_point *HitPoint = EntityLow->Sim.HitPoints + HitPointIndex;
-      HitPoint->Flags = 0;
-      HitPoint->FilledAmount = HIT_POINT_SUB_COUNT;
-    }
-}
-
-internal add_low_entity_result
-AddSword(state *State)
-{
-  add_low_entity_result Entity = AddLowEntity(State, EntityType_Sword, NullPosition());
-
-  Entity.Low->Sim.Dim.Y = 0.5f;//1.4f;
-  Entity.Low->Sim.Dim.X  = 1.0f;// * Entity->Height;
-  AddFlags(&Entity.Low->Sim, EntityFlag_Moveable);
- 
   return(Entity);
 }
 
@@ -493,14 +448,68 @@ AddCollisionRule(state *State, u32 StorageIndexA, u32 StorageIndexB, bool32 CanC
 }
 
 internal add_low_entity_result
+AddWall(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
+{
+  v3 Dim = V3(State->World->TileSideInMeters,
+	      State->World->TileSideInMeters,
+	      State->World->TileDepthInMeters);
+  world_position P = ChunkPositionFromTilePosition(State->World, AbsTileX, AbsTileY, AbsTileZ, V3(0, 0, 0));
+  add_low_entity_result Entity = AddGroundedEntity(State, EntityType_Wall, P, Dim);
+  AddFlags(&Entity.Low->Sim, EntityFlag_Collides);
+
+  return(Entity);
+}
+
+internal add_low_entity_result
+AddStair(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
+{
+  v3 Dim = V3(State->World->TileSideInMeters,
+	      2.0f*State->World->TileSideInMeters,
+	      State->World->TileDepthInMeters);
+  world_position P = ChunkPositionFromTilePosition(State->World, AbsTileX, AbsTileY, AbsTileZ,
+						   V3(0.0f, 0.0f, 0.0f));
+  add_low_entity_result Entity = AddGroundedEntity(State, EntityType_Stairwell, P, Dim);
+  AddFlags(&Entity.Low->Sim, EntityFlag_Collides);
+  
+  return(Entity);
+}
+
+internal void
+InitHitPoint(low_entity *EntityLow, u32 HitPointCount)
+{
+  Assert(HitPointCount <= ArrayCount(EntityLow->Sim.HitPoints));
+  EntityLow->Sim.HitPointMax = HitPointCount;
+  for(u32 HitPointIndex = 0;
+      HitPointIndex < EntityLow->Sim.HitPointMax;
+      ++HitPointIndex)
+    {
+      hit_point *HitPoint = EntityLow->Sim.HitPoints + HitPointIndex;
+      HitPoint->Flags = 0;
+      HitPoint->FilledAmount = HIT_POINT_SUB_COUNT;
+    }
+}
+
+internal add_low_entity_result
+AddSword(state *State)
+{
+  add_low_entity_result Entity = AddLowEntity(State, EntityType_Sword, NullPosition());
+
+  Entity.Low->Sim.Dim.X = 1.0f;
+  Entity.Low->Sim.Dim.Y = 0.5f;
+  Entity.Low->Sim.Dim.Z = 0.1f;
+  AddFlags(&Entity.Low->Sim, EntityFlag_Moveable);
+ 
+  return(Entity);
+}
+
+internal add_low_entity_result
 AddPlayer(state *State)
 {
+  v3 Dim = V3(1.0f, 0.5f, 1.2f);
   world_position P = State->CameraP;
-  add_low_entity_result Entity = AddLowEntity(State, EntityType_Hero, P);
+  add_low_entity_result Entity = AddGroundedEntity(State, EntityType_Hero, P, Dim);
 
   InitHitPoint(Entity.Low, 3);
-  Entity.Low->Sim.Dim.Y = 0.5f;
-  Entity.Low->Sim.Dim.X  = 1.0f;
   AddFlags(&Entity.Low->Sim, EntityFlag_Collides|EntityFlag_Moveable);
   
   add_low_entity_result Sword = AddSword(State);
@@ -519,13 +528,12 @@ AddPlayer(state *State)
 internal add_low_entity_result
 AddMonstar(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
 {
+  v3 Dim = V3(1.0f, 0.5f, 0.5f);
   world_position P = ChunkPositionFromTilePosition(State->World, AbsTileX, AbsTileY, AbsTileZ,
 						   V3(0,0,0));
-  add_low_entity_result Entity = AddLowEntity(State, EntityType_Monstar, P);
+  add_low_entity_result Entity = AddGroundedEntity(State, EntityType_Monstar, P, Dim);
 
   InitHitPoint(Entity.Low, 3);
-  Entity.Low->Sim.Dim.Y = 0.5f;//1.4f;
-  Entity.Low->Sim.Dim.X  = 1.0f;// * Entity->Height;
   AddFlags(&Entity.Low->Sim, EntityFlag_Collides|EntityFlag_Moveable);
     
   return(Entity);
@@ -534,12 +542,10 @@ AddMonstar(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
 internal add_low_entity_result
 AddFamiliar(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
 {
+  v3 Dim = V3(1.0f, 0.5f, 0.5f);
   world_position P = ChunkPositionFromTilePosition(State->World, AbsTileX, AbsTileY, AbsTileZ,
 						   V3(0,0,0));
-  add_low_entity_result Entity = AddLowEntity(State, EntityType_Familiar, P);
-  
-  Entity.Low->Sim.Dim.Y = 0.5f;//1.4f;
-  Entity.Low->Sim.Dim.X  = 1.0f;// * Entity->Height;
+  add_low_entity_result Entity = AddGroundedEntity(State, EntityType_Familiar, P, Dim);
   AddFlags(&Entity.Low->Sim, EntityFlag_Collides|EntityFlag_Moveable);
   
   return(Entity);
@@ -675,7 +681,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
            
       State->World   = PushStruct(&State->WorldArena, world);
       world *World   = State->World;
-      InitializeWorld(World, 1.4f);
+      InitializeWorld(World, 1.4f, 3.0f);
       
       s32 TileSideInPixels = 60;
       State->MetersToPixels = (r32)TileSideInPixels / (r32)World->TileSideInMeters;
