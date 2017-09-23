@@ -302,26 +302,31 @@ CanCollide(state *State, sim_entity *A, sim_entity *B)
 	  A = B;
 	  B = Temp;
 	}
-    
-      if(!IsSet(A, EntityFlag_Nonspatial) &&
-	 !IsSet(B, EntityFlag_Nonspatial))
+      
+      if(IsSet(A, EntityFlag_Collides) &&
+	 IsSet(B, EntityFlag_Collides))
 	{      
-	  Result = true;
-	}
+	  if(!IsSet(A, EntityFlag_Nonspatial) &&
+	     !IsSet(B, EntityFlag_Nonspatial))
+	    {      
+	      Result = true;
+	    }
 
-      u32 HashBucket = A->StorageIndex & (ArrayCount(State->CollisionRuleHash) - 1);
-      for(pairwise_collision_rule *Rule = State->CollisionRuleHash[HashBucket];
-	  Rule;
-	  Rule = Rule->NextInHash)
-	{
-	  if((Rule->StorageIndexA == A->StorageIndex) &&
-	     (Rule->StorageIndexB == B->StorageIndex))
+	  u32 HashBucket = A->StorageIndex & (ArrayCount(State->CollisionRuleHash) - 1);
+	  for(pairwise_collision_rule *Rule = State->CollisionRuleHash[HashBucket];
+	      Rule;
+	      Rule = Rule->NextInHash)
 	    {
-	      Result = Rule->CanCollide;
-	      break;
+	      if((Rule->StorageIndexA == A->StorageIndex) &&
+		 (Rule->StorageIndexB == B->StorageIndex))
+		{
+		  Result = Rule->CanCollide;
+		  break;
+		}
 	    }
 	}
-    }  
+    }
+  
   return(Result);
 }
 

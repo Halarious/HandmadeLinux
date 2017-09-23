@@ -449,6 +449,17 @@ AddCollisionRule(state *State, u32 StorageIndexA, u32 StorageIndexB, bool32 CanC
 }
 
 internal add_low_entity_result
+AddStandardSpace(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
+{
+  world_position P = ChunkPositionFromTilePosition(State->World, AbsTileX, AbsTileY, AbsTileZ, V3(0, 0, 0));
+  add_low_entity_result Entity = AddGroundedEntity(State, EntityType_Space, P,
+						   State->StandardRoomCollision);
+  AddFlags(&Entity.Low->Sim, EntityFlag_Traversable);
+
+  return(Entity);
+}
+
+internal add_low_entity_result
 AddWall(state *State, u32 AbsTileX, u32 AbsTileY, u32 AbsTileZ)
 {
   world_position P = ChunkPositionFromTilePosition(State->World, AbsTileX, AbsTileY, AbsTileZ, V3(0, 0, 0));
@@ -584,6 +595,39 @@ PushRect(entity_visible_piece_group *Group, v2 Offset, r32 OffsetZ,
 	    Color, EntityZC);
 }
 
+internal inline void
+PushRectOutline(entity_visible_piece_group *Group, v2 Offset, r32 OffsetZ,
+		v2 Dim, v4 Color, r32 EntityZC)
+{
+  r32 Thickness = 0.05f;
+  
+  PushPiece(Group, 0,
+	    V2Sub(Offset, V2(0, 0.5f*Dim.Y)),
+	    OffsetZ,
+	    V2(0, 0),
+	    V2(Dim.X, Thickness),
+	    Color, EntityZC);
+  PushPiece(Group, 0,
+	    V2Add(Offset,V2(0, 0.5f*Dim.Y)),
+	    OffsetZ,
+	    V2(0, 0),
+	    V2(Dim.X, Thickness),
+	    Color, EntityZC);
+  
+  PushPiece(Group, 0,
+	    V2Sub(Offset, V2(0.5f*Dim.X, 0)),
+	    OffsetZ,
+	    V2(0, 0),
+	    V2(Thickness, Dim.Y),
+	    Color, EntityZC);
+  PushPiece(Group, 0,
+	    V2Add(Offset,V2(0.5f*Dim.X, 0)),
+	    OffsetZ,
+	    V2(0, 0),
+	    V2(Thickness, Dim.Y),
+	    Color, EntityZC);
+}
+
 internal void
 DrawHitpoints(sim_entity *Entity, entity_visible_piece_group *Group)
 {
@@ -660,6 +704,9 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       s32 TileSideInPixels = 60;
       State->MetersToPixels = (r32)TileSideInPixels / (r32)World->TileSideInMeters;
       u32 RandomNumberIndex = 0;
+	        
+      u32 TilesPerWidth = 17;
+      u32 TilesPerHeight = 9;
 
       State->NullCollision     = MakeNullCollision(State);
       State->SwordCollision    = MakeSimpleGroundedCollision(State,
@@ -686,6 +733,10 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 							     State->World->TileSideInMeters,
 							     State->World->TileSideInMeters,
 							     State->World->TileDepthInMeters);
+      State->StandardRoomCollision  = MakeSimpleGroundedCollision(State,
+								  TilesPerWidth*State->World->TileSideInMeters,
+								  TilesPerHeight*State->World->TileSideInMeters,
+								  0.9f*State->World->TileDepthInMeters);
       
       State->Backdrop
 	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_background.bmp");
@@ -734,9 +785,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       Bitmap->Torso
 	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_front_torso.bmp");
       Bitmap->Align = V2(72, 182);
-	        
-      u32 TilesPerWidth = 17;
-      u32 TilesPerHeight = 9;
+
       u32 ScreenBaseX = 0;
       u32 ScreenBaseY = 0;
       u32 ScreenBaseZ = 0;
@@ -787,6 +836,11 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	    {
 	      DoorTop = true;
 	    }
+
+	  AddStandardSpace(State,
+			   ScreenX * TilesPerWidth + TilesPerWidth/2,
+			   ScreenY * TilesPerWidth + TilesPerHeight/2,
+			   AbsTileZ);
 	  
 	  for(u32 TileY = 0;
 	      TileY < TilesPerHeight;
@@ -1146,6 +1200,18 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		PushBitmap(&PieceGroup, &State->Shadow, V2(0, 0), 0 ,Hero->Align, ShadowAlpha, 1.0f);
 		PushBitmap(&PieceGroup, &Hero->Torso, V2(0, 0), 0 ,Hero->Align, 1.0f, 1.0f);
 	      } break;
+	      
+	    case EntityType_Space:
+	      {
+		for(u32 VolumeIndex = 0;
+		    VolumeIndex < Entity->Collision->VolumeCount;
+		    ++VolumeIndex)
+		  {
+		    sim_entity_collision_volume *Volume = Entity->Collision->Volumes + VolumeIndex;
+		    PushRectOutline(&PieceGroup, Volume->OffsetP.XY, 0, Volume->Dim.XY, V4(0, 0.5f, 1, 1), 0.0f);    
+		  }
+	      } break;
+	      
 	    default:
 	      {
 		InvalidCodePath;
