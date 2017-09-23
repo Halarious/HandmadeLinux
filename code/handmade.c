@@ -600,7 +600,7 @@ PushRectOutline(entity_visible_piece_group *Group, v2 Offset, r32 OffsetZ,
 		v2 Dim, v4 Color, r32 EntityZC)
 {
   r32 Thickness = 0.05f;
-  
+    
   PushPiece(Group, 0,
 	    V2Sub(Offset, V2(0, 0.5f*Dim.Y)),
 	    OffsetZ,
@@ -873,7 +873,10 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
 		  if(ShouldBeDoor)
 		    {
-		      AddWall(State, AbsTileX, AbsTileY, AbsTileZ);
+		      if(ScreenIndex == 0)
+			{
+			  AddWall(State, AbsTileX, AbsTileY, AbsTileZ);
+			}
 		    }
 		  else if(CreatedZDoor)
 		    {
