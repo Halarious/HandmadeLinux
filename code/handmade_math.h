@@ -224,6 +224,17 @@ V2Length(v2 V)
   return(Result);
 }
 
+internal inline v2
+V2Clamp01(v2 V)
+{
+  v2 Result;
+
+  Result.X = Clamp01(V.X);
+  Result.Y = Clamp01(V.Y);
+    
+  return(Result);
+}
+
 ///
 ///
 ///
@@ -522,8 +533,19 @@ SafeRatioN(r32 Numerator, r32 Divisor, r32 N)
 #define SafeRatio0(Numerator, Divisor) SafeRatioN(Numerator, Divisor, 0.0f)
 #define SafeRatio1(Numerator, Divisor) SafeRatioN(Numerator, Divisor, 1.0f)
 
+internal inline v2
+V2GetBarycentric(rectangle2 R, v2 P)
+{
+  v2 Result;
+
+  Result.X = SafeRatio0((P.X - R.Min.X), (R.Max.X - R.Min.X));
+  Result.Y = SafeRatio0((P.Y - R.Min.Y), (R.Max.Y - R.Min.Y));
+  
+  return(Result);
+}
+
 internal inline v3
-GetBarycentric(rectangle3 R, v3 P)
+V3GetBarycentric(rectangle3 R, v3 P)
 {
   v3 Result;
 
@@ -533,3 +555,15 @@ GetBarycentric(rectangle3 R, v3 P)
 
   return(Result);
 }
+
+internal inline rectangle2
+ToRectangleXY(rectangle3 R)
+{
+  rectangle2 Result;
+
+  Result.Min = R.Min.XY;
+  Result.Max = R.Max.XY;
+  
+  return(Result);
+}
+

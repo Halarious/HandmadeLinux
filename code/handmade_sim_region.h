@@ -31,6 +31,21 @@ typedef union
   u32 Index;
 } entity_reference;
 
+typedef struct 
+{
+  v3 OffsetP;
+  v3 Dim;
+  
+} sim_entity_collision_volume;
+
+typedef struct 
+{
+  sim_entity_collision_volume TotalVolume;
+  
+  u32 VolumeCount;
+  sim_entity_collision_volume *Volumes;
+} sim_entity_collision_volume_group;
+  
 struct sim_entity
 {
   world_chunk *OldChunk;
@@ -45,8 +60,8 @@ struct sim_entity
 
   r32 DistanceLimit;
 
-  v3 Dim;
-  
+  sim_entity_collision_volume_group *Collision;
+    
   u32 FacingDirection;
   r32 tBob;   
 
@@ -55,6 +70,7 @@ struct sim_entity
 
   entity_reference Sword;
 
+  v2 WalkableDim;
   r32 WalkableHeight;
 };
 

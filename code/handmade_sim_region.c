@@ -111,10 +111,10 @@ _AddEntity(state *State, sim_region *SimRegion, u32 StorageIndex, low_entity *So
 }
 
 internal inline bool32
-EntityOverlapsRectangle(v3 P, v3 Dim, rectangle3 Rect)
+EntityOverlapsRectangle(v3 P, sim_entity_collision_volume Volume, rectangle3 Rect)
 {
-  rectangle3 Grown = AddRadiusTo(Rect, V3MulS(0.5f, Dim));
-  bool32 Result = IsInRectangle(Grown, P);
+  rectangle3 Grown = AddRadiusTo(Rect, V3MulS(0.5f, Volume.Dim));
+  bool32 Result = IsInRectangle(Grown, V3Add(P, Volume.OffsetP));
   return(Result);
 }
 
@@ -127,7 +127,7 @@ AddEntity(state *State, sim_region *SimRegion, u32 StorageIndex, low_entity *Sou
       if(SimP)
 	{
 	  Dest->P = *SimP;
-	  Dest->Updatable = EntityOverlapsRectangle(Dest->P, Dest->Dim, SimRegion->UpdatableBounds);
+	  Dest->Updatable = EntityOverlapsRectangle(Dest->P, Dest->Collision->TotalVolume, SimRegion->UpdatableBounds);
 	}
       else
 	{
@@ -195,7 +195,9 @@ BeginSim(memory_arena *SimArena, state* State, world* World, world_position Orig
 			  if(!IsSet(&Low->Sim, EntityFlag_Nonspatial))
 			    {
 			      v3 SimSpaceP = GetSimSpaceP(SimRegion, Low);
-			      if(EntityOverlapsRectangle(SimSpaceP, Low->Sim.Dim, SimRegion->Bounds))
+			      if(EntityOverlapsRectangle(SimSpaceP,
+							 Low->Sim.Collision->TotalVolume,
+							 SimRegion->Bounds))
 				{
 				  AddEntity(State, SimRegion, LowEntityIndex, Low, &SimSpaceP);
 				}
@@ -421,8 +423,11 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
     }
   
   ddEntity = V3MulS(MoveSpec->Speed, ddEntity);
-  ddEntity = V3Add(ddEntity,
-		  V3MulS(-MoveSpec->Drag, Entity->dP));
+
+  v3 Drag = V3MulS(-MoveSpec->Drag, Entity->dP);
+  Drag.Z = 0.0f;
+  
+  ddEntity = V3Add(ddEntity, Drag);
   if(!IsSet(Entity,EntityFlag_ZSupported))
     {
       ddEntity = V3Add(ddEntity,
@@ -473,62 +478,74 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
 		  sim_entity *TestEntity = SimRegion->Entities + TestHighEntityIndex; 
 		  if(CanCollide(State, Entity, TestEntity))
 		    {
-		      v3 MinkowskiDiameter = {TestEntity->Dim.X + Entity->Dim.X,
-					      TestEntity->Dim.Y + Entity->Dim.Y,
-					      TestEntity->Dim.Z + Entity->Dim.Z};
-
-		      v3 MinCorner = V3MulS(-0.5f, MinkowskiDiameter);
-		      v3 MaxCorner = V3MulS( 0.5f, MinkowskiDiameter);
-
-		      v3 Rel = V3Sub(Entity->P, TestEntity->P);
-
-		      if((Rel.Z >= MinCorner.Z) &&
-			 (Rel.Z <  MaxCorner.Z))
+		      for(u32 EntityVolumeIndex = 0;
+			  EntityVolumeIndex < Entity->Collision->VolumeCount;
+			  ++EntityVolumeIndex)
 			{
-			  r32 tMinTest = tMin;
-			  v3 TestWallNormal = {};
+			  sim_entity_collision_volume *Volume = Entity->Collision->Volumes + EntityVolumeIndex; 
+			  for(u32 TestVolumeIndex = 0;
+			      TestVolumeIndex < TestEntity->Collision->VolumeCount;
+			      ++TestVolumeIndex)
+			    {
+			      sim_entity_collision_volume *TestVolume = TestEntity->Collision->Volumes + TestVolumeIndex; 
+			      v3 MinkowskiDiameter = {TestVolume->Dim.X + Volume->Dim.X,
+						      TestVolume->Dim.Y + Volume->Dim.Y,
+						      TestVolume->Dim.Z + Volume->Dim.Z};
 
-			  bool32 HitThis = false;
-			  if(TestWall(MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
-				      &tMinTest, MinCorner.Y, MaxCorner.Y))
-			    {
-			      HitThis = true;
-			      TestWallNormal = V3(-1, 0, 0);
-			    }
-			  if(TestWall(MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
-				      &tMinTest, MinCorner.Y, MaxCorner.Y))
-			    {
-			      HitThis = true;
-			      TestWallNormal = V3(1, 0, 0);
-			    }
-			  if(TestWall(MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
-				      &tMinTest, MinCorner.X, MaxCorner.X))
-			    {
-			      HitThis = true;
-			      TestWallNormal = V3(0, -1, 0);
-			    }
-			  if(TestWall(MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
-				      &tMinTest, MinCorner.X, MaxCorner.X))
-			    {
-			      HitThis = true;
-			      TestWallNormal = V3(0, 1, 0);
-			    }
+			      v3 MinCorner = V3MulS(-0.5f, MinkowskiDiameter);
+			      v3 MaxCorner = V3MulS( 0.5f, MinkowskiDiameter);
 
-			  if(HitThis)
-			    {
-			      v3 TestP = V3Add(Entity->P,
-					       V3MulS(tMinTest,
-						      PlayerDelta));
-			      if(SpeculativeCollide(Entity, TestEntity))
+			      v3 Rel = V3Sub(V3Add(Entity->P, Volume->OffsetP),
+					     V3Add(TestEntity->P, TestVolume->OffsetP));
+
+			      if((Rel.Z >= MinCorner.Z) &&
+				 (Rel.Z <  MaxCorner.Z))
 				{
-				  tMin = tMinTest;
-				  WallNormal = TestWallNormal;
-				  HitEntity  = TestEntity;
+				  r32 tMinTest = tMin;
+				  v3 TestWallNormal = {};
+
+				  bool32 HitThis = false;
+				  if(TestWall(MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
+					      &tMinTest, MinCorner.Y, MaxCorner.Y))
+				    {
+				      HitThis = true;
+				      TestWallNormal = V3(-1, 0, 0);
+				    }
+				  if(TestWall(MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y,
+					      &tMinTest, MinCorner.Y, MaxCorner.Y))
+				    {
+				      HitThis = true;
+				      TestWallNormal = V3(1, 0, 0);
+				    }
+				  if(TestWall(MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
+					      &tMinTest, MinCorner.X, MaxCorner.X))
+				    {
+				      HitThis = true;
+				      TestWallNormal = V3(0, -1, 0);
+				    }
+				  if(TestWall(MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X,
+					      &tMinTest, MinCorner.X, MaxCorner.X))
+				    {
+				      HitThis = true;
+				      TestWallNormal = V3(0, 1, 0);
+				    }
+
+				  if(HitThis)
+				    {
+				      v3 TestP = V3Add(Entity->P,
+						       V3MulS(tMinTest,
+							      PlayerDelta));
+				      if(SpeculativeCollide(Entity, TestEntity))
+					{
+					  tMin = tMinTest;
+					  WallNormal = TestWallNormal;
+					  HitEntity  = TestEntity;
+					}
+				    }
 				}
 			    }
 			}
-		    }
-		}
+		    }}
 	    }
 	
 	  Entity->P = V3Add(Entity->P,
@@ -561,9 +578,10 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
     }
 
   r32 Ground = 0.0f;
-  
+
   {
-    rectangle3 EntityRect = RectCenterDim(Entity->P, Entity->Dim);
+    rectangle3 EntityRect = RectCenterDim(V3Add(Entity->P, Entity->Collision->TotalVolume.OffsetP),
+					  Entity->Collision->TotalVolume.Dim);
 
     for(u32 TestHighEntityIndex = 0;
 	TestHighEntityIndex < SimRegion->EntityCount;
@@ -573,7 +591,8 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
 	if(CanOverlap(State, Entity, TestEntity))
 	  {
 	    rectangle3 TestEntityRect =
-	      RectCenterDim(TestEntity->P, TestEntity->Dim);
+	      RectCenterDim(V3Add(TestEntity->P, TestEntity->Collision->TotalVolume.OffsetP),
+			    TestEntity->Collision->TotalVolume.Dim);
 	    if(RectanglesIntersect(EntityRect, TestEntityRect))			   
 	      {
 		HandleOverlap(State, Entity, TestEntity, dt, &Ground);
