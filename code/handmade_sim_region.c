@@ -541,11 +541,6 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
 			      TestVolumeIndex < TestEntity->Collision->VolumeCount;
 			      ++TestVolumeIndex)
 			    {
-			      if(TestEntity->Type == EntityType_Space)
-				{
-				  int BreakHere = 3;
-				}
-			      
 			      sim_entity_collision_volume *TestVolume = TestEntity->Collision->Volumes + TestVolumeIndex; 
 			      v3 MinkowskiDiameter = {TestVolume->Dim.X + Volume->Dim.X,
 						      TestVolume->Dim.Y + Volume->Dim.Y,

@@ -68,6 +68,20 @@ typedef struct
 } rectangle3;
 
 internal inline v2
+V2i(u32 X, u32 Y)
+{
+  v2 Result = {(r32)X, (r32)Y};
+  return(Result);
+}
+
+internal inline v2
+V2u(s32 X, s32 Y)
+{
+  v2 Result = {(r32)X, (r32)Y};
+  return(Result);
+}
+
+internal inline v2
 V2(r32 X, r32 Y)
 {
   v2 Result;

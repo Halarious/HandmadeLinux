@@ -680,6 +680,60 @@ MakeNullCollision(state *State)
   return(Group);  
 }
 
+internal void
+DrawTestGround(state *State, offscreen_buffer *Buffer)
+{
+  u32 RandomNumberIndex = 20;
+
+  v2 Center = V2MulS(0.5f, V2i(Buffer->Width, Buffer->Height));
+  for(u32 GrassIndex = 0;
+      GrassIndex < 100;
+      ++GrassIndex)
+    {
+      Assert(RandomNumberIndex < ArrayCount(RandomNumberTable));
+
+      loaded_bitmap *Stamp;
+      if(RandomNumberTable[RandomNumberIndex++]%2)
+	{
+	  Stamp = State->Grass + RandomNumberTable[RandomNumberIndex++] % ArrayCount(State->Grass);
+	}
+      else
+	{
+	  Stamp = State->Stone + RandomNumberTable[RandomNumberIndex++] % ArrayCount(State->Stone);
+	}
+      
+      r32 Radius = 5.0f;
+      v2 BitmapCenter = V2MulS(0.5f, V2i(Stamp->Width, Stamp->Height));
+      v2 Offset = {2*(r32)RandomNumberTable[RandomNumberIndex++] / (r32)MaxRandomNumber - 1,
+		   2*(r32)RandomNumberTable[RandomNumberIndex++] / (r32)MaxRandomNumber - 1};
+      v2 P = V2Sub(V2Add(Center, V2MulS(State->MetersToPixels*Radius,
+					Offset)),
+		   BitmapCenter);
+      
+      DrawBitmap(Buffer, Stamp, P.X, P.Y, 1.0f);
+    }
+
+    for(u32 GrassIndex = 0;
+      GrassIndex < 100;
+      ++GrassIndex)
+    {
+      Assert(RandomNumberIndex < ArrayCount(RandomNumberTable));
+
+      loaded_bitmap *Stamp = State->Tuft + RandomNumberTable[RandomNumberIndex++] % ArrayCount(State->Tuft);
+	      
+      r32 Radius = 5.0f;
+      v2 BitmapCenter = V2MulS(0.5f, V2i(Stamp->Width, Stamp->Height));
+      v2 Offset = {2*(r32)RandomNumberTable[RandomNumberIndex++] / (r32)MaxRandomNumber - 1,
+		   2*(r32)RandomNumberTable[RandomNumberIndex++] / (r32)MaxRandomNumber - 1};
+      v2 P = V2Sub(V2Add(Center, V2MulS(State->MetersToPixels*Radius,
+					Offset)),
+		   BitmapCenter);
+      
+      DrawBitmap(Buffer, Stamp, P.X, P.Y, 1.0f);
+    }
+  
+}
+
 extern UPDATE_AND_RENDER(UpdateAndRender)
 {  
   state* State = (state*) Memory->PermanentStorage;
@@ -738,6 +792,27 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 								  TilesPerHeight*State->World->TileSideInMeters,
 								  0.9f*State->World->TileDepthInMeters);
       
+      State->Grass[0]
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/grass00.bmp");
+      State->Grass[1]
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/grass01.bmp");
+
+      State->Stone[0]
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/ground00.bmp");
+      State->Stone[1]
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/ground01.bmp");
+      State->Stone[2]
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/ground02.bmp");
+      State->Stone[3]
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/ground03.bmp");
+
+      State->Tuft[0]
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/tuft00.bmp");
+      State->Tuft[1]
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/tuft01.bmp");
+      State->Tuft[2]
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/tuft02.bmp");
+           
       State->Backdrop
 	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_background.bmp");
       State->Shadow
@@ -1056,6 +1131,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   DrawBitmap(Buffer, &State->Backdrop, 0, 0, 0, 0, 1.0f);
 #endif
 
+  DrawTestGround(State, Buffer);
+  
   r32 ScreenCenterX = 0.5f * (r32)Buffer->Width;
   r32 ScreenCenterY = 0.5f * (r32)Buffer->Height;
 

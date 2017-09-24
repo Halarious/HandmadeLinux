@@ -1,4 +1,7 @@
 
+#define MaxRandomNumber 99984338
+#define MinRandomNumber 5971
+
 global_variable u32 RandomNumberTable[] =
   {
     0x19eb8f7, 0x1b24003, 0x1a9b769, 0x4ee570d, 0x5b66118, 0x0c0dd89, 0x4a1d346, 0x3d85711,
