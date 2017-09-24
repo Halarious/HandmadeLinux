@@ -442,9 +442,8 @@ EntitiesOverlap(sim_entity* Entity, sim_entity* TestEntity, v3 Epsilon)
 	  rectangle3 EntityRect = RectCenterDim(V3Add(Entity->P, Volume->OffsetP),
 						V3Add(Epsilon, Volume->Dim));
 
-	  rectangle3 TestEntityRect =
-	    RectCenterDim(V3Add(TestEntity->P, TestVolume->OffsetP),
-			  TestVolume->Dim);
+	  rectangle3 TestEntityRect = RectCenterDim(V3Add(TestEntity->P, TestVolume->OffsetP),
+						    TestVolume->Dim);
 	  Result = RectanglesIntersect(EntityRect, TestEntityRect);			   
 	}
     }
@@ -522,7 +521,7 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
 
 	  if(!IsSet(Entity, EntityFlag_Nonspatial))
 	    {
-	      for(u32 TestHighEntityIndex = 1;
+	      for(u32 TestHighEntityIndex = 0;
 		  TestHighEntityIndex < SimRegion->EntityCount;
 		  ++TestHighEntityIndex)
 		{
@@ -542,6 +541,11 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
 			      TestVolumeIndex < TestEntity->Collision->VolumeCount;
 			      ++TestVolumeIndex)
 			    {
+			      if(TestEntity->Type == EntityType_Space)
+				{
+				  int BreakHere = 3;
+				}
+			      
 			      sim_entity_collision_volume *TestVolume = TestEntity->Collision->Volumes + TestVolumeIndex; 
 			      v3 MinkowskiDiameter = {TestVolume->Dim.X + Volume->Dim.X,
 						      TestVolume->Dim.Y + Volume->Dim.Y,

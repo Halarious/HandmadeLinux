@@ -838,8 +838,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	    }
 
 	  AddStandardSpace(State,
-			   ScreenX * TilesPerWidth + TilesPerWidth/2,
-			   ScreenY * TilesPerWidth + TilesPerHeight/2,
+			   ScreenX * TilesPerWidth  + TilesPerWidth/2,
+			   ScreenY * TilesPerHeight + TilesPerHeight/2,
 			   AbsTileZ);
 	  
 	  for(u32 TileY = 0;
