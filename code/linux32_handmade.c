@@ -669,12 +669,10 @@ main(int ArgCount, char** Arguments)
 		  thread_context Thread = {};
 
 		  offscreen_buffer Buffer = {};
-		  Buffer.BitmapMemory     = GlobalOffscreenBuffer.BitmapMemory;
-		  Buffer.BitmapMemorySize = GlobalOffscreenBuffer.BitmapMemorySize;
-		  Buffer.BytesPerPixel    = GlobalOffscreenBuffer.BytesPerPixel;
-		  Buffer.Width            = GlobalOffscreenBuffer.Width;
-		  Buffer.Height           = GlobalOffscreenBuffer.Height;
-		  Buffer.Pitch            = GlobalOffscreenBuffer.Pitch;
+		  Buffer.Memory = GlobalOffscreenBuffer.BitmapMemory;
+		  Buffer.Width  = GlobalOffscreenBuffer.Width;
+		  Buffer.Height = GlobalOffscreenBuffer.Height;
+		  Buffer.Pitch  = GlobalOffscreenBuffer.Pitch;
 
 		  if(Linux32State.InputRecordingIndex)
 		    {

@@ -87,13 +87,12 @@ typedef DEBUG_PLATFORM_WRITE_ENTIRE_FILE(debug_platform_write_entire_file);
 
 #endif
 
+#define BITMAP_BYTES_PER_PIXEL 4
 typedef struct
 {
   //NOTE: Memory order: aRGB
-  void* BitmapMemory;
+  void* Memory;
 
-  int BitmapMemorySize;
-  int BytesPerPixel;
   int Width;
   int Height;
   int Pitch;
@@ -153,7 +152,7 @@ typedef struct
 
 typedef struct
 {
-  bool32 isInitialized;
+  bool32 IsInitialized;
   
   u64   PermanentStorageSize;
   u64   TransientStorageSize;

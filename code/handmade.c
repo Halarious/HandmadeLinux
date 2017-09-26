@@ -29,27 +29,29 @@ ClearBitmap(loaded_bitmap* Bitmap)
 {
   if(Bitmap->Memory)
     {
-      u32 TotalBitmapSize = Bitmap->Width*Bitmap->Height*4;
+      u32 TotalBitmapSize = Bitmap->Width*Bitmap->Height*BITMAP_BYTES_PER_PIXEL;
       ZeroSize(TotalBitmapSize, Bitmap->Memory);
     }
 }
 
-internal loaded_bitmap*
+internal loaded_bitmap
 MakeEmptyBitmap(memory_arena* Arena, s32 Width, s32 Height, bool32 ClearToZero)
 {
-  loaded_bitmap* Result = PushStruct(Arena, loaded_bitmap);
-  Result->Width  = Width;
-  Result->Height = Height;
-  Result->Pitch  = Width*4;
+  loaded_bitmap Result = {};
+  Result.Width  = Width;
+  Result.Height = Height;
+  Result.Pitch  = Width*BITMAP_BYTES_PER_PIXEL;
 
   s32 TotalBitmapSize = Width*Height*4;
-  Result->Memory      = PushSize(Arena, TotalBitmapSize);
-
+  Result.Memory      = PushSize(Arena, TotalBitmapSize);
+  
+  ZeroSize(TotalBitmapSize, Result.Memory);
+#if 0
   if(ClearToZero)
   {
     ClearBitmap(Result);
   }
-  
+#endif
   return(Result); 
 }
 
@@ -214,11 +216,17 @@ DEBUGLoadBMP(thread_context *Thread, debug_platform_read_entire_file *ReadEntire
 	    }
 	}
     }  
+
+  s32 BytesPerPixel = BITMAP_BYTES_PER_PIXEL;
+  Result.Pitch  = -Result.Width*BytesPerPixel;
+  Result.Memory = ((u8*)Result.Memory -
+		   Result.Pitch*(Result.Height - 1));
+  
   return(Result);
 }
 
 internal void
-DrawBitmap(offscreen_buffer *Buffer, loaded_bitmap *Bitmap,
+DrawBitmap(loaded_bitmap *Buffer, loaded_bitmap *Bitmap,
 	   r32 RealX,  r32 RealY, r32 CAlpha)
 {
   s32 MinX = RoundReal32ToInt32(RealX);
@@ -246,51 +254,56 @@ DrawBitmap(offscreen_buffer *Buffer, loaded_bitmap *Bitmap,
     {
       MaxY = Buffer->Height;
     }
-
-  u32* SourceRow = Bitmap->Memory + Bitmap->Width*(Bitmap->Height-1);
-  SourceRow     += -SourceOffsetY*Bitmap->Width + SourceOffsetX;
-  u8* DestRow    = ((u8*)Buffer->BitmapMemory +
-		    MinX*Buffer->BytesPerPixel +
+  
+  s32 BytesPerPixel = BITMAP_BYTES_PER_PIXEL;
+  u8* SourceRow = ((u8*)Bitmap->Memory +
+		   SourceOffsetY*Bitmap->Pitch +
+		   SourceOffsetX*BytesPerPixel);
+  u8* DestRow   = ((u8*)Buffer->Memory +
+		   MinX*BytesPerPixel +
 		    MinY*Buffer->Pitch);
   for(int Y = MinY;
       Y < MaxY;
       ++Y)
     {
       u32 *Dest   = (u32*) DestRow;
-      u32 *Source = SourceRow;
+      u32 *Source = (u32*) SourceRow;
       for(int X = MinX;
 	  X < MaxX;
 	  ++X)
 	{
-	  r32 Alpha = ((*Source >> 24) & 0xff) / 255.0f;
-	  Alpha *= CAlpha;
+	  r32 sAlpha = ((*Source >> 24) & 0xff) / 255.0f;
+	  sAlpha *= CAlpha;
 	  
 	  r32 sChannel1 = ((*Source >> 16) & 0xff);
 	  r32 sChannel2 = ((*Source >> 8) & 0xff);
 	  r32 sChannel3 = ((*Source >> 0) & 0xff);
 
+	  r32 dAlpha = ((*Dest >> 24) & 0xff);
 	  r32 dChannel1 = ((*Dest >> 16) & 0xff);
 	  r32 dChannel2 = ((*Dest >> 8) & 0xff);
 	  r32 dChannel3 = ((*Dest >> 0) & 0xff);
 
-	  r32 Channel1 = (1.0f - Alpha)*dChannel1 + Alpha*sChannel1;
-	  r32 Channel2 = (1.0f - Alpha)*dChannel2 + Alpha*sChannel2;
-	  r32 Channel3 = (1.0f - Alpha)*dChannel3 + Alpha*sChannel3;
+	  r32 Alpha = Maximum(dAlpha, 255.0f*sAlpha);
+	  r32 Channel1 = (1.0f - sAlpha)*dChannel1 + sAlpha*sChannel1;
+	  r32 Channel2 = (1.0f - sAlpha)*dChannel2 + sAlpha*sChannel2;
+	  r32 Channel3 = (1.0f - sAlpha)*dChannel3 + sAlpha*sChannel3;
 
-	  *Dest = (((u32)(Channel1 + 0.5f) << 16) |
+	  *Dest = (((u32)(Alpha + 0.5f) << 24) |
+		   ((u32)(Channel1 + 0.5f) << 16) |
 		   ((u32)(Channel2 + 0.5f) << 8)  |
 		   ((u32)(Channel3 + 0.5f) << 0));
 	  
 	  ++Dest;
 	  ++Source;
 	}
-      SourceRow -= Bitmap->Pitch;
+      SourceRow += Bitmap->Pitch;
       DestRow   += Buffer->Pitch;
     }
 }
 
 internal void
-DrawRectangle(offscreen_buffer *Buffer,
+DrawRectangle(loaded_bitmap *Buffer,
 	      v2 vMin, v2 vMax,
 	      r32 R, r32 G, r32 B)
 {
@@ -320,9 +333,10 @@ DrawRectangle(offscreen_buffer *Buffer,
 		     (RoundReal32ToUInt32(G * 255.0f) << 8)  |
 		     (RoundReal32ToUInt32(B * 255.0f)));
   
-  u8 *Row = Buffer->BitmapMemory
+  u32 BytesPerPixel = BITMAP_BYTES_PER_PIXEL;
+  u8 *Row = Buffer->Memory
     + Buffer->Pitch * MinY
-    + Buffer->BytesPerPixel * MinX;
+    + BytesPerPixel * MinX;
   for(int Y = MinY; Y < MaxY; ++Y)
     {
       u32 *Pixel = (u32*) Row;
@@ -681,31 +695,28 @@ MakeNullCollision(state *State)
 }
 
 internal void
-DrawTestGround(state *State, offscreen_buffer *Buffer)
+DrawTestGround(state *State, loaded_bitmap *Buffer)
 {
-  u32 RandomNumberIndex = 20;
-
+  random_series Series = Seed(1234);
+  
   v2 Center = V2MulS(0.5f, V2i(Buffer->Width, Buffer->Height));
   for(u32 GrassIndex = 0;
       GrassIndex < 100;
       ++GrassIndex)
     {
-      Assert(RandomNumberIndex < ArrayCount(RandomNumberTable));
-
       loaded_bitmap *Stamp;
-      if(RandomNumberTable[RandomNumberIndex++]%2)
+      if(RandomChoice(&Series, 2))
 	{
-	  Stamp = State->Grass + RandomNumberTable[RandomNumberIndex++] % ArrayCount(State->Grass);
+	  Stamp = State->Grass + RandomChoice(&Series, ArrayCount(State->Grass));
 	}
       else
 	{
-	  Stamp = State->Stone + RandomNumberTable[RandomNumberIndex++] % ArrayCount(State->Stone);
+	  Stamp = State->Stone + RandomChoice(&Series, ArrayCount(State->Stone));
 	}
       
       r32 Radius = 5.0f;
       v2 BitmapCenter = V2MulS(0.5f, V2i(Stamp->Width, Stamp->Height));
-      v2 Offset = {2*(r32)RandomNumberTable[RandomNumberIndex++] / (r32)MaxRandomNumber - 1,
-		   2*(r32)RandomNumberTable[RandomNumberIndex++] / (r32)MaxRandomNumber - 1};
+      v2 Offset = {RandomBilateral(&Series), RandomBilateral(&Series)};
       v2 P = V2Sub(V2Add(Center, V2MulS(State->MetersToPixels*Radius,
 					Offset)),
 		   BitmapCenter);
@@ -717,14 +728,11 @@ DrawTestGround(state *State, offscreen_buffer *Buffer)
       GrassIndex < 100;
       ++GrassIndex)
     {
-      Assert(RandomNumberIndex < ArrayCount(RandomNumberTable));
-
-      loaded_bitmap *Stamp = State->Tuft + RandomNumberTable[RandomNumberIndex++] % ArrayCount(State->Tuft);
+      loaded_bitmap *Stamp = State->Tuft + RandomChoice(&Series, ArrayCount(State->Tuft));
 	      
       r32 Radius = 5.0f;
       v2 BitmapCenter = V2MulS(0.5f, V2i(Stamp->Width, Stamp->Height));
-      v2 Offset = {2*(r32)RandomNumberTable[RandomNumberIndex++] / (r32)MaxRandomNumber - 1,
-		   2*(r32)RandomNumberTable[RandomNumberIndex++] / (r32)MaxRandomNumber - 1};
+      v2 Offset = {RandomBilateral(&Series), RandomBilateral(&Series)};
       v2 P = V2Sub(V2Add(Center, V2MulS(State->MetersToPixels*Radius,
 					Offset)),
 		   BitmapCenter);
@@ -737,7 +745,7 @@ DrawTestGround(state *State, offscreen_buffer *Buffer)
 extern UPDATE_AND_RENDER(UpdateAndRender)
 {  
   state* State = (state*) Memory->PermanentStorage;
-  if(!Memory->isInitialized)
+  if(!Memory->IsInitialized)
     {            
       //NOTE We will do this much differently once we have a system
       //     for the assets like fonts and bitmaps.
@@ -757,8 +765,9 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       
       s32 TileSideInPixels = 60;
       State->MetersToPixels = (r32)TileSideInPixels / (r32)World->TileSideInMeters;
-      u32 RandomNumberIndex = 0;
-	        
+
+      random_series Series = Seed(1234);
+      
       u32 TilesPerWidth = 17;
       u32 TilesPerHeight = 9;
 
@@ -879,19 +888,11 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  ScreenIndex < 2000;
 	  ++ScreenIndex)
 	{
-	  Assert(RandomNumberIndex < ArrayCount(RandomNumberTable));
-	  u32 RandomChoice;
-	  if(DoorUp || DoorDown)
-	    {
-	      RandomChoice = RandomNumberTable[RandomNumberIndex++] % 2;
-	    }
-	  else
-	    {
-	      RandomChoice = RandomNumberTable[RandomNumberIndex++] % 3;
-	    }
+	  
+	  u32 DoorDirection = RandomChoice(&Series, (DoorUp || DoorDown) ? 2 : 3);
 	  
 	  bool32 CreatedZDoor = false;
-	  if(RandomChoice == 2)
+	  if(DoorDirection == 2)
 	    {
 	      CreatedZDoor = true;
 	      if(AbsTileZ == ScreenBaseZ)
@@ -903,7 +904,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		  DoorDown = true;
 		}
 	    }
-	  else if (RandomChoice == 1)
+	  else if (DoorDirection == 1)
 	    {
 	      DoorRight = true;
 	    }
@@ -980,7 +981,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  DoorRight = false;
 	  DoorTop   = false;
 	  	  
-	  if(RandomChoice == 2)
+	  if(DoorDirection == 2)
 	    {
 	      if(AbsTileZ == ScreenBaseZ)
 		{
@@ -991,7 +992,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		  AbsTileZ = ScreenBaseZ;
 		}
 	    }
-	  else if(RandomChoice == 1)
+	  else if(DoorDirection == 1)
 	    {
 	      ScreenX += 1;
 	    }
@@ -1023,14 +1024,17 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  FamiliarIndex < 1;
 	  ++FamiliarIndex)
 	{
-	  s32 FamiliarOffsetX = (RandomNumberTable[RandomNumberIndex++] % 10) - 5;
-	  s32 FamiliarOffsetY = (RandomNumberTable[RandomNumberIndex++] % 10) - 10;
+	  s32 FamiliarOffsetX =  RandomBetweenS32(&Series, -7, 2);
+	  s32 FamiliarOffsetY =  RandomBetweenS32(&Series, -3, 2);
 	  AddFamiliar(State,
 		      CameraTileX + FamiliarOffsetX,
 		      CameraTileY + FamiliarOffsetY, CameraTileZ);
 	}
-      
-      Memory->isInitialized = true;
+
+      State->GroundBuffer = MakeEmptyBitmap(&State->WorldArena, 512, 512, true);
+      DrawTestGround(State, &State->GroundBuffer);
+
+      Memory->IsInitialized = true;
     }
 
   world *World = State->World;
@@ -1121,20 +1125,22 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   InitializeArena(&SimArena, Memory->TransientStorageSize, Memory->TransientStorage);
   sim_region *SimRegion = BeginSim(&SimArena, State, World, State->CameraP, CameraBounds, Input->dtForFrame);
 
-#if 1
-  DrawRectangle(Buffer,
-		V2(0.0f, 0.0f),
-		V2((r32)Buffer->Width,
-		   (r32)Buffer->Height),
-		0.5f, 0.5f, 0.5f);
-#else
-  DrawBitmap(Buffer, &State->Backdrop, 0, 0, 0, 0, 1.0f);
-#endif
-
-  DrawTestGround(State, Buffer);
+  loaded_bitmap DrawBuffer_ = {};
+  loaded_bitmap *DrawBuffer = &DrawBuffer_;
+  DrawBuffer->Width = Buffer->Width;
+  DrawBuffer->Height = Buffer->Height;
+  DrawBuffer->Pitch = Buffer->Pitch;
+  DrawBuffer->Memory = Buffer->Memory;
   
-  r32 ScreenCenterX = 0.5f * (r32)Buffer->Width;
-  r32 ScreenCenterY = 0.5f * (r32)Buffer->Height;
+  DrawRectangle(DrawBuffer,
+		V2(0.0f, 0.0f),
+		V2((r32)DrawBuffer->Width,
+		   (r32)DrawBuffer->Height),
+		0.5f, 0.5f, 0.5f);
+  DrawBitmap(DrawBuffer, &State->GroundBuffer, 0, 0, 1.0f);
+  
+  r32 ScreenCenterX = 0.5f * (r32)DrawBuffer->Width;
+  r32 ScreenCenterY = 0.5f * (r32)DrawBuffer->Height;
 
   entity_visible_piece_group PieceGroup = {};
   PieceGroup.State = State;
@@ -1283,6 +1289,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	      
 	    case EntityType_Space:
 	      {
+#if 0
 		for(u32 VolumeIndex = 0;
 		    VolumeIndex < Entity->Collision->VolumeCount;
 		    ++VolumeIndex)
@@ -1290,6 +1297,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		    sim_entity_collision_volume *Volume = Entity->Collision->Volumes + VolumeIndex;
 		    PushRectOutline(&PieceGroup, Volume->OffsetP.XY, 0, Volume->Dim.XY, V4(0, 0.5f, 1, 1), 0.0f);    
 		  }
+#endif
 	      } break;
 	      
 	    default:
@@ -1323,13 +1331,13 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 			   + Piece->EntityZC*EntityZ};
 	      if(Piece->Bitmap)
 		{
-		  DrawBitmap(Buffer, Piece->Bitmap,
+		  DrawBitmap(DrawBuffer, Piece->Bitmap,
 			     Center.X, Center.Y, Piece->A);
 		}
 	      else
 		{
 		  v2 HalfDim = V2MulS(0.5f*MetersToPixels, Piece->Dim);
-		  DrawRectangle(Buffer,
+		  DrawRectangle(DrawBuffer,
 				V2Sub(Center, HalfDim),
 				V2Add(Center, HalfDim),
 				Piece->R, Piece->G, Piece->B);
@@ -1340,7 +1348,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   
   world_position WorldOrigin = {};
   v3 Diff = Subtract(SimRegion->World, &WorldOrigin, &SimRegion->Origin);
-  DrawRectangle(Buffer,
+  DrawRectangle(DrawBuffer,
 		Diff.XY,
 		V2(10.0f,
 		   10.0f),

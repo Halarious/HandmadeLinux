@@ -5,7 +5,7 @@
 
 typedef struct
 {
-  u32* Memory;
+  void* Memory;
   
   int Width;
   int Height;
@@ -192,6 +192,8 @@ typedef struct
   sim_entity_collision_volume_group *MonstarCollision;
   sim_entity_collision_volume_group *WallCollision;
   sim_entity_collision_volume_group *StandardRoomCollision;
+
+  loaded_bitmap GroundBuffer;
 } state;
 
 typedef struct
