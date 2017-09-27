@@ -706,13 +706,15 @@ MakeNullCollision(state *State)
 }
 
 internal void
-DrawTestGround(state *State, loaded_bitmap *Buffer)
+DrawGroundChunk(state *State, loaded_bitmap *Buffer,
+		world_position* ChunkP)
 {
-  random_series Series = Seed(1234);
-  
-  v2 Center = V2MulS(0.5f, V2i(Buffer->Width, Buffer->Height));
+  random_series Series = Seed(139*ChunkP->ChunkX + 593*ChunkP->ChunkY +
+			      329*ChunkP->ChunkZ);
+  r32 Width  = Buffer->Width;
+  r32 Height = Buffer->Height;  
   for(u32 GrassIndex = 0;
-      GrassIndex < 100;
+      GrassIndex < 1000;
       ++GrassIndex)
     {
       loaded_bitmap *Stamp;
@@ -726,28 +728,24 @@ DrawTestGround(state *State, loaded_bitmap *Buffer)
 	  Stamp = State->Stone + RandomChoice(&Series, ArrayCount(State->Stone));
 	}
       
-      r32 Radius = 5.0f;
       v2 BitmapCenter = V2MulS(0.5f, V2i(Stamp->Width, Stamp->Height));
-      v2 Offset = {RandomBilateral(&Series), RandomBilateral(&Series)};
-      v2 P = V2Sub(V2Add(Center, V2MulS(State->MetersToPixels*Radius,
-					Offset)),
-		   BitmapCenter);
+      v2 Offset = {Width*RandomUnilateral(&Series),
+		   Height*RandomUnilateral(&Series)};
+      v2 P = V2Sub(Offset, BitmapCenter);
       
       DrawBitmap(Buffer, Stamp, P.X, P.Y, 1.0f);
     }
 
-    for(u32 GrassIndex = 0;
-      GrassIndex < 100;
-      ++GrassIndex)
+    for(u32 TuftIndex = 0;
+      TuftIndex < 1000;
+      ++TuftIndex)
     {
       loaded_bitmap *Stamp = State->Tuft + RandomChoice(&Series, ArrayCount(State->Tuft));
 	      
-      r32 Radius = 5.0f;
       v2 BitmapCenter = V2MulS(0.5f, V2i(Stamp->Width, Stamp->Height));
-      v2 Offset = {RandomBilateral(&Series), RandomBilateral(&Series)};
-      v2 P = V2Sub(V2Add(Center, V2MulS(State->MetersToPixels*Radius,
-					Offset)),
-		   BitmapCenter);
+      v2 Offset = {Width*RandomUnilateral(&Series),
+		   Height*RandomUnilateral(&Series)};
+      v2 P = V2Sub(Offset, BitmapCenter);
       
       DrawBitmap(Buffer, Stamp, P.X, P.Y, 1.0f);
     }
@@ -901,7 +899,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  ++ScreenIndex)
 	{
 	  
-	  u32 DoorDirection = RandomChoice(&Series, (DoorUp || DoorDown) ? 2 : 3);
+	  //u32 DoorDirection = RandomChoice(&Series, (DoorUp || DoorDown) ? 2 : 3);
+	  u32 DoorDirection = RandomChoice(&Series, 2);
 	  
 	  bool32 CreatedZDoor = false;
 	  if(DoorDirection == 2)
@@ -961,10 +960,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
 		  if(ShouldBeDoor)
 		    {
-		      if(ScreenIndex == 0)
-			{
-			  AddWall(State, AbsTileX, AbsTileY, AbsTileZ);
-			}
+		      AddWall(State, AbsTileX, AbsTileY, AbsTileZ);
 		    }
 		  else if(CreatedZDoor)
 		    {
@@ -1043,12 +1039,21 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		      CameraTileY + FamiliarOffsetY, CameraTileZ);
 	}
 
-      State->GroundBuffer = MakeEmptyBitmap(&State->WorldArena, 512, 512, true);
-      DrawTestGround(State, &State->GroundBuffer);
+      r32 ScreenWidth    = (r32)Buffer->Width;
+      r32 ScreenHeight   = (r32)Buffer->Height;
+      r32 MaximumZScale  = 0.5f;
+      r32 GroundOverscan = 1.5f;
+      u32 GroundBufferWidth = RoundReal32ToUInt32(ScreenWidth*GroundOverscan);
+      u32 GroundBufferHeight = RoundReal32ToUInt32(ScreenHeight*GroundOverscan);
+      State->GroundBuffer = MakeEmptyBitmap(&State->WorldArena,
+					    GroundBufferWidth,
+					    GroundBufferHeight, true);
+      State->GroundBufferP = State->CameraP;
+      DrawGroundChunk(State, &State->GroundBuffer, &State->GroundBufferP);
 
       Memory->IsInitialized = true;
     }
-
+ 
   world *World = State->World;
   r32 MetersToPixels = State->MetersToPixels;
 
@@ -1149,12 +1154,22 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		V2((r32)DrawBuffer->Width,
 		   (r32)DrawBuffer->Height),
 		0.5f, 0.5f, 0.5f);
-  DrawBitmap(DrawBuffer, &State->GroundBuffer, 0, 0, 1.0f);
   
   r32 ScreenCenterX = 0.5f * (r32)DrawBuffer->Width;
   r32 ScreenCenterY = 0.5f * (r32)DrawBuffer->Height;
 
-  entity_visible_piece_group PieceGroup = {};
+  v2 Ground = V2(ScreenCenterX - 0.5f * (r32)State->GroundBuffer.Width,
+		 ScreenCenterY - 0.5f * (r32)State->GroundBuffer.Height);
+  v3 Delta = Subtract(State->World,
+		      &State->GroundBufferP, &State->CameraP);
+  Delta.Y = -Delta.Y;
+  Ground = V2Add(Ground, V2MulS(State->MetersToPixels,
+				Delta.XY));
+  DrawBitmap(DrawBuffer, &State->GroundBuffer,
+	     Ground.X,
+	     Ground.Y, 1.0f);
+
+ entity_visible_piece_group PieceGroup = {};
   PieceGroup.State = State;
   sim_entity *Entity = SimRegion->Entities;
   for(u32 EntityIndex = 0;
