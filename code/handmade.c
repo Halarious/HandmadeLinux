@@ -193,10 +193,10 @@ DEBUGLoadBMP(thread_context *Thread, debug_platform_read_entire_file *ReadEntire
       Assert(BlueScan.Found);
       Assert(AlphaScan.Found);
 
-      s32 RedShift = 16 - (s32)RedScan.Index;
-      s32 GreenShift = 8  - (s32)GreenScan.Index;
-      s32 BlueShift = 0  - (s32)BlueScan.Index;
-      s32 AlphaShift = 24 - (s32)AlphaScan.Index;
+      s32 RedShiftDown = (s32)RedScan.Index;
+      s32 GreenShiftDown = (s32)GreenScan.Index;
+      s32 BlueShiftDown = (s32)BlueScan.Index;
+      s32 AlphaShiftDown = (s32)AlphaScan.Index;
       
       u32 *SourceDest = Result.Memory;
       for(s32 Y = 0;
@@ -209,10 +209,20 @@ DEBUGLoadBMP(thread_context *Thread, debug_platform_read_entire_file *ReadEntire
 	    {
 	      u32 Color = *SourceDest;
 
-	      *SourceDest++ = (RotateLeft(Color & RedMask, RedShift) |
-			       RotateLeft(Color & GreenMask, GreenShift) |
-			       RotateLeft(Color & BlueMask, BlueShift) |
-			       RotateLeft(Color & AlphaMask, AlphaShift));
+	      r32 R = (r32)((Color & RedMask) >> RedShiftDown);
+	      r32 G = (r32)((Color & GreenMask) >> GreenShiftDown);
+	      r32 B = (r32)((Color & BlueMask) >> BlueShiftDown);
+	      r32 A = (r32)((Color & AlphaMask) >> AlphaShiftDown);
+	      r32 AN = (A / 255.0f);
+
+	      R = R*AN;
+	      G = G*AN;
+	      B = B*AN;
+
+	      *SourceDest++ = (((u32)(A + 0.5f) << 24) |
+			       ((u32)(R + 0.5f) << 16) |
+			       ((u32)(G + 0.5f) << 8)  |
+			       ((u32)(B + 0.5f) << 0));
 	    }
 	}
     }  
@@ -272,22 +282,23 @@ DrawBitmap(loaded_bitmap *Buffer, loaded_bitmap *Bitmap,
 	  X < MaxX;
 	  ++X)
 	{
-	  r32 sAlpha = ((*Source >> 24) & 0xff) / 255.0f;
-	  sAlpha *= CAlpha;
-	  
-	  r32 sChannel1 = ((*Source >> 16) & 0xff);
-	  r32 sChannel2 = ((*Source >> 8) & 0xff);
-	  r32 sChannel3 = ((*Source >> 0) & 0xff);
-
+	  r32 sAlpha = ((*Source >> 24) & 0xff);
+	  r32 rsAlpha = CAlpha*(sAlpha / 255.0f);
+	  r32 sChannel1 = CAlpha*((*Source >> 16) & 0xff);
+	  r32 sChannel2 = CAlpha*((*Source >> 8) & 0xff);
+	  r32 sChannel3 = CAlpha*((*Source >> 0) & 0xff);
+ 
 	  r32 dAlpha = ((*Dest >> 24) & 0xff);
 	  r32 dChannel1 = ((*Dest >> 16) & 0xff);
 	  r32 dChannel2 = ((*Dest >> 8) & 0xff);
 	  r32 dChannel3 = ((*Dest >> 0) & 0xff);
-
-	  r32 Alpha = Maximum(dAlpha, 255.0f*sAlpha);
-	  r32 Channel1 = (1.0f - sAlpha)*dChannel1 + sAlpha*sChannel1;
-	  r32 Channel2 = (1.0f - sAlpha)*dChannel2 + sAlpha*sChannel2;
-	  r32 Channel3 = (1.0f - sAlpha)*dChannel3 + sAlpha*sChannel3;
+	  r32 rdAlpha = (dAlpha / 255.0f);
+ 
+	  r32 InvRSA= (1.0f - rsAlpha);
+	  r32 Alpha = 255.0f*(rsAlpha + rdAlpha - rsAlpha*rdAlpha);
+	  r32 Channel1 = InvRSA*dChannel1 + sChannel1;
+	  r32 Channel2 = InvRSA*dChannel2 + sChannel2;
+	  r32 Channel3 = InvRSA*dChannel3 + sChannel3;
 
 	  *Dest = (((u32)(Alpha + 0.5f) << 24) |
 		   ((u32)(Channel1 + 0.5f) << 16) |
@@ -705,6 +716,7 @@ DrawTestGround(state *State, loaded_bitmap *Buffer)
       ++GrassIndex)
     {
       loaded_bitmap *Stamp;
+
       if(RandomChoice(&Series, 2))
 	{
 	  Stamp = State->Grass + RandomChoice(&Series, ArrayCount(State->Grass));
