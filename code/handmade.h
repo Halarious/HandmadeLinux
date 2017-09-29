@@ -49,7 +49,15 @@ typedef struct
   void* Base;
   memory_index Size;
   memory_index Used;
+
+  s32 TempCount;
 } memory_arena;
+
+typedef struct
+{
+  memory_arena *Arena;
+  memory_index Used;
+} temporary_memory;
   
 typedef struct
 {
@@ -76,6 +84,7 @@ InitializeArena(memory_arena* Arena, memory_index Size, void* StorageBase)
   Arena->Size = Size;
   Arena->Base = (u8*)StorageBase;
   Arena->Used = 0;
+  Arena->TempCount = 0;
 }
 
 #define PushStruct(Arena, type) (type*)PushSize_(Arena, sizeof(type))
@@ -88,6 +97,36 @@ PushSize_(memory_arena* Arena, memory_index Size)
   void* Result = Arena->Base + Arena->Used;
   Arena->Used += Size;
   return(Result);
+}
+
+internal inline temporary_memory
+BeginTemporaryMemory(memory_arena* Arena)
+{
+  temporary_memory Result;
+
+  Result.Arena = Arena;
+  Result.Used  = Arena->Used;
+
+  ++Arena->TempCount;
+  
+  return(Result);
+}
+
+internal inline void
+EndTemporaryMemory(temporary_memory TempMem)
+{
+  memory_arena* Arena = TempMem.Arena;
+  Assert(Arena->Used >= TempMem.Used);
+  Arena->Used = TempMem.Used;
+
+  Assert(Arena->TempCount > 0);
+  --Arena->TempCount;
+}
+
+internal inline void
+CheckArena(memory_arena* Arena)
+{
+  Assert(Arena->TempCount == 0);
 }
 
 #define ZeroStruct(Instance) ZeroSize(sizeof(Instance), &(Instance))
@@ -154,9 +193,13 @@ struct pairwise_collision_rule
 
 typedef struct
 {
+  world_position P;
+  void* Memory;
+} ground_buffer;
+
+typedef struct
+{
   memory_arena WorldArena;
-  memory_arena BitmapArena;
-  font         Font;
   world *World;
 
   u32 CameraFollowingEntityIndex;
@@ -192,10 +235,17 @@ typedef struct
   sim_entity_collision_volume_group *MonstarCollision;
   sim_entity_collision_volume_group *WallCollision;
   sim_entity_collision_volume_group *StandardRoomCollision;
-
-  world_position GroundBufferP;
-  loaded_bitmap GroundBuffer;
 } state;
+
+typedef struct
+{
+  bool32 IsInitialized;
+  memory_arena TransientArena;
+  
+  u32 GroundBufferCount;
+  loaded_bitmap  GroundBitmapTemplate;
+  ground_buffer* GroundBuffers;
+} transient_state;
 
 typedef struct
 {
