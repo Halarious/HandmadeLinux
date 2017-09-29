@@ -29,8 +29,6 @@ struct world_chunk
 
 typedef struct
 {
-  r32 TileSideInMeters;
-  r32 TileDepthInMeters;
   v3 ChunkDimInMeters;
   
   world_entity_block *FirstFree;  

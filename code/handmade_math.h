@@ -500,6 +500,17 @@ AddRadiusTo(rectangle3 A, v3 Radius)
 }
 
 internal inline rectangle3
+Offset(rectangle3 R, v3 Offset)
+{
+  rectangle3 Result;
+
+  Result.Min = V3Add(R.Min, Offset);
+  Result.Max = V3Add(R.Max, Offset);
+
+  return(Result);  
+}
+
+internal inline rectangle3
 RectCenterDim(v3 Center, v3 Dim)
 {
   rectangle3 Result = RectCenterHalfDim(Center,

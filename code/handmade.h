@@ -202,13 +202,16 @@ typedef struct
   memory_arena WorldArena;
   world *World;
 
+  r32 TypicalFloorHeight;
+  
   u32 CameraFollowingEntityIndex;
   world_position CameraP;
   
   controlled_hero ControlledHeroes[ArrayCount(((input*)0)->Controllers)];
 
   r32 MetersToPixels;
-  
+  r32 PixelsToMeters;
+    
   u32 LowEntityCount;
   low_entity LowEntities[100000];
 
