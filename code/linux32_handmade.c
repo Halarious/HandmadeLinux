@@ -10,10 +10,6 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <time.h>
-//TODO: PATH_MAX seems problematic in general (same in Win though), but
-//      the consensus seems to be that it usually 4096 chars (not necessarily bytes)
-//      so we will use it for now
-#include <limits.h>
 
 #include "linux32_handmade.h"
 
@@ -609,6 +605,7 @@ main(int ArgCount, char** Arguments)
 	  while(GlobalRunning)
 	    {
 	      NewInputState->dtForFrame = TargetSecondsPerFrame;
+	      NewInputState->ExecutableReloaded = false;
 	      
 	      time_t NewSOLastWriteTime = Linux32GetLastWriteTime(SourceCodeSOFullPath);
 	      if(NewSOLastWriteTime != Code.SOLastWriteTime)
@@ -617,6 +614,7 @@ main(int ArgCount, char** Arguments)
 		  Code = Linux32LoadCode(SourceCodeSOFullPath,
 					 TempCodeSOFullPath,
 					 LockFullPath);
+		  NewInputState->ExecutableReloaded = true;
 		}
 	      
 	      controller_input *OldKeyboardController = GetController(OldInputState, 0);

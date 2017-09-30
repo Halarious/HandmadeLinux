@@ -23,6 +23,11 @@
 
 #include <unistd.h>
 #include <stdint.h>
+//TODO: PATH_MAX seems problematic in general (same in Win though), but
+//      the consensus seems to be that it usually 4096 chars (not necessarily bytes)
+//      so we will use it for now
+#include <limits.h>
+#include <float.h>
 
 typedef int32_t bool32;
 
@@ -40,6 +45,8 @@ typedef size_t memory_index;
 
 typedef float  r32;
 typedef double r64;
+
+#define Real32Maximum FLT_MAX 
 
 #define false 0
 #define true !false
@@ -146,7 +153,9 @@ typedef struct
   s32 MouseY;
   s32 MouseZ;
 
+  bool32 ExecutableReloaded;
   r32 dtForFrame;
+
   controller_input Controllers[2];
 } input;
 

@@ -771,48 +771,97 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
   Buffer.Memory = GroundBuffer->Memory;
 
   GroundBuffer->P = *ChunkP;
-  
-  random_series Series = Seed(139*ChunkP->ChunkX + 593*ChunkP->ChunkY +
-			      329*ChunkP->ChunkZ);
+
   r32 Width  = (r32)Buffer.Width;
   r32 Height = (r32)Buffer.Height;  
-  for(u32 GrassIndex = 0;
-      GrassIndex < 100;
-      ++GrassIndex)
-    {
-      loaded_bitmap *Stamp;
 
-      if(RandomChoice(&Series, 2))
-	{
-	  Stamp = State->Grass + RandomChoice(&Series, ArrayCount(State->Grass));
-	}
-      else
-	{
-	  Stamp = State->Stone + RandomChoice(&Series, ArrayCount(State->Stone));
-	}
-      
-      v2 BitmapCenter = V2MulS(0.5f, V2i(Stamp->Width, Stamp->Height));
-      v2 Offset = {Width*RandomUnilateral(&Series),
-		   Height*RandomUnilateral(&Series)};
-      v2 P = V2Sub(Offset, BitmapCenter);
-      
-      DrawBitmap(&Buffer, Stamp, P.X, P.Y, 1.0f);
-    }
-
-    for(u32 TuftIndex = 0;
-      TuftIndex < 100;
-      ++TuftIndex)
+  for(s32 ChunkOffsetY = -1;
+      ChunkOffsetY <= 1;
+      ++ChunkOffsetY)
     {
-      loaded_bitmap *Stamp = State->Tuft + RandomChoice(&Series, ArrayCount(State->Tuft));
-	      
-      v2 BitmapCenter = V2MulS(0.5f, V2i(Stamp->Width, Stamp->Height));
-      v2 Offset = {Width*RandomUnilateral(&Series),
-		   Height*RandomUnilateral(&Series)};
-      v2 P = V2Sub(Offset, BitmapCenter);
+      for(s32 ChunkOffsetX = -1;
+	  ChunkOffsetX <= 1;
+	  ++ChunkOffsetX)
+	{
+	  s32 ChunkX = ChunkP->ChunkX + ChunkOffsetX;
+	  s32 ChunkY = ChunkP->ChunkY + ChunkOffsetY;
+	  s32 ChunkZ = ChunkP->ChunkZ;
+  
+	  random_series Series = Seed(139*ChunkX + 593*ChunkY + 329*ChunkZ);
+	  
+	  v2 Center = V2(ChunkOffsetX*Width, -ChunkOffsetY*Height);
+	  for(u32 GrassIndex = 0;
+	      GrassIndex < 100;
+	      ++GrassIndex)
+	    {
+	      loaded_bitmap *Stamp;
+
+	      if(RandomChoice(&Series, 2))
+		{
+		  Stamp = State->Grass + RandomChoice(&Series, ArrayCount(State->Grass));
+		}
+	      else
+		{
+		  Stamp = State->Stone + RandomChoice(&Series, ArrayCount(State->Stone));
+		}
+
+	      v2 BitmapCenter = V2MulS(0.5f, V2i(Stamp->Width, Stamp->Height));
+      	      v2 Offset = {Width*RandomUnilateral(&Series),
+			   Height*RandomUnilateral(&Series)};
+	      v2 P = V2Add(Center,
+			   V2Sub(Offset, BitmapCenter));
       
-      DrawBitmap(&Buffer, Stamp, P.X, P.Y, 1.0f);
+	      DrawBitmap(&Buffer, Stamp, P.X, P.Y, 1.0f);
+	    }
+
+	  for(u32 TuftIndex = 0;
+	      TuftIndex < 100;
+	      ++TuftIndex)
+	    {
+	      loaded_bitmap *Stamp = State->Tuft + RandomChoice(&Series, ArrayCount(State->Tuft));
+
+	      v2 BitmapCenter = V2MulS(0.5f, V2i(Stamp->Width, Stamp->Height));
+	      v2 Offset = {Width*RandomUnilateral(&Series),
+			   Height*RandomUnilateral(&Series)};
+	      v2 P = V2Add(Center,
+			   V2Sub(Offset, BitmapCenter));
+      
+	      DrawBitmap(&Buffer, Stamp, P.X, P.Y, 1.0f);
+	    }
+	}
     }
   
+    for(s32 ChunkOffsetY = -1;
+      ChunkOffsetY <= 1;
+      ++ChunkOffsetY)
+    {
+      for(s32 ChunkOffsetX = -1;
+	  ChunkOffsetX <= 1;
+	  ++ChunkOffsetX)
+	{
+	  s32 ChunkX = ChunkP->ChunkX + ChunkOffsetX;
+	  s32 ChunkY = ChunkP->ChunkY + ChunkOffsetY;
+	  s32 ChunkZ = ChunkP->ChunkZ;
+  
+	  random_series Series = Seed(139*ChunkX + 593*ChunkY + 329*ChunkZ);
+	  
+	  v2 Center = V2(ChunkOffsetX*Width, -ChunkOffsetY*Height);
+	  for(u32 TuftIndex = 0;
+	      TuftIndex < 30;
+	      ++TuftIndex)
+	    {
+	      loaded_bitmap *Stamp = State->Tuft + RandomChoice(&Series, ArrayCount(State->Tuft));
+
+	      v2 BitmapCenter = V2MulS(0.5f, V2i(Stamp->Width, Stamp->Height));
+	      v2 Offset = {Width*RandomUnilateral(&Series),
+			   Height*RandomUnilateral(&Series)};
+	      v2 P = V2Add(Center,
+			   V2Sub(Offset, BitmapCenter));
+      
+	      DrawBitmap(&Buffer, Stamp, P.X, P.Y, 1.0f);
+	    }
+	}
+    }
 }
 
 extern UPDATE_AND_RENDER(UpdateAndRender)
@@ -1128,7 +1177,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       InitializeArena(&TransState->TransientArena, Memory->TransientStorageSize - sizeof(transient_state),
 		      (u8*)Memory->TransientStorage + sizeof(transient_state));
 
-      TransState->GroundBufferCount = 128;
+      TransState->GroundBufferCount = 32;//128;
       TransState->GroundBuffers = PushArray(&TransState->TransientArena,
 					    TransState->GroundBufferCount,
 					    ground_buffer);
@@ -1145,8 +1194,18 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  GroundBuffer->P = NullPosition();
 	}
       
-      //FillGroundChunk(TransState, State, TransState->GroundBuffers, &State->CameraP);      
       TransState->IsInitialized = true;
+    }
+
+  if(Input->ExecutableReloaded)
+    {
+      for(u32 GroundBufferIndex = 0;
+	  GroundBufferIndex < TransState->GroundBufferCount;
+	  ++GroundBufferIndex)
+	{
+	  ground_buffer* GroundBuffer = TransState->GroundBuffers + GroundBufferIndex;
+	  GroundBuffer->P = NullPosition();	  
+	}
     }
   
   world *World = State->World;
@@ -1248,6 +1307,28 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 						  V3(ScreenWidthInMeters,
 						     ScreenHeightInMeters,
 						     0.0f));
+  
+  for(u32 GroundBufferIndex = 0;
+      GroundBufferIndex < TransState->GroundBufferCount;
+      ++GroundBufferIndex)
+    {
+      ground_buffer* GroundBuffer = TransState->GroundBuffers + GroundBufferIndex;
+      if(IsValid(GroundBuffer->P))
+	{
+	  loaded_bitmap Bitmap = TransState->GroundBitmapTemplate;
+	  Bitmap.Memory = GroundBuffer->Memory;
+	  v3 Delta = V3MulS(State->MetersToPixels,
+			    Subtract(State->World,
+				     &GroundBuffer->P, &State->CameraP));
+      
+	  v2 Ground = V2(ScreenCenter.X + Delta.X - 0.5f * (r32)Bitmap.Width,
+			 ScreenCenter.Y - Delta.Y - 0.5f * (r32)Bitmap.Height);
+	  DrawBitmap(DrawBuffer, &Bitmap,
+		     Ground.X,
+		     Ground.Y, 1.0f);
+	}
+    }  
+  
   {
     world_position MinChunkP =
       MapIntoChunkSpace(World, State->CameraP, GetMinCorner(CameraBoundsInMeters));
@@ -1275,9 +1356,9 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		    v2 ScreenP = V2(ScreenCenter.X + MetersToPixels*RelP.X,
 				    ScreenCenter.Y - MetersToPixels*RelP.Y);
 		    v2 ScreenDim = V2MulS(MetersToPixels, World->ChunkDimInMeters.XY);
-
-		    bool32 Found = false;
-		    ground_buffer *EmptyBuffer = 0;
+		    
+		    r32 FurthestBufferLengthSq = 0.0f;
+		    ground_buffer *FurthestBuffer = 0;
 		    for(u32 GroundBufferIndex = 0;
 			GroundBufferIndex < TransState->GroundBufferCount;
 			++GroundBufferIndex)
@@ -1285,25 +1366,37 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 			ground_buffer* GroundBuffer = TransState->GroundBuffers + GroundBufferIndex; 
 			if(AreInSameChunk(World, &GroundBuffer->P, &ChunkCenterP))
 			  {
-			    Found = true;
+			    FurthestBuffer = 0;
 			    break;
 			  }
-			else if(!IsValid(GroundBuffer->P))
+			else if(IsValid(GroundBuffer->P))
 			  {
-			    EmptyBuffer = GroundBuffer;
+			    v3 RelP = Subtract(World, &GroundBuffer->P, &State->CameraP);
+			    r32 BufferLengthSq = V2LengthSq(RelP.XY);
+			    if(FurthestBufferLengthSq < BufferLengthSq)
+			      {
+				FurthestBufferLengthSq = BufferLengthSq;
+				FurthestBuffer = GroundBuffer;
+			      }
+			  }
+			else
+			  {
+			    FurthestBufferLengthSq = Real32Maximum;
+			    FurthestBuffer = GroundBuffer;
 			  }
 		      }
 
-		    if(!Found && EmptyBuffer)
+		    if(FurthestBuffer)
 		      {
-			FillGroundChunk(TransState, State, EmptyBuffer, &ChunkCenterP);
+			FillGroundChunk(TransState, State, FurthestBuffer, &ChunkCenterP);
 		      }
-		    
+#if 0
 		    DrawRectangleOutline(DrawBuffer,
 					 V2Sub(ScreenP, V2MulS(0.5f, ScreenDim)),
 					 V2Add(ScreenP, V2MulS(0.5f, ScreenDim)),
 					 V3(1.0f, 1.0f, 0.0f),
-					 2.0f); 
+					 2.0f);
+#endif
 		  }
 	      }
 	  }
@@ -1316,29 +1409,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   
   temporary_memory SimMemory = BeginTemporaryMemory(&TransState->TransientArena);
   sim_region *SimRegion = BeginSim(&TransState->TransientArena, State, World, State->CameraP, SimBounds, Input->dtForFrame);
-  
-  for(u32 GroundBufferIndex = 0;
-      GroundBufferIndex < TransState->GroundBufferCount;
-      ++GroundBufferIndex)
-    {
-      ground_buffer* GroundBuffer = TransState->GroundBuffers + GroundBufferIndex;
-      if(IsValid(GroundBuffer->P))
-	{
-	  loaded_bitmap Bitmap = TransState->GroundBitmapTemplate;
-	  Bitmap.Memory = GroundBuffer->Memory;
-	  v3 Delta = V3MulS(State->MetersToPixels,
-			    Subtract(State->World,
-				     &GroundBuffer->P, &State->CameraP));
-      
-	  v2 Ground = V2(ScreenCenter.X + Delta.X - 0.5f * (r32)Bitmap.Width,
-			 ScreenCenter.Y - Delta.Y - 0.5f * (r32)Bitmap.Height);
-	  DrawBitmap(DrawBuffer, &Bitmap,
-		     Ground.X,
-		     Ground.Y, 1.0f);
-	}
-    }
-  
- entity_visible_piece_group PieceGroup = {};
+
+  entity_visible_piece_group PieceGroup = {};
   PieceGroup.State = State;
   sim_entity *Entity = SimRegion->Entities;
   for(u32 EntityIndex = 0;
