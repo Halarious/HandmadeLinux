@@ -397,12 +397,12 @@ HandleOverlap(state *State, sim_entity *Mover, sim_entity *Region, r32 dt, r32 *
 {
   if(Region->Type == EntityType_Stairwell)
     {
-      *Ground = GetStairGround(Region, GetEntityGroundPoint(Mover));
+      *Ground = GetStairGround(Region, GetEntityGroundPointWithoutP(Mover));
     }  
 }
 
 internal bool32
-SpeculativeCollide(sim_entity *Mover, sim_entity *Region)
+SpeculativeCollide(sim_entity *Mover, sim_entity *Region, v3 TestP)
 {
   bool32 Result = true;
   
@@ -414,9 +414,9 @@ SpeculativeCollide(sim_entity *Mover, sim_entity *Region)
       Result = ((AbsoluteValue(GetEntityGroundPoint(Mover).Z - Ground) > StepHeight) ||
 		((Bary.Y > 0.1f) && (Bary.Y < 0.9f)));
 #endif
-      v3 MoverGroundPoint = GetEntityGroundPoint(Mover);
+      v3 MoverGroundPoint = GetEntityGroundPoint(Mover, TestP);
       r32 Ground = GetStairGround(Region, MoverGroundPoint);
-      Result = (AbsoluteValue(GetEntityGroundPoint(Mover).Z - Ground) > StepHeight);
+      Result = (AbsoluteValue(GetEntityGroundPointWithoutP(Mover).Z - Ground) > StepHeight);
     }
 
   return(Result);
@@ -633,7 +633,7 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
 					  v3 TestP = V3Add(Entity->P,
 							   V3MulS(tMinTest,
 								  PlayerDelta));
-					  if(SpeculativeCollide(Entity, TestEntity))
+					  if(SpeculativeCollide(Entity, TestEntity, TestP))
 					    {
 					      tMin = tMinTest;
 					      WallNormalMin = TestWallNormal;
@@ -709,7 +709,7 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
       }
   }
   
-  Ground += Entity->P.Z - GetEntityGroundPoint(Entity).Z;
+  Ground += Entity->P.Z - GetEntityGroundPointWithoutP(Entity).Z;
   if((Entity->P.Z <= Ground) ||
      (IsSet(Entity, EntityFlag_ZSupported) &&
       (Entity->dP.Z == 0.0f))) 

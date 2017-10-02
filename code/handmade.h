@@ -163,17 +163,6 @@ typedef struct
 
 typedef struct
 {
-  loaded_bitmap *Bitmap;
-  v2 Offset;
-  r32 OffsetZ;
-  r32 EntityZC;
-
-  r32 R, G, B, A;
-  v2 Dim;
-} entity_visible_piece;
-
-typedef struct
-{
   u32 EntityIndex;
   
   v2 ddP;
@@ -194,7 +183,7 @@ struct pairwise_collision_rule
 typedef struct
 {
   world_position P;
-  void* Memory;
+  loaded_bitmap Bitmap;
 } ground_buffer;
 
 typedef struct
@@ -246,16 +235,8 @@ typedef struct
   memory_arena TransientArena;
   
   u32 GroundBufferCount;
-  loaded_bitmap  GroundBitmapTemplate;
   ground_buffer* GroundBuffers;
 } transient_state;
-
-typedef struct
-{
-  state *State;
-  u32 Count;
-  entity_visible_piece Pieces[32];
-} entity_visible_piece_group;
 
 internal inline low_entity*
 GetLowEntity(state *State, u32 Index)

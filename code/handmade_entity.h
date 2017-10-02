@@ -35,9 +35,16 @@ MakeEntitySpatial(sim_entity *Entity, v3 P, v3 dP)
 }
 
 internal inline v3
-GetEntityGroundPoint(sim_entity *Entity)
+GetEntityGroundPoint(sim_entity *Entity, v3 ForEntityP)
 {
-  v3 Result = Entity->P;
+  v3 Result = ForEntityP;
+  return(Result);
+}
+
+internal inline v3
+GetEntityGroundPointWithoutP(sim_entity *Entity)
+{
+  v3 Result = GetEntityGroundPoint(Entity, Entity->P);
   return(Result);
 }
 
