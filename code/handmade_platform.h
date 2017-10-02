@@ -64,6 +64,7 @@ typedef double r64;
 #endif
 
 #define InvalidCodePath Assert(!"InvalidCodePath")
+#define InvalidDefaultCase default: {InvalidCodePath;} break;
 
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
 
