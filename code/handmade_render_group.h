@@ -18,6 +18,7 @@ typedef enum
   RenderGroupEntryType_render_entry_clear,
   RenderGroupEntryType_render_entry_bitmap,
   RenderGroupEntryType_render_entry_rectangle,
+  RenderGroupEntryType_render_entry_coordinate_system,
 } render_group_entry_type;
 
 typedef struct
@@ -30,6 +31,17 @@ typedef struct
   render_group_entry_header Header;
   v4 Color;
 } render_entry_clear;
+
+typedef struct
+{
+  render_group_entry_header Header;
+  v4 Color;
+  v2 Origin;
+  v2 XAxis;
+  v2 YAxis;
+
+  v2 Points[16];
+} render_entry_coordinate_system;
 
 typedef struct
 {

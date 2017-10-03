@@ -227,6 +227,8 @@ typedef struct
   sim_entity_collision_volume_group *MonstarCollision;
   sim_entity_collision_volume_group *WallCollision;
   sim_entity_collision_volume_group *StandardRoomCollision;
+  
+  r32 Time;
 } state;
 
 typedef struct

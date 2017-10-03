@@ -225,6 +225,46 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget)
 	    
 	    BaseAddress += sizeof(*Entry);
 	  } break;
+	case RenderGroupEntryType_render_entry_coordinate_system:
+	  {
+	    render_entry_coordinate_system* Entry = (render_entry_coordinate_system*) Header;
+	    v2 Dim = V2(2, 2);
+
+	    v2 P = Entry->Origin; 
+	    DrawRectangle(OutputTarget,
+			  V2Sub(P, Dim),
+			  V2Add(P, Dim),
+			  Entry->Color.r, Entry->Color.g, Entry->Color.b, Entry->Color.a);
+	    
+	    P = V2Add(Entry->Origin, Entry->XAxis); 
+	    DrawRectangle(OutputTarget,
+			  V2Sub(P, Dim),
+			  V2Add(P, Dim),
+			  Entry->Color.r, Entry->Color.g, Entry->Color.b, Entry->Color.a);
+
+	    P = V2Add(Entry->Origin, Entry->YAxis); 
+	    DrawRectangle(OutputTarget,
+			  V2Sub(P, Dim),
+			  V2Add(P, Dim),
+			  Entry->Color.r, Entry->Color.g, Entry->Color.b, Entry->Color.a);
+	    	    
+	    for(u32 PIndex = 0;
+		PIndex < ArrayCount(Entry->Points);
+		 ++PIndex)
+	      {
+		v2 P = Entry->Points[PIndex];
+		P = V2Add(Entry->Origin, 
+			  V2Add(V2MulS(P.x, Entry->XAxis),
+				V2MulS(P.y, Entry->YAxis)));
+		DrawRectangle(OutputTarget,
+			      V2Sub(P, Dim),
+			      V2Add(P, Dim),
+			      Entry->Color.r, Entry->Color.g, Entry->Color.b, Entry->Color.a);
+	    			
+	      }
+	    
+	    BaseAddress += sizeof(*Entry);	    
+	  } break;
 	  
 	  InvalidDefaultCase;
 	}
@@ -359,3 +399,18 @@ Clear(render_group* Group, v4 Color)
       Entry->Color = Color;      
     }  
 }
+
+internal inline render_entry_coordinate_system*
+CoordinateSystem(render_group* Group, v2 Origin, v2 XAxis, v2 YAxis, v4 Color)
+{
+  render_entry_coordinate_system* Entry = PushRenderElement(Group, render_entry_coordinate_system);
+  if(Entry)
+    {
+      Entry->Origin = Origin;
+      Entry->XAxis = XAxis;
+      Entry->YAxis = YAxis;
+      Entry->Color = Color;     
+    }
+  return(Entry);
+}
+

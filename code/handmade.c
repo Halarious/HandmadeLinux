@@ -624,7 +624,7 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 	    }
 	}
     }
-
+    
     RenderGroupToOutput(RenderGroup, Buffer);
     EndTemporaryMemory(GroundMemory);
 }
@@ -961,6 +961,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       TransState->IsInitialized = true;
     }
 
+#if 0
   if(Input->ExecutableReloaded)
     {
       for(u32 GroundBufferIndex = 0;
@@ -971,6 +972,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  GroundBuffer->P = NullPosition();	  
 	}
     }
+#endif
   
   world *World = State->World;
   r32 MetersToPixels = State->MetersToPixels;
@@ -1335,6 +1337,33 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	    }
 
 	  Basis->P = GetEntityGroundPointWithoutP(Entity);
+	}
+    }
+
+  State->Time += Input->dtForFrame;
+  r32 Angle = State->Time;
+  
+  v2 Origin = V2Add(ScreenCenter, V2MulS(10.0f, V2(Sin(Angle), 0.0f)));
+  v2 XAxis  = V2MulS((100.0f + 25.0f*Cos(4.2f*Angle)),
+		     V2(Cos(Angle), Sin(Angle)));
+  v2 YAxis  = V2MulS((100.0f + 50.0f*Sin(3.9f*Angle)),
+		     V2(Cos(Angle + 1.0f), Sin(Angle + 1.0f)));
+  u32 PIndex = 0;
+  render_entry_coordinate_system *C
+    = CoordinateSystem(RenderGroup,
+		       Origin, XAxis, YAxis, V4(0.5f + 0.5f*Sin(Angle),
+						0.5f + 0.5f*Sin(2.9f*Angle),
+						0.5f + 0.5f*Cos(9.9f*Angle), 1.0f));
+  
+  for(r32 Y = 0.0f;
+      Y < 1.0f;
+      Y += 0.25f)
+    {
+      for(r32 X = 0.0f;
+	  X < 1.0f;
+	  X += 0.25f)
+	{
+	  C->Points[PIndex++] = V2(X, Y);
 	}
     }
   
