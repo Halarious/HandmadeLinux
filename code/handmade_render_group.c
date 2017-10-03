@@ -81,12 +81,12 @@ DrawBitmap(loaded_bitmap *Buffer, loaded_bitmap *Bitmap,
 internal void
 DrawRectangle(loaded_bitmap *Buffer,
 	      v2 vMin, v2 vMax,
-	      r32 R, r32 G, r32 B)
+	      r32 R, r32 G, r32 B, r32 A)
 {
-  s32 MinX = RoundReal32ToInt32(vMin.X);
-  s32 MinY = RoundReal32ToInt32(vMin.Y);
-  s32 MaxX = RoundReal32ToInt32(vMax.X);
-  s32 MaxY = RoundReal32ToInt32(vMax.Y);
+  s32 MinX = RoundReal32ToInt32(vMin.x);
+  s32 MinY = RoundReal32ToInt32(vMin.y);
+  s32 MaxX = RoundReal32ToInt32(vMax.x);
+  s32 MaxY = RoundReal32ToInt32(vMax.y);
   if(MinX < 0)
     {
       MinX = 0;
@@ -104,10 +104,10 @@ DrawRectangle(loaded_bitmap *Buffer,
       MaxY = Buffer->Height;
     }
 
-  u32 Color = (u32) ((0xFF << 24) |
-		     (RoundReal32ToUInt32(R * 255.0f) << 16) |
-		     (RoundReal32ToUInt32(G * 255.0f) << 8)  |
-		     (RoundReal32ToUInt32(B * 255.0f)));
+  u32 Color = ((RoundReal32ToUInt32(A * 255.0f) << 24) |
+	       (RoundReal32ToUInt32(R * 255.0f) << 16) |
+	       (RoundReal32ToUInt32(G * 255.0f) << 8)  |
+	       (RoundReal32ToUInt32(B * 255.0f)));
   
   u32 BytesPerPixel = BITMAP_BYTES_PER_PIXEL;
   u8 *Row = Buffer->Memory
@@ -131,22 +131,26 @@ DrawRectangleOutline(loaded_bitmap *Buffer,
 		     v3 Color, r32 R)
 {   
   DrawRectangle(Buffer,
-		V2(vMin.X - R, vMin.Y - R),
-		V2(vMax.X + R, vMin.Y + R),
-		Color.R, Color.G, Color.B);
+		V2(vMin.x - R, vMin.y - R),
+		V2(vMax.x + R, vMin.y + R),
+		Color.r, Color.g, Color.b,
+		1.0f);
   DrawRectangle(Buffer,
-		V2(vMin.X - R, vMax.Y - R),
-		V2(vMax.X + R, vMax.Y + R),
-		Color.R, Color.G, Color.B);
+		V2(vMin.x - R, vMax.y - R),
+		V2(vMax.x + R, vMax.y + R),
+		Color.r, Color.g, Color.b,
+		1.0f);
     
   DrawRectangle(Buffer,
-		V2(vMin.X - R, vMin.Y - R),
-		V2(vMin.X + R, vMax.Y + R),
-		Color.R, Color.G, Color.B);
+		V2(vMin.x - R, vMin.y - R),
+		V2(vMin.x + R, vMax.y + R),
+		Color.r, Color.g, Color.b,
+		1.0f);
   DrawRectangle(Buffer,
-		V2(vMax.X - R, vMin.Y - R),
-		V2(vMax.X + R, vMax.Y + R),
-		Color.R, Color.G, Color.B);
+		V2(vMax.x - R, vMin.y - R),
+		V2(vMax.x + R, vMax.y + R),
+		Color.r, Color.g, Color.b,
+		1.0f);
 }
 
 internal inline v2
@@ -155,16 +159,16 @@ GetRenderEntityBasisP(render_group* RenderGroup,
 		      v2 ScreenCenter)
 {
   v3 EntityBaseP = EntityBasis->Basis->P;
-  r32 ZFudge = (1.0f + 0.1f * (EntityBasis->OffsetZ + EntityBaseP.Z));
+  r32 ZFudge = (1.0f + 0.1f * (EntityBasis->OffsetZ + EntityBaseP.z));
 	    
-  r32 EntityGroundPointX = ScreenCenter.X
-    + RenderGroup->MetersToPixels*ZFudge*EntityBaseP.X;
-  r32 EntityGroundPointY = ScreenCenter.Y
-    - RenderGroup->MetersToPixels*ZFudge*EntityBaseP.Y;
-  r32 EntityZ = -RenderGroup->MetersToPixels*EntityBaseP.Z;
+  r32 EntityGroundPointX = ScreenCenter.x
+    + RenderGroup->MetersToPixels*ZFudge*EntityBaseP.x;
+  r32 EntityGroundPointY = ScreenCenter.y
+    - RenderGroup->MetersToPixels*ZFudge*EntityBaseP.y;
+  r32 EntityZ = -RenderGroup->MetersToPixels*EntityBaseP.z;
 
-  v2 Center = {EntityBasis->Offset.X + EntityGroundPointX,
-	       EntityBasis->Offset.Y + EntityGroundPointY
+  v2 Center = {EntityBasis->Offset.x + EntityGroundPointX,
+	       EntityBasis->Offset.y + EntityGroundPointY
 	       + EntityBasis->EntityZC*EntityZ};
   return(Center);
 }
@@ -186,6 +190,13 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget)
 	case RenderGroupEntryType_render_entry_clear:
 	  {
 	    render_entry_clear* Entry = (render_entry_clear*) Header; 
+	    DrawRectangle(OutputTarget,
+			  V2(0.0f, 0.0f),
+			  V2((r32)OutputTarget->Width,
+			     (r32)OutputTarget->Height),
+			  Entry->Color.r, Entry->Color.g,
+			  Entry->Color.b, Entry->Color.a);
+
 
 	    BaseAddress += sizeof(*Entry);
 	  } break;
@@ -197,7 +208,7 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget)
 
 	    Assert(Entry->Bitmap);
 	    DrawBitmap(OutputTarget, Entry->Bitmap,
-		       P.X, P.Y, Entry->A);
+		       P.x, P.y, Entry->A);
 
 	    BaseAddress += sizeof(*Entry);
 	  } break;
@@ -210,7 +221,7 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget)
 	    DrawRectangle(OutputTarget,
 			  P,
 			  V2Add(P, Entry->Dim),
-			  Entry->R, Entry->G, Entry->B);
+			  Entry->R, Entry->G, Entry->B, 1.0f);
 	    
 	    BaseAddress += sizeof(*Entry);
 	  } break;
@@ -268,14 +279,14 @@ PushPiece(render_group *Group, loaded_bitmap* Bitmap,
       Piece->EntityBasis.Basis  = Group->DefaultBasis; 
       Piece->Bitmap = Bitmap;
       Piece->EntityBasis.Offset = V2Sub(V2MulS(Group->MetersToPixels,
-				   V2(Offset.X, -Offset.Y)),
+				   V2(Offset.x, -Offset.y)),
 			    Align);  
       Piece->EntityBasis.OffsetZ = OffsetZ;
       Piece->EntityBasis.EntityZC = EntityZC;
-      Piece->A = Color.A;
-      Piece->R = Color.R;
-      Piece->G = Color.G;
-      Piece->B = Color.B;
+      Piece->A = Color.a;
+      Piece->R = Color.r;
+      Piece->G = Color.g;
+      Piece->B = Color.b;
     }
 }
 
@@ -298,14 +309,14 @@ PushRect(render_group *Group, v2 Offset, r32 OffsetZ,
       
       Piece->EntityBasis.Basis  = Group->DefaultBasis; 
       Piece->EntityBasis.Offset = V2Sub(V2MulS(Group->MetersToPixels,
-				   V2(Offset.X, -Offset.Y)),
+				   V2(Offset.x, -Offset.y)),
 			    HalfDim);  
       Piece->EntityBasis.OffsetZ = OffsetZ;
       Piece->EntityBasis.EntityZC = EntityZC;
-      Piece->A = Color.A;
-      Piece->R = Color.R;
-      Piece->G = Color.G;
-      Piece->B = Color.B;
+      Piece->A = Color.a;
+      Piece->R = Color.r;
+      Piece->G = Color.g;
+      Piece->B = Color.b;
       Piece->Dim = V2MulS(Group->MetersToPixels, Dim);
     }
 }
@@ -316,30 +327,35 @@ PushRectOutline(render_group *Group, v2 Offset, r32 OffsetZ,
 {
   r32 Thickness = 0.05f;
     
-  PushPiece(Group, 0,
-	    V2Sub(Offset, V2(0, 0.5f*Dim.Y)),
+  PushRect(Group,
+	    V2Sub(Offset, V2(0, 0.5f*Dim.y)),
 	    OffsetZ,
-	    V2(0, 0),
-	    V2(Dim.X, Thickness),
+	    V2(Dim.x, Thickness),
 	    Color, EntityZC);
-  PushPiece(Group, 0,
-	    V2Add(Offset,V2(0, 0.5f*Dim.Y)),
+  PushRect(Group,
+	    V2Add(Offset,V2(0, 0.5f*Dim.y)),
 	    OffsetZ,
-	    V2(0, 0),
-	    V2(Dim.X, Thickness),
+	    V2(Dim.x, Thickness),
 	    Color, EntityZC);
   
-  PushPiece(Group, 0,
-	    V2Sub(Offset, V2(0.5f*Dim.X, 0)),
+  PushRect(Group,
+	    V2Sub(Offset, V2(0.5f*Dim.x, 0)),
 	    OffsetZ,
-	    V2(0, 0),
-	    V2(Thickness, Dim.Y),
+	    V2(Thickness, Dim.y),
 	    Color, EntityZC);
-  PushPiece(Group, 0,
-	    V2Add(Offset,V2(0.5f*Dim.X, 0)),
+  PushRect(Group,
+	    V2Add(Offset,V2(0.5f*Dim.x, 0)),
 	    OffsetZ,
-	    V2(0, 0),
-	    V2(Thickness, Dim.Y),
+	    V2(Thickness, Dim.y),
 	    Color, EntityZC);
 }
 
+internal inline void
+Clear(render_group* Group, v4 Color)
+{
+  render_entry_clear* Entry = PushRenderElement(Group, render_entry_clear);
+  if(Entry)
+    {
+      Entry->Color = Color;      
+    }  
+}

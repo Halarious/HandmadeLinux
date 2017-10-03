@@ -257,9 +257,9 @@ EndSim(sim_region *SimRegion, state *State)
 	      NewCameraP.AbsTileY -= 9;
 	    }
 #else
-	  r32 CamZOffset = NewCameraP.Offset_.Z;
+	  r32 CamZOffset = NewCameraP.Offset_.z;
 	  NewCameraP = Stored->P;
-	  NewCameraP.Offset_.Z = CamZOffset;
+	  NewCameraP.Offset_.z = CamZOffset;
 #endif
 	  State->CameraP = NewCameraP;
 	}
@@ -416,7 +416,7 @@ SpeculativeCollide(sim_entity *Mover, sim_entity *Region, v3 TestP)
 #endif
       v3 MoverGroundPoint = GetEntityGroundPoint(Mover, TestP);
       r32 Ground = GetStairGround(Region, MoverGroundPoint);
-      Result = (AbsoluteValue(GetEntityGroundPointWithoutP(Mover).Z - Ground) > StepHeight);
+      Result = (AbsoluteValue(GetEntityGroundPointWithoutP(Mover).z - Ground) > StepHeight);
     }
 
   return(Result);
@@ -471,7 +471,7 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
   ddEntity = V3MulS(MoveSpec->Speed, ddEntity);
 
   v3 Drag = V3MulS(-MoveSpec->Drag, Entity->dP);
-  Drag.Z = 0.0f;
+  Drag.z = 0.0f;
   
   ddEntity = V3Add(ddEntity, Drag);
   if(!IsSet(Entity,EntityFlag_ZSupported))
@@ -542,9 +542,9 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
 			      ++TestVolumeIndex)
 			    {
 			      sim_entity_collision_volume *TestVolume = TestEntity->Collision->Volumes + TestVolumeIndex; 
-			      v3 MinkowskiDiameter = {TestVolume->Dim.X + Volume->Dim.X,
-						      TestVolume->Dim.Y + Volume->Dim.Y,
-						      TestVolume->Dim.Z + Volume->Dim.Z};
+			      v3 MinkowskiDiameter = {TestVolume->Dim.x + Volume->Dim.x,
+						      TestVolume->Dim.y + Volume->Dim.y,
+						      TestVolume->Dim.z + Volume->Dim.z};
 
 			      v3 MinCorner = V3MulS(-0.5f, MinkowskiDiameter);
 			      v3 MaxCorner = V3MulS( 0.5f, MinkowskiDiameter);
@@ -552,15 +552,15 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
 			      v3 Rel = V3Sub(V3Add(Entity->P, Volume->OffsetP),
 					     V3Add(TestEntity->P, TestVolume->OffsetP));
 
-			      if((Rel.Z >= MinCorner.Z) &&
-				 (Rel.Z <  MaxCorner.Z))
+			      if((Rel.z >= MinCorner.z) &&
+				 (Rel.z <  MaxCorner.z))
 				{
 				  test_wall Walls[] =
 				    {
-				      {MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y, MinCorner.Y, MaxCorner.Y, V3(-1,  0, 0)},
-				      {MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y, MinCorner.Y, MaxCorner.Y, V3( 1,  0, 0)},
-				      {MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X, MinCorner.X, MaxCorner.X, V3( 0, -1, 0)},
-				      {MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X, MinCorner.X, MaxCorner.X, V3( 0,  1, 0)}
+				      {MinCorner.x, Rel.x, Rel.y, PlayerDelta.x, PlayerDelta.y, MinCorner.y, MaxCorner.y, V3(-1,  0, 0)},
+				      {MaxCorner.x, Rel.x, Rel.y, PlayerDelta.x, PlayerDelta.y, MinCorner.y, MaxCorner.y, V3( 1,  0, 0)},
+				      {MinCorner.y, Rel.y, Rel.x, PlayerDelta.y, PlayerDelta.x, MinCorner.x, MaxCorner.x, V3( 0, -1, 0)},
+				      {MaxCorner.y, Rel.y, Rel.x, PlayerDelta.y, PlayerDelta.x, MinCorner.x, MaxCorner.x, V3( 0,  1, 0)}
 				    };
 
 				  if(IsSet(TestEntity, EntityFlag_Traversable))
@@ -709,13 +709,13 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
       }
   }
   
-  Ground += Entity->P.Z - GetEntityGroundPointWithoutP(Entity).Z;
-  if((Entity->P.Z <= Ground) ||
+  Ground += Entity->P.z - GetEntityGroundPointWithoutP(Entity).z;
+  if((Entity->P.z <= Ground) ||
      (IsSet(Entity, EntityFlag_ZSupported) &&
-      (Entity->dP.Z == 0.0f))) 
+      (Entity->dP.z == 0.0f))) 
     {
-      Entity->P.Z = Ground;
-      Entity->dP.Z = 0;
+      Entity->P.z = Ground;
+      Entity->dP.z = 0;
       AddFlags(Entity, EntityFlag_ZSupported);
     }
   else
@@ -728,14 +728,14 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
       Entity->DistanceLimit = DistanceRemaining;
     }
 
-  if((Entity->dP.X == 0) &&
-     (Entity->dP.Y == 0))
+  if((Entity->dP.x == 0) &&
+     (Entity->dP.y == 0))
     {
       
     }
-  else if(AbsoluteValue(Entity->dP.X) > AbsoluteValue(Entity->dP.Y))
+  else if(AbsoluteValue(Entity->dP.x) > AbsoluteValue(Entity->dP.y))
     {
-      if(Entity->dP.X > 0)
+      if(Entity->dP.x > 0)
 	{
 	  Entity->FacingDirection = 0;
 	}
@@ -746,7 +746,7 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
     }
   else 
     {
-      if(Entity->dP.Y > 0)
+      if(Entity->dP.y > 0)
 	{
 	  Entity->FacingDirection = 1;
 	}
@@ -757,3 +757,4 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
       
     }
 }
+

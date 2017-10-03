@@ -28,7 +28,7 @@ typedef struct
 typedef struct
 {
   render_group_entry_header Header;
-  r32 R, G, B, A;  
+  v4 Color;
 } render_entry_clear;
 
 typedef struct
