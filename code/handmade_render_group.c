@@ -87,6 +87,7 @@ DrawRectangle(loaded_bitmap *Buffer,
   s32 MinY = RoundReal32ToInt32(vMin.y);
   s32 MaxX = RoundReal32ToInt32(vMax.x);
   s32 MaxY = RoundReal32ToInt32(vMax.y);
+
   if(MinX < 0)
     {
       MinX = 0;
@@ -124,6 +125,101 @@ DrawRectangle(loaded_bitmap *Buffer,
     }
 }
 
+
+internal void
+DrawRectangleSlowly(loaded_bitmap *Buffer,
+		    v2 Origin, v2 XAxis, v2 YAxis,
+		    v4 Color)
+{
+  u32 Color32 = ((RoundReal32ToUInt32(Color.a * 255.0f) << 24) |
+		 (RoundReal32ToUInt32(Color.r * 255.0f) << 16) |
+		 (RoundReal32ToUInt32(Color.g * 255.0f) << 8)  |
+		 (RoundReal32ToUInt32(Color.b * 255.0f)));
+
+  s32 WidthMax  = Buffer->Width - 1;
+  s32 HeightMax = Buffer->Height - 1;
+
+  s32 XMin = WidthMax;
+  s32 XMax = 0;
+  s32 YMin = HeightMax;
+  s32 YMax = 0;
+  
+  v2 P[4] = {Origin,
+	     V2Add(Origin, XAxis),
+	     V2Add(V2Add(Origin, XAxis),
+		   YAxis),
+	     V2Add(Origin, YAxis)};
+
+  for(u32 PIndex = 0;
+      PIndex < ArrayCount(P);
+      ++PIndex)
+    {
+      v2 TestP = P[PIndex];
+      s32 FloorX = FloorReal32ToInt32(TestP.x);
+      s32 CeilX  = CeilReal32ToInt32(TestP.x);
+      s32 FloorY = FloorReal32ToInt32(TestP.y);
+      s32 CeilY  = CeilReal32ToInt32(TestP.y);
+
+      if(XMin > FloorX) {XMin = FloorX;}
+      if(YMin > FloorY) {YMin = FloorY;}
+      if(XMax < CeilX)  {XMax = CeilX;}
+      if(YMax < CeilY)  {YMax = CeilY;}
+    }
+
+  if(XMin < 0)
+    {
+      XMin = 0;
+    }
+  if(XMax > WidthMax)
+    {
+      XMax = WidthMax;
+    }
+  if(YMin < 0)
+    {
+      YMin = 0;
+    }
+  if(YMax > HeightMax)
+    {
+      YMax = HeightMax;
+    }
+  
+  u32 BytesPerPixel = BITMAP_BYTES_PER_PIXEL;
+  u8 *Row = Buffer->Memory
+    + Buffer->Pitch * YMin
+    + BytesPerPixel * XMin;
+  for(int Y = YMin;
+      Y <= YMax;
+      ++Y)
+    {
+      u32 *Pixel = (u32*) Row;
+      for(int X = XMin;
+	  X <= XMax;
+	  ++X)
+	{
+	  v2 PixelP = V2i(X, Y);
+	  r32 Edge0 = V2Inner(V2Sub(PixelP, Origin),
+			      V2MulS(-1.0f, V2Perp(XAxis)));
+	  r32 Edge1 = V2Inner(V2Sub(PixelP, V2Add(Origin, XAxis)),
+			      V2MulS(-1.0f,V2Perp(YAxis)));
+	  r32 Edge2 = V2Inner(V2Sub(PixelP, V2Add(V2Add(Origin, XAxis),
+						  YAxis)),
+			      V2Perp(XAxis));
+	  r32 Edge3 = V2Inner(V2Sub(PixelP, V2Add(Origin, YAxis)),
+			      V2Perp(YAxis));
+	  
+	  if((Edge0 < 0) &&
+	     (Edge1 < 0) &&
+	     (Edge2 < 0) &&
+	     (Edge3 < 0))
+	    {
+	      *Pixel = Color32;
+	    }
+	  
+	  ++Pixel;
+	}
+      Row += Buffer->Pitch; 
+    }
+}
 
 internal void
 DrawRectangleOutline(loaded_bitmap *Buffer,
@@ -228,26 +324,34 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget)
 	case RenderGroupEntryType_render_entry_coordinate_system:
 	  {
 	    render_entry_coordinate_system* Entry = (render_entry_coordinate_system*) Header;
-	    v2 Dim = V2(2, 2);
+	    
+	    DrawRectangleSlowly(OutputTarget,
+				Entry->Origin,
+				Entry->XAxis,
+				Entry->YAxis,
+				Entry->Color);
 
+	    v4 Color = V4(1.0f, 1.0f, 0.0f, 1.0f);
+	    v2 Dim = V2(2, 2);
 	    v2 P = Entry->Origin; 
 	    DrawRectangle(OutputTarget,
 			  V2Sub(P, Dim),
 			  V2Add(P, Dim),
-			  Entry->Color.r, Entry->Color.g, Entry->Color.b, Entry->Color.a);
+			  Color.r, Color.g, Color.b, Color.a);
 	    
 	    P = V2Add(Entry->Origin, Entry->XAxis); 
 	    DrawRectangle(OutputTarget,
 			  V2Sub(P, Dim),
 			  V2Add(P, Dim),
-			  Entry->Color.r, Entry->Color.g, Entry->Color.b, Entry->Color.a);
+			  Color.r, Color.g, Color.b, Color.a);
 
 	    P = V2Add(Entry->Origin, Entry->YAxis); 
 	    DrawRectangle(OutputTarget,
 			  V2Sub(P, Dim),
 			  V2Add(P, Dim),
-			  Entry->Color.r, Entry->Color.g, Entry->Color.b, Entry->Color.a);
-	    	    
+			  Color.r, Color.g, Color.b, Color.a);
+
+#if 0	    	    
 	    for(u32 PIndex = 0;
 		PIndex < ArrayCount(Entry->Points);
 		 ++PIndex)
@@ -262,7 +366,7 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget)
 			      Entry->Color.r, Entry->Color.g, Entry->Color.b, Entry->Color.a);
 	    			
 	      }
-	    
+#endif	    
 	    BaseAddress += sizeof(*Entry);	    
 	  } break;
 	  

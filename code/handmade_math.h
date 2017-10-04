@@ -569,6 +569,13 @@ V2GetBarycentric(rectangle2 R, v2 P)
   return(Result);
 }
 
+internal inline v2
+V2Perp(v2 V)
+{
+  v2 Result = V2(-V.y, V.x);
+  return(Result);
+}
+
 internal inline v3
 V3GetBarycentric(rectangle3 R, v3 P)
 {
