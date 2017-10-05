@@ -39,7 +39,8 @@ typedef struct
   v2 Origin;
   v2 XAxis;
   v2 YAxis;
-
+  loaded_bitmap *Texture;
+  
   v2 Points[16];
 } render_entry_coordinate_system;
 

@@ -129,8 +129,11 @@ DrawRectangle(loaded_bitmap *Buffer,
 internal void
 DrawRectangleSlowly(loaded_bitmap *Buffer,
 		    v2 Origin, v2 XAxis, v2 YAxis,
-		    v4 Color)
+		    v4 Color, loaded_bitmap* Texture)
 {
+  r32 InvXAxisLengthSq = 1.0f / V2LengthSq(XAxis);
+  r32 InvYAxisLengthSq = 1.0f / V2LengthSq(YAxis);
+  
   u32 Color32 = ((RoundReal32ToUInt32(Color.a * 255.0f) << 24) |
 		 (RoundReal32ToUInt32(Color.r * 255.0f) << 16) |
 		 (RoundReal32ToUInt32(Color.g * 255.0f) << 8)  |
@@ -196,25 +199,103 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
 	  X <= XMax;
 	  ++X)
 	{
+#if 1
 	  v2 PixelP = V2i(X, Y);
-	  r32 Edge0 = V2Inner(V2Sub(PixelP, Origin),
+	  v2 d = V2Sub(PixelP, Origin);
+
+	  r32 Edge0 = V2Inner(d,
 			      V2MulS(-1.0f, V2Perp(XAxis)));
-	  r32 Edge1 = V2Inner(V2Sub(PixelP, V2Add(Origin, XAxis)),
-			      V2MulS(-1.0f,V2Perp(YAxis)));
-	  r32 Edge2 = V2Inner(V2Sub(PixelP, V2Add(V2Add(Origin, XAxis),
-						  YAxis)),
+	  r32 Edge1 = V2Inner(V2Sub(d, XAxis),
+			      V2MulS(-1.0f, V2Perp(YAxis)));
+	  r32 Edge2 = V2Inner(V2Sub(V2Sub(d, XAxis), YAxis),
 			      V2Perp(XAxis));
-	  r32 Edge3 = V2Inner(V2Sub(PixelP, V2Add(Origin, YAxis)),
-			      V2Perp(YAxis));
+	  r32 Edge3 = V2Inner(V2Sub(d, YAxis),
+			      V2Perp(YAxis));	  
 	  
 	  if((Edge0 < 0) &&
 	     (Edge1 < 0) &&
 	     (Edge2 < 0) &&
 	     (Edge3 < 0))
 	    {
-	      *Pixel = Color32;
+	      r32 U = InvXAxisLengthSq * V2Inner(d, XAxis);
+	      r32 V = InvYAxisLengthSq * V2Inner(d, YAxis);
+
+	      Assert((U >= 0.0f) && (U <= 1.0f));
+	      Assert((V >= 0.0f) && (V <= 1.0f));
+
+	      r32 tX = 1.0f + ((U * (r32)(Texture->Width  - 3)));
+	      r32 tY = 1.0f + ((V * (r32)(Texture->Height - 3)));
+	      
+	      s32 X = (s32) tX;
+	      s32 Y = (s32) tY;
+
+	      r32 fX = tX - (r32)X;
+	      r32 fY = tY - (r32)Y;
+	      
+	      Assert((X >= 0.0f) && (X < Texture->Width));
+	      Assert((Y >= 0.0f) && (Y < Texture->Height));
+
+	      u8* TexelPtr = (((u8*)Texture->Memory)
+			      + Y * Texture->Pitch
+			      + X * BITMAP_BYTES_PER_PIXEL);
+	      u32 TexelPtrA = *(u32*)(TexelPtr);
+	      u32 TexelPtrB = *(u32*)(TexelPtr + BITMAP_BYTES_PER_PIXEL);
+	      u32 TexelPtrC = *(u32*)(TexelPtr + Texture->Pitch);
+	      u32 TexelPtrD = *(u32*)(TexelPtr + Texture->Pitch + BITMAP_BYTES_PER_PIXEL);
+
+	      v4 TexelA = V4((r32)((TexelPtrA >> 16) & 0xff),
+			     (r32)((TexelPtrA >> 8) & 0xff),
+			     (r32)((TexelPtrA >> 0) & 0xff),
+			     (r32)((TexelPtrA >> 24) & 0xff));
+
+	      v4 TexelB = V4((r32)((TexelPtrB >> 16) & 0xff),
+			     (r32)((TexelPtrB >> 8) & 0xff),
+			     (r32)((TexelPtrB >> 0) & 0xff),
+			     (r32)((TexelPtrB >> 24) & 0xff));
+	      
+	      v4 TexelC = V4((r32)((TexelPtrC >> 16) & 0xff),
+			     (r32)((TexelPtrC >> 8) & 0xff),
+			     (r32)((TexelPtrC >> 0) & 0xff),
+			     (r32)((TexelPtrC >> 24) & 0xff));
+	      
+	      v4 TexelD = V4((r32)((TexelPtrD >> 16) & 0xff),
+			     (r32)((TexelPtrD >> 8) & 0xff),
+			     (r32)((TexelPtrD >> 0) & 0xff),
+			     (r32)((TexelPtrD >> 24) & 0xff));
+
+	      v4 Texel = V4Lerp(V4Lerp(TexelA, fX, TexelB),
+				fY,
+				V4Lerp(TexelC, fX, TexelD));
+	      
+	      r32 SA = Texel.a;
+	      r32 SR = Texel.r;
+	      r32 SG = Texel.g;
+	      r32 SB = Texel.b;
+	      
+	      r32 RSA = Color.a * (SA / 255.0f);
+	      
+	      r32 DA    = ((*Pixel >> 24) & 0xff);
+	      r32 DR = ((*Pixel >> 16) & 0xff);
+	      r32 DG = ((*Pixel >> 8) & 0xff);
+	      r32 DB = ((*Pixel >> 0) & 0xff);
+	      r32 RDA = (DA / 255.0f);
+ 
+	      r32 InvRSA= (1.0f - RSA);
+	      r32 A = 255.0f*(RSA + RDA - RSA*RDA);
+	      r32 R = InvRSA*DR + SR;
+	      r32 G = InvRSA*DG + SG;
+	      r32 B = InvRSA*DB + SB;
+
+	      *Pixel = (((u32)(A + 0.5f) << 24) |
+			((u32)(R + 0.5f) << 16) |
+			((u32)(G + 0.5f) << 8)  |
+			((u32)(B + 0.5f) << 0));
+
 	    }
-	  
+#else
+	  *Pixel = Color32;
+#endif
+
 	  ++Pixel;
 	}
       Row += Buffer->Pitch; 
@@ -329,7 +410,8 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget)
 				Entry->Origin,
 				Entry->XAxis,
 				Entry->YAxis,
-				Entry->Color);
+				Entry->Color,
+				Entry->Texture);
 
 	    v4 Color = V4(1.0f, 1.0f, 0.0f, 1.0f);
 	    v2 Dim = V2(2, 2);
@@ -505,7 +587,8 @@ Clear(render_group* Group, v4 Color)
 }
 
 internal inline render_entry_coordinate_system*
-CoordinateSystem(render_group* Group, v2 Origin, v2 XAxis, v2 YAxis, v4 Color)
+CoordinateSystem(render_group* Group, v2 Origin, v2 XAxis, v2 YAxis,
+		 v4 Color, loaded_bitmap* Texture)
 {
   render_entry_coordinate_system* Entry = PushRenderElement(Group, render_entry_coordinate_system);
   if(Entry)
@@ -514,6 +597,7 @@ CoordinateSystem(render_group* Group, v2 Origin, v2 XAxis, v2 YAxis, v4 Color)
       Entry->XAxis = XAxis;
       Entry->YAxis = YAxis;
       Entry->Color = Color;     
+      Entry->Texture = Texture;
     }
   return(Entry);
 }

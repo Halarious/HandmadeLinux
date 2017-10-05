@@ -1341,17 +1341,26 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
     }
 
   State->Time += Input->dtForFrame;
-  r32 Angle = State->Time;
+  r32 Angle = 0.1f * State->Time;
+  r32 Displacement = 100.0f*Cos(5.0f*Angle);
   
   v2 Origin = ScreenCenter;
-  v2 XAxis  = V2MulS(100.0f, V2(Cos(Angle), Sin(Angle)));
-  v2 YAxis  = V2Perp(XAxis);
+#if 1
+  v2 XAxis = V2MulS(100.0f, V2(Cos(Angle), Sin(Angle)));
+  v2 YAxis = V2Perp(XAxis);
+#else
+  v2 XAxis = V2(100.0f, 0.0f);
+  v2 YAxis = V2(0.0f, 100.0f);
+#endif
   u32 PIndex = 0;
   render_entry_coordinate_system *C = CoordinateSystem(RenderGroup,
-						       Origin,
+						       V2Add(V2(Displacement, 0.0f),
+							     V2Sub(V2Sub(Origin, V2MulS(0.5, XAxis)),
+								   V2MulS(0.5, YAxis))),
 						       XAxis,
 						       YAxis,
-						       V4(1.0f, 1.0f, 0.0f, 1.0f));
+						       V4(1.0f, 1.0f, 0.0f, 1.0f),
+						       &State->Tree);
   
   for(r32 Y = 0.0f;
       Y < 1.0f;

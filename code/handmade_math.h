@@ -346,6 +346,112 @@ V3Clamp01(v3 V)
 ///
 ///
 
+
+internal inline v4
+V4MulS(r32 S, v4 V)
+{
+  v4 Result;
+
+  Result.x = S * V.x;
+  Result.y = S * V.y;
+  Result.z = S * V.z;
+  Result.w = S * V.w;
+
+  return(Result);  
+}
+
+internal inline v4
+V4Neg(v4 V)
+{
+  v4 Result;
+
+  Result.x = -V.x;
+  Result.y = -V.y;
+  Result.z = -V.z;
+  Result.w = -V.w;
+
+  return(Result);
+}
+
+internal inline v4
+V4Add(v4 A, v4 B)
+{
+  v4 Result;
+
+  Result.x = A.x + B.x;
+  Result.y = A.y + B.y;
+  Result.z = A.z + B.z;
+  Result.w = A.w + B.w;
+  
+  return(Result);
+}
+
+internal inline v4
+V4Sub(v4 A, v4 B)
+{
+  v4 Result;
+
+  Result.x = A.x - B.x;
+  Result.y = A.y - B.y;
+  Result.z = A.z - B.z;
+  Result.w = A.w - B.w;
+  
+  return(Result);
+}
+
+internal inline v4
+V4Hadamard(v4 A, v4 B)
+{
+  v4 Result = V4(A.x * B.x,  A.y * B.y, A.z * B.z, A.w * B.w);
+  return(Result);
+}
+
+internal inline r32
+V4Inner(v4 A, v4 B)
+{
+  r32 Result = A.x * B.x + A.y * B.y + A.z * B.z + A.w * B.w;
+  return(Result);
+}
+
+internal inline r32
+V4LengthSq(v4 V)
+{
+  r32 Result = V4Inner(V, V);
+  return(Result);
+}
+
+internal inline r32
+V4Length(v4 V)
+{
+  r32 Result = SquareRoot(V4LengthSq(V));
+  return(Result);
+}
+
+internal inline v4
+V4Clamp01(v4 V)
+{
+  v4 Result;
+
+  Result.x = Clamp01(V.x);
+  Result.y = Clamp01(V.y);
+  Result.z = Clamp01(V.z);
+  Result.z = Clamp01(V.w);
+  
+  return(Result);
+}
+
+internal inline v4
+V4Lerp(v4 A, r32 t, v4 B)
+{
+  v4 Result = V4Add(V4MulS((1.0f - t), A),
+		    V4MulS(t, B));
+  return(Result);
+}
+
+///
+///
+///
+
 internal inline v2
 GetMinCorner2(rectangle2 Rect)
 {
