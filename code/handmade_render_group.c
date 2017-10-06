@@ -1,4 +1,33 @@
 
+internal inline v4
+SRGB255ToLinear1(v4 C)
+{
+  v4 Result;
+
+  r32 Inv255 = 1.0f / 255.0f;
+  
+  Result.r = Square(Inv255*C.r);
+  Result.g = Square(Inv255*C.g);
+  Result.b = Square(Inv255*C.b);
+  Result.a = Inv255*C.a;
+
+  return(Result);
+}
+
+internal inline v4
+Linear1ToSRGB255(v4 C)
+{
+  v4 Result;
+
+  r32 One255 = 255.0f;
+
+  Result.r = One255*SquareRoot(C.r);
+  Result.g = One255*SquareRoot(C.g);
+  Result.b = One255*SquareRoot(C.b);
+  Result.a = One255*C.a;
+
+  return(Result);  
+}
 
 internal void
 DrawBitmap(loaded_bitmap *Buffer, loaded_bitmap *Bitmap,
@@ -262,34 +291,39 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
 			     (r32)((TexelPtrD >> 8) & 0xff),
 			     (r32)((TexelPtrD >> 0) & 0xff),
 			     (r32)((TexelPtrD >> 24) & 0xff));
-
+	      
+	      TexelA = SRGB255ToLinear1(TexelA);
+	      TexelB = SRGB255ToLinear1(TexelB);
+	      TexelC = SRGB255ToLinear1(TexelC);
+	      TexelD = SRGB255ToLinear1(TexelD);
+	      
 	      v4 Texel = V4Lerp(V4Lerp(TexelA, fX, TexelB),
 				fY,
 				V4Lerp(TexelC, fX, TexelD));
+
+	      r32 RSA = Color.a * Texel.a;
 	      
-	      r32 SA = Texel.a;
-	      r32 SR = Texel.r;
-	      r32 SG = Texel.g;
-	      r32 SB = Texel.b;
-	      
-	      r32 RSA = Color.a * (SA / 255.0f);
-	      
-	      r32 DA    = ((*Pixel >> 24) & 0xff);
-	      r32 DR = ((*Pixel >> 16) & 0xff);
-	      r32 DG = ((*Pixel >> 8) & 0xff);
-	      r32 DB = ((*Pixel >> 0) & 0xff);
-	      r32 RDA = (DA / 255.0f);
+	      v4 Dest = V4(((*Pixel >> 16) & 0xff),
+			   ((*Pixel >>  8) & 0xff),
+			   ((*Pixel >>  0) & 0xff),
+			   ((*Pixel >> 24) & 0xff));
+	      Dest = SRGB255ToLinear1(Dest);
+
+	      r32 RDA = Dest.a;
  
 	      r32 InvRSA= (1.0f - RSA);
-	      r32 A = 255.0f*(RSA + RDA - RSA*RDA);
-	      r32 R = InvRSA*DR + SR;
-	      r32 G = InvRSA*DG + SG;
-	      r32 B = InvRSA*DB + SB;
+	      
+	      v4 Blended = V4(InvRSA*Dest.r + Color.a*Color.r*Texel.r,
+			      InvRSA*Dest.g + Color.a*Color.g*Texel.g,
+			      InvRSA*Dest.b + Color.a*Color.b*Texel.b,
+			      (RSA + RDA - RSA*RDA));
 
-	      *Pixel = (((u32)(A + 0.5f) << 24) |
-			((u32)(R + 0.5f) << 16) |
-			((u32)(G + 0.5f) << 8)  |
-			((u32)(B + 0.5f) << 0));
+	      v4 Blended255 = Linear1ToSRGB255(Blended);
+		
+	      *Pixel = (((u32)(Blended255.a + 0.5f) << 24) |
+			((u32)(Blended255.r + 0.5f) << 16) |
+			((u32)(Blended255.g + 0.5f) << 8)  |
+			((u32)(Blended255.b + 0.5f) << 0));
 
 	    }
 #else

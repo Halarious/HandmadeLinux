@@ -1353,13 +1353,18 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   v2 YAxis = V2(0.0f, 100.0f);
 #endif
   u32 PIndex = 0;
+  r32 CAngle = 5.0f * Angle;
+  v4 Color = V4(0.5f + 0.5f*Sin(CAngle),
+		0.5f + 0.5f*Sin(2.9*CAngle),
+		0.5f + 0.5f*Cos(9.9*CAngle),
+	        0.5f + 0.5f*Sin(10.0*CAngle));
   render_entry_coordinate_system *C = CoordinateSystem(RenderGroup,
 						       V2Add(V2(Displacement, 0.0f),
 							     V2Sub(V2Sub(Origin, V2MulS(0.5, XAxis)),
 								   V2MulS(0.5, YAxis))),
 						       XAxis,
 						       YAxis,
-						       V4(1.0f, 1.0f, 0.0f, 1.0f),
+						       Color,
 						       &State->Tree);
   
   for(r32 Y = 0.0f;
