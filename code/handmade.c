@@ -215,6 +215,7 @@ DEBUGLoadBMP(thread_context *Thread, debug_platform_read_entire_file *ReadEntire
 			    (r32)((Color & BlueMask) >> BlueShiftDown),
 			    (r32)((Color & AlphaMask) >> AlphaShiftDown));
 	      Texel = SRGB255ToLinear1(Texel);
+
 #if 1
 	      Texel.rgb = V3MulS(Texel.a, Texel.rgb);
 #endif
@@ -1061,7 +1062,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   DrawBuffer->Pitch = Buffer->Pitch;
   DrawBuffer->Memory = Buffer->Memory;
 
-  Clear(RenderGroup, V4(1.0f, 0.0f, 1.0f, 1.0f));
+  Clear(RenderGroup, V4(0.5f, 0.5f, 0.5f, 1.0f));
   
   v2 ScreenCenter = V2(0.5f * (r32)DrawBuffer->Width,
 		       0.5f * (r32)DrawBuffer->Height);
@@ -1343,6 +1344,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   State->Time += Input->dtForFrame;
   r32 Angle = 0.1f * State->Time;
   r32 Displacement = 100.0f*Cos(5.0f*Angle);
+
+  Angle = 0.0f;
   
   v2 Origin = ScreenCenter;
 #if 1

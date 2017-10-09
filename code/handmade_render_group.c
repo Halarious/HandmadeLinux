@@ -427,12 +427,14 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget)
 	case RenderGroupEntryType_render_entry_bitmap:
 	  {
 	    render_entry_bitmap* Entry = (render_entry_bitmap*) Data;
+#if 0
 	    v2 P = GetRenderEntityBasisP(RenderGroup, &Entry->EntityBasis, ScreenCenter);
 
 	    Assert(Entry->Bitmap);
 	    DrawBitmap(OutputTarget, Entry->Bitmap,
 		       P.x, P.y, Entry->A);
 
+#endif
 	    BaseAddress += sizeof(*Entry);
 	  } break;
 
