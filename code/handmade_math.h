@@ -47,9 +47,16 @@ typedef union
   };
   struct
   {
-    r32 r;
-    r32 g;
-    r32 b;
+    union
+    {
+      v3 rgb;
+      struct
+      {
+	r32 r;
+	r32 g;
+	r32 b;
+      };
+    };
     r32 a;
   };
   r32 E[4];

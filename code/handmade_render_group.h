@@ -28,13 +28,11 @@ typedef struct
 
 typedef struct
 {
-  render_group_entry_header Header;
   v4 Color;
 } render_entry_clear;
 
 typedef struct
 {
-  render_group_entry_header Header;
   v4 Color;
   v2 Origin;
   v2 XAxis;
@@ -46,7 +44,6 @@ typedef struct
 
 typedef struct
 {
-  render_group_entry_header Header;
   render_entity_basis EntityBasis;
   
   loaded_bitmap *Bitmap;
@@ -56,7 +53,6 @@ typedef struct
 
 typedef struct
 {
-  render_group_entry_header Header;
   render_entity_basis EntityBasis;
 
   v2 Dim;  

@@ -210,20 +210,20 @@ DEBUGLoadBMP(thread_context *Thread, debug_platform_read_entire_file *ReadEntire
 	    {
 	      u32 Color = *SourceDest;
 
-	      r32 R = (r32)((Color & RedMask) >> RedShiftDown);
-	      r32 G = (r32)((Color & GreenMask) >> GreenShiftDown);
-	      r32 B = (r32)((Color & BlueMask) >> BlueShiftDown);
-	      r32 A = (r32)((Color & AlphaMask) >> AlphaShiftDown);
-	      r32 AN = (A / 255.0f);
-
-	      R = R*AN;
-	      G = G*AN;
-	      B = B*AN;
-
-	      *SourceDest++ = (((u32)(A + 0.5f) << 24) |
-			       ((u32)(R + 0.5f) << 16) |
-			       ((u32)(G + 0.5f) << 8)  |
-			       ((u32)(B + 0.5f) << 0));
+	      v4 Texel = V4((r32)((Color & RedMask) >> RedShiftDown),
+			    (r32)((Color & GreenMask) >> GreenShiftDown),
+			    (r32)((Color & BlueMask) >> BlueShiftDown),
+			    (r32)((Color & AlphaMask) >> AlphaShiftDown));
+	      Texel = SRGB255ToLinear1(Texel);
+#if 1
+	      Texel.rgb = V3MulS(Texel.a, Texel.rgb);
+#endif
+	      Texel = Linear1ToSRGB255(Texel);
+	      
+	      *SourceDest++ = (((u32)(Texel.a + 0.5f) << 24) |
+			       ((u32)(Texel.r + 0.5f) << 16) |
+			       ((u32)(Texel.g + 0.5f) << 8)  |
+			       ((u32)(Texel.b + 0.5f) << 0));
 	    }
 	}
     }  
@@ -1354,14 +1354,18 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 #endif
   u32 PIndex = 0;
   r32 CAngle = 5.0f * Angle;
+#if 0
   v4 Color = V4(0.5f + 0.5f*Sin(CAngle),
 		0.5f + 0.5f*Sin(2.9*CAngle),
 		0.5f + 0.5f*Cos(9.9*CAngle),
 	        0.5f + 0.5f*Sin(10.0*CAngle));
+#else
+  v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f);
+#endif
   render_entry_coordinate_system *C = CoordinateSystem(RenderGroup,
-						       V2Add(V2(Displacement, 0.0f),
+						       //V2Add(V2(Displacement, 0.0f),
 							     V2Sub(V2Sub(Origin, V2MulS(0.5, XAxis)),
-								   V2MulS(0.5, YAxis))),
+								   V2MulS(0.5, YAxis)),
 						       XAxis,
 						       YAxis,
 						       Color,
