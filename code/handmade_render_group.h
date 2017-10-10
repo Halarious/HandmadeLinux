@@ -1,6 +1,14 @@
 
 typedef struct
 {
+  u32 WidthPow2;
+  u32 HeightYPow2;
+  loaded_bitmap* LOD[4];
+
+} environment_map;
+
+typedef struct
+{
   v3 P;
 } render_basis;
 
@@ -37,9 +45,12 @@ typedef struct
   v2 Origin;
   v2 XAxis;
   v2 YAxis;
-  loaded_bitmap *Texture;
-  
-  v2 Points[16];
+  loaded_bitmap* Texture;
+  loaded_bitmap* NormalMap;
+
+  environment_map* Top;
+  environment_map* Middle;
+  environment_map* Bottom;
 } render_entry_coordinate_system;
 
 typedef struct

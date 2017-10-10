@@ -55,6 +55,45 @@ MakeEmptyBitmap(memory_arena* Arena, s32 Width, s32 Height, bool32 ClearToZero)
   return(Result); 
 }
 
+internal void
+MakeSphereNormalMap(loaded_bitmap* Bitmap, r32 Roughness)
+{
+  r32 InvWidth  = 1.0f / (1.0f - Bitmap->Width);
+  r32 InvHeight = 1.0f / (1.0f - Bitmap->Height);
+
+  u8 *Row = (u8*)Bitmap->Memory;
+  for(s32 Y = 0;
+      Y < Bitmap->Height;
+      ++Y)
+    {
+      u32* Pixel = (u32*) Row;
+      for(s32 X = 0;
+	  X < Bitmap->Height;
+	  ++X)
+	{
+	  v2 BitmapUV = V2(InvWidth*(r32)X, InvHeight*(r32)Y);
+
+	  v3 Normal = V3(2.0f * BitmapUV.x - 1.0f,
+			 2.0f * BitmapUV.y - 1.0f,
+			 0.0f);
+	  Normal.z = AbsoluteValue(Normal.x) + AbsoluteValue(Normal.y);
+
+	  Normal = V3Normalize(Normal);
+
+	  v4 Color = {255.0f*(0.5f*(Normal.x + 1.0f)),
+		      255.0f*(0.5f*(Normal.y + 1.0f)),
+		      127.0f*Normal.z,
+		      255.0f*Roughness};
+
+	  *Pixel = (((u32)(Color.a + 0.5f) << 24) |
+		    ((u32)(Color.r + 0.5f) << 16) |
+		    ((u32)(Color.g + 0.5f) << 8)  |
+		    ((u32)(Color.b + 0.5f) << 0));
+	}
+      Row += Bitmap->Pitch;
+    }
+}
+
 /*
 internal glyph_bitmap*
 MakeEmptyGlyphBitmap(memory_arena* GlyphArena, memory_arena* BitmapArena,
@@ -1372,19 +1411,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 						       XAxis,
 						       YAxis,
 						       Color,
-						       &State->Tree);
-  
-  for(r32 Y = 0.0f;
-      Y < 1.0f;
-      Y += 0.25f)
-    {
-      for(r32 X = 0.0f;
-	  X < 1.0f;
-	  X += 0.25f)
-	{
-	  C->Points[PIndex++] = V2(X, Y);
-	}
-    }
+						       &State->Tree,
+						       0, 0, 0, 0);
   
   RenderGroupToOutput(RenderGroup, DrawBuffer);
     

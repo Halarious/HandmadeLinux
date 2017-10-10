@@ -40,9 +40,16 @@ typedef union
 {
   struct
   {
-    r32 x;
-    r32 y;
-    r32 z;
+    union
+    {
+      v3 xyz;
+      struct
+      {
+	r32 x;
+	r32 y;
+	r32 z;
+      };
+    };
     r32 w;
   };
   struct
@@ -346,6 +353,21 @@ V3Clamp01(v3 V)
   Result.y = Clamp01(V.y);
   Result.z = Clamp01(V.z);
   
+  return(Result);
+}
+
+internal inline v3
+V3Normalize(v3 V)
+{
+  v3 Result = V3MulS(1.0f/V3Length(V), V);
+  return(Result);
+}
+
+internal inline v3
+V3Lerp(v3 A, r32 t, v3 B)
+{
+  v3 Result = V3Add(V3MulS((1.0f - t), A),
+		    V3MulS(t, B));
   return(Result);
 }
 

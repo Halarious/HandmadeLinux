@@ -146,7 +146,7 @@ DrawRectangle(loaded_bitmap *Buffer,
 	       (RoundReal32ToUInt32(B * 255.0f)));
   
   u32 BytesPerPixel = BITMAP_BYTES_PER_PIXEL;
-  u8 *Row = Buffer->Memory
+  u8 *Row = (u8*)Buffer->Memory
     + Buffer->Pitch * MinY
     + BytesPerPixel * MinX;
   for(int Y = MinY; Y < MaxY; ++Y)
@@ -160,17 +160,38 @@ DrawRectangle(loaded_bitmap *Buffer,
     }
 }
 
+internal inline v4
+Unpack4x8(u32 Packed)
+{
+  v4 Result = V4((r32)((Packed >> 16) & 0xff),
+		 (r32)((Packed >> 8) & 0xff),
+		 (r32)((Packed >> 0) & 0xff),
+		 (r32)((Packed >> 24) & 0xff));
+  return(Result);
+}
+
+internal v3
+SampleEnvironmentMap(v2 ScreenSpaceUV, v3 Normal, r32 Roughness,
+		     environment_map *Map)
+{
+  v3 Result = Normal;
+  return(Normal);
+}
 
 internal void
 DrawRectangleSlowly(loaded_bitmap *Buffer,
 		    v2 Origin, v2 XAxis, v2 YAxis,
-		    v4 Color, loaded_bitmap* Texture)
+		    v4 Color, loaded_bitmap* Texture,
+		    loaded_bitmap* NormalMap,
+		    environment_map *Top,
+		    environment_map *Middle,
+		    environment_map *Bottom)
 {
   Color.rgb = V3MulS(Color.a, Color.rgb);
 
   r32 InvXAxisLengthSq = 1.0f / V2LengthSq(XAxis);
   r32 InvYAxisLengthSq = 1.0f / V2LengthSq(YAxis);
-  
+
   u32 Color32 = ((RoundReal32ToUInt32(Color.a * 255.0f) << 24) |
 		 (RoundReal32ToUInt32(Color.r * 255.0f) << 16) |
 		 (RoundReal32ToUInt32(Color.g * 255.0f) << 8)  |
@@ -179,6 +200,9 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
   s32 WidthMax  = Buffer->Width - 1;
   s32 HeightMax = Buffer->Height - 1;
 
+  r32 InvWidthMax  = 1.0f / (r32)WidthMax;
+  r32 InvHeightMax = 1.0f / (r32)HeightMax;
+  
   s32 XMin = WidthMax;
   s32 XMax = 0;
   s32 YMin = HeightMax;
@@ -254,6 +278,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
 	     (Edge2 < 0) &&
 	     (Edge3 < 0))
 	    {
+	      v2 ScreenSpaceUV = V2(InvWidthMax*(r32)X, InvHeightMax*(r32)Y);
+	      
 	      r32 U = InvXAxisLengthSq * V2Inner(d, XAxis);
 	      r32 V = InvYAxisLengthSq * V2Inner(d, YAxis);
 
@@ -280,25 +306,10 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
 	      u32 TexelPtrC = *(u32*)(TexelPtr + Texture->Pitch);
 	      u32 TexelPtrD = *(u32*)(TexelPtr + Texture->Pitch + BITMAP_BYTES_PER_PIXEL);
 
-	      v4 TexelA = V4((r32)((TexelPtrA >> 16) & 0xff),
-			     (r32)((TexelPtrA >> 8) & 0xff),
-			     (r32)((TexelPtrA >> 0) & 0xff),
-			     (r32)((TexelPtrA >> 24) & 0xff));
-
-	      v4 TexelB = V4((r32)((TexelPtrB >> 16) & 0xff),
-			     (r32)((TexelPtrB >> 8) & 0xff),
-			     (r32)((TexelPtrB >> 0) & 0xff),
-			     (r32)((TexelPtrB >> 24) & 0xff));
-	      
-	      v4 TexelC = V4((r32)((TexelPtrC >> 16) & 0xff),
-			     (r32)((TexelPtrC >> 8) & 0xff),
-			     (r32)((TexelPtrC >> 0) & 0xff),
-			     (r32)((TexelPtrC >> 24) & 0xff));
-	      
-	      v4 TexelD = V4((r32)((TexelPtrD >> 16) & 0xff),
-			     (r32)((TexelPtrD >> 8) & 0xff),
-			     (r32)((TexelPtrD >> 0) & 0xff),
-			     (r32)((TexelPtrD >> 24) & 0xff));
+	      v4 TexelA = Unpack4x8(TexelPtrA);
+	      v4 TexelB = Unpack4x8(TexelPtrB);
+	      v4 TexelC = Unpack4x8(TexelPtrC);
+	      v4 TexelD = Unpack4x8(TexelPtrD);
 	      
 	      TexelA = SRGB255ToLinear1(TexelA);
 	      TexelB = SRGB255ToLinear1(TexelB);
@@ -309,10 +320,55 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
 				fY,
 				V4Lerp(TexelC, fX, TexelD));
 
-	      Texel.r *= Color.r;
-	      Texel.g *= Color.g;
-	      Texel.b *= Color.b;
-	      Texel.a *= Color.a;
+	      u8* NormalPtr = (((u8*)Texture->Memory)
+			       + Y * Texture->Pitch
+			       + X * BITMAP_BYTES_PER_PIXEL);
+
+	      if(NormalMap)
+		{
+		  u32 NormalPtrA = *(u32*)(NormalPtr);
+		  u32 NormalPtrB = *(u32*)(NormalPtr + BITMAP_BYTES_PER_PIXEL);
+		  u32 NormalPtrC = *(u32*)(NormalPtr + Texture->Pitch);
+		  u32 NormalPtrD = *(u32*)(NormalPtr + Texture->Pitch + BITMAP_BYTES_PER_PIXEL);
+
+		  v4 NormalA = Unpack4x8(NormalPtrA);
+		  v4 NormalB = Unpack4x8(NormalPtrB);
+		  v4 NormalC = Unpack4x8(NormalPtrC);
+		  v4 NormalD = Unpack4x8(NormalPtrD);
+	      
+		  v4 Normal = V4Lerp(V4Lerp(NormalA, fX, NormalB),
+				     fY,
+				     V4Lerp(NormalC, fX, NormalD));
+
+		  environment_map* FarMap = 0;
+		  r32 tFarMap = 0.0f;
+		  r32 tEnvMap = Normal.z;
+		  if(tEnvMap < 0.25f)
+		    {
+		      FarMap = Bottom;
+		      tFarMap = 1.0f - (tEnvMap / 0.25f);
+		    }
+		  else if(tEnvMap > 0.75f)
+		    {
+		      FarMap = Top;
+		      tFarMap = (1.0f - tEnvMap) / 0.25f;
+		    }
+		  else
+		    {
+		      FarMap = Middle;
+		    }
+
+		  v3 LightColor = SampleEnvironmentMap(ScreenSpaceUV, Normal.xyz, Normal.w, Middle);
+		  if(FarMap)
+		    {
+		      v3 FarMapColor = SampleEnvironmentMap(ScreenSpaceUV, Normal.xyz, Normal.w, FarMap);
+		      LightColor = V3Lerp(LightColor, tFarMap, FarMapColor);
+		    }
+
+		  Texel.rgb = V3Hadamard(Texel.rgb, LightColor);
+		}	      
+
+	      Texel = V4Hadamard(Texel, Color);
 	      
 	      v4 Dest = V4((r32)((*Pixel >> 16) & 0xff),
 			   (r32)((*Pixel >>  8) & 0xff),
@@ -459,7 +515,11 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget)
 				Entry->XAxis,
 				Entry->YAxis,
 				Entry->Color,
-				Entry->Texture);
+				Entry->Texture,
+				Entry->NormalMap,
+				Entry->Top,
+				Entry->Middle,
+				Entry->Bottom);
 
 	    v4 Color = V4(1.0f, 1.0f, 0.0f, 1.0f);
 	    v2 Dim = V2(2, 2);
@@ -639,7 +699,8 @@ Clear(render_group* Group, v4 Color)
 
 internal inline render_entry_coordinate_system*
 CoordinateSystem(render_group* Group, v2 Origin, v2 XAxis, v2 YAxis,
-		 v4 Color, loaded_bitmap* Texture)
+		 v4 Color, loaded_bitmap* Texture, loaded_bitmap* NormalMap,
+		 environment_map* Top, environment_map* Middle, environment_map* Bottom)
 {
   render_entry_coordinate_system* Entry = PushRenderElement(Group, render_entry_coordinate_system);
   if(Entry)
@@ -649,6 +710,10 @@ CoordinateSystem(render_group* Group, v2 Origin, v2 XAxis, v2 YAxis,
       Entry->YAxis = YAxis;
       Entry->Color = Color;     
       Entry->Texture = Texture;
+      Entry->NormalMap = NormalMap;
+      Entry->Top = Top;
+      Entry->Middle = Middle;
+      Entry->Bottom = Bottom;
     }
   return(Entry);
 }
