@@ -68,7 +68,7 @@ MakeSphereNormalMap(loaded_bitmap* Bitmap, r32 Roughness)
     {
       u32* Pixel = (u32*) Row;
       for(s32 X = 0;
-	  X < Bitmap->Height;
+	  X < Bitmap->Width;
 	  ++X)
 	{
 	  v2 BitmapUV = V2(InvWidth*(r32)X, InvHeight*(r32)Y);
@@ -76,9 +76,8 @@ MakeSphereNormalMap(loaded_bitmap* Bitmap, r32 Roughness)
 	  v3 Normal = V3(2.0f * BitmapUV.x - 1.0f,
 			 2.0f * BitmapUV.y - 1.0f,
 			 0.0f);
-	  Normal.z = AbsoluteValue(Normal.x) + AbsoluteValue(Normal.y);
-
-	  Normal = V3Normalize(Normal);
+	  Normal.z = SquareRoot(1.0f - Minimum(1.0f,
+					       Square(Normal.x) - Square(Normal.y)));
 
 	  v4 Color = {255.0f*(0.5f*(Normal.x + 1.0f)),
 		      255.0f*(0.5f*(Normal.y + 1.0f)),
