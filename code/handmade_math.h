@@ -143,6 +143,19 @@ V4(r32 X, r32 Y, r32 Z, r32 W)
   return(Result);  
 }
 
+internal inline v4
+ToV4(v3 XYZ, r32 W)
+{
+  v4 Result;
+
+  Result.x = XYZ.x;
+  Result.y = XYZ.y;
+  Result.z = XYZ.z;
+  Result.w = W;
+  
+  return(Result);  
+}
+
 internal inline r32
 Square(r32 V)
 {

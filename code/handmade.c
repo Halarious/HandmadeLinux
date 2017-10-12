@@ -16,7 +16,6 @@
  */
 
 #include "handmade.h"
-#include "handmade_render_group.h"
 #include "handmade_render_group.c"
 #include "handmade_world.c"
 #include "handmade_random.h"
@@ -1001,13 +1000,40 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 						 false);
 	  GroundBuffer->P = NullPosition();
 	}
-      
-      State->TreeNormal = MakeEmptyBitmap(&TransState->TransientArena,
-					  State->Tree.Width,
-					  State->Tree.Height,
-					  false);
-      MakeSphereNormalMap(&State->TreeNormal, 0.0f);
 
+      State->TestDiffuse = MakeEmptyBitmap(&TransState->TransientArena,
+					   256, 256, false);
+      DrawRectangle(&State->TestDiffuse, V2(0.0f, 0.0f),
+		    V2i(State->TestDiffuse.Width,
+			State->TestDiffuse.Height),
+		    V4(0.5f, 0.5f, 0.5f, 0.5f));
+      State->TestNormal = MakeEmptyBitmap(&TransState->TransientArena,
+					  State->TestDiffuse.Width,
+					  State->TestDiffuse.Height,
+					  false);
+      MakeSphereNormalMap(&State->TestNormal, 0.0f);
+
+      TransState->EnvMapWidth = 512;
+      TransState->EnvMapHeight = 256;
+      for(u32 MapIndex = 0;
+	  MapIndex < ArrayCount(TransState->EnvMaps);
+	  ++MapIndex)
+	{
+	  environment_map* Map = (TransState->EnvMaps + MapIndex);
+	  u32 Width = TransState->EnvMapWidth;
+	  u32 Height = TransState->EnvMapHeight;
+	  for(u32 LODIndex = 0;
+	      LODIndex < ArrayCount(Map->LOD);
+	      ++LODIndex)
+	    {
+	      Map->LOD[LODIndex] = MakeEmptyBitmap(&TransState->TransientArena,
+						   Width, Height,
+						   false);
+	      Width  >>= 1;
+	      Height >>= 1;
+	    }
+	}
+      
       TransState->IsInitialized = true;
     }
 
@@ -1111,7 +1137,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   DrawBuffer->Pitch = Buffer->Pitch;
   DrawBuffer->Memory = Buffer->Memory;
 
-  Clear(RenderGroup, V4(0.5f, 0.5f, 0.5f, 1.0f));
+  Clear(RenderGroup, V4(0.25f, 0.25f, 0.25f, 1.0f));
   
   v2 ScreenCenter = V2(0.5f * (r32)DrawBuffer->Width,
 		       0.5f * (r32)DrawBuffer->Height);
@@ -1394,6 +1420,45 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   r32 Angle = 0.1f * State->Time;
   r32 Displacement = 100.0f*Cos(5.0f*Angle);
 
+  v4 MapColor[] =
+    {
+      {1, 0, 0, 1},
+      {0, 1, 0, 1},
+      {0 ,0, 1, 1}
+    };
+  
+  for(u32 MapIndex = 0;
+      MapIndex < ArrayCount(TransState->EnvMaps);
+      ++MapIndex)
+    {
+      environment_map* Map = TransState->EnvMaps + MapIndex;
+      loaded_bitmap* LOD = Map->LOD;
+      bool32 RowCheckerOn = false;
+      s32 CheckerWidth = 16;
+      s32 CheckerHeight = 16;
+      for(s32 Y = 0;
+	  Y < LOD->Height;
+	  Y += CheckerHeight)
+	{
+	  bool32 CheckerOn = RowCheckerOn;
+	  for(s32 X = 0;
+	      X < LOD->Width;
+	      X += CheckerWidth)
+	    {
+	      v4 Color = CheckerOn ? MapColor[MapIndex] : V4(0, 0, 0, 1);
+	      v2 MinP = V2i(X, Y);
+	      v2 MaxP = V2Add(MinP,
+			      V2i(CheckerWidth, CheckerHeight));
+	      DrawRectangle(LOD,
+			    MinP,
+			    MaxP,
+			    Color);
+	      CheckerOn = !CheckerOn;
+	    }
+	  RowCheckerOn = !RowCheckerOn;
+	}
+    }
+
   Angle = 0.0f;
   
   v2 Origin = ScreenCenter;
@@ -1416,14 +1481,34 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 #endif
   render_entry_coordinate_system *C = CoordinateSystem(RenderGroup,
 						       //V2Add(V2(Displacement, 0.0f),
-							     V2Sub(V2Sub(Origin, V2MulS(0.5, XAxis)),
-								   V2MulS(0.5, YAxis)),
+						       V2Sub(V2Sub(Origin, V2MulS(0.5, XAxis)),
+							     V2MulS(0.5, YAxis)),
 						       XAxis,
 						       YAxis,
 						       Color,
-						       &State->Tree,
-						       &State->TreeNormal,
-						       0, 0, 0);
+						       &State->TestDiffuse,
+						       &State->TestNormal,
+						       TransState->EnvMaps + 2,
+						       TransState->EnvMaps + 1,
+						       TransState->EnvMaps + 0);
+  v2 MapP = V2(0.0f, 0.0f);
+  for(u32 MapIndex = 0;
+      MapIndex < ArrayCount(TransState->EnvMaps);
+      ++MapIndex)
+    {
+      environment_map* Map = TransState->EnvMaps + MapIndex;
+      loaded_bitmap* LOD = Map->LOD;
+
+      XAxis = V2MulS(0.5f, V2((r32)LOD->Width, 0.0f));
+      YAxis = V2MulS(0.5f, V2(0.0f, (r32)LOD->Height));
+      
+      CoordinateSystem(RenderGroup, MapP, XAxis, YAxis,
+		       V4(1.0f, 1.0f, 1.0f, 1.0f),
+		       LOD,
+		       0, 0, 0, 0);
+      MapP = V2Add(MapP,
+		   V2Add(YAxis, V2(0.0f, 6.0f)));
+    }
   
   RenderGroupToOutput(RenderGroup, DrawBuffer);
     

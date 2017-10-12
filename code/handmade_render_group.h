@@ -1,7 +1,16 @@
 
 typedef struct
 {
-  loaded_bitmap* LOD[4];
+  void* Memory;
+  
+  int Width;
+  int Height;
+  int Pitch;
+} loaded_bitmap;
+
+typedef struct
+{
+  loaded_bitmap LOD[4];
 
 } environment_map;
 
@@ -57,7 +66,7 @@ typedef struct
   
   loaded_bitmap *Bitmap;
   
-  r32 R, G, B, A;
+  v4 Color;
 } render_entry_bitmap;
 
 typedef struct
@@ -65,7 +74,7 @@ typedef struct
   render_entity_basis EntityBasis;
 
   v2 Dim;  
-  r32 R, G, B, A;
+  v4 Color;
 } render_entry_rectangle;
 
 typedef struct

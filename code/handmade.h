@@ -5,36 +5,6 @@
 
 typedef struct
 {
-  void* Memory;
-  
-  int Width;
-  int Height;
-  int Pitch;
-} loaded_bitmap;
-
-typedef struct
-{
-  s32 XOffset;
-  s32 YOffset;
-  loaded_bitmap* Bitmap;
-} glyph_bitmap;
-
-typedef struct
-{
-  
-}drawBuffer;
-
-typedef struct
-{
-  s32         HotItem;
-  s32         ActiveItem;
-  
-  drawBuffer  DrawBuffer;
-  input*      InputState;
-}guiContext;
-
-typedef struct
-{
   r32 ScaleForPixelHeight;
   
   s32 Ascent;
@@ -145,6 +115,7 @@ ZeroSize(memory_index Size, void *Ptr)
 #include "handmade_world.h"
 #include "handmade_sim_region.h"
 #include "handmade_entity.h"
+#include "handmade_render_group.h"
 
 typedef struct
 {
@@ -213,7 +184,6 @@ typedef struct
   hero_bitmaps HeroBitmaps[4];
 
   loaded_bitmap Tree;
-  loaded_bitmap TreeNormal;
   loaded_bitmap Sword;
   loaded_bitmap Stairwell;
   
@@ -230,6 +200,10 @@ typedef struct
   sim_entity_collision_volume_group *StandardRoomCollision;
   
   r32 Time;
+
+  loaded_bitmap TestDiffuse;
+  loaded_bitmap TestNormal;
+
 } state;
 
 typedef struct
@@ -239,6 +213,11 @@ typedef struct
   
   u32 GroundBufferCount;
   ground_buffer* GroundBuffers;
+
+  u32 EnvMapWidth;
+  u32 EnvMapHeight;
+  environment_map EnvMaps[3];
+  
 } transient_state;
 
 internal inline low_entity*
