@@ -1,8 +1,6 @@
 
 typedef struct
 {
-  u32 WidthPow2;
-  u32 HeightYPow2;
   loaded_bitmap* LOD[4];
 
 } environment_map;

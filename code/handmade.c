@@ -58,8 +58,8 @@ MakeEmptyBitmap(memory_arena* Arena, s32 Width, s32 Height, bool32 ClearToZero)
 internal void
 MakeSphereNormalMap(loaded_bitmap* Bitmap, r32 Roughness)
 {
-  r32 InvWidth  = 1.0f / (1.0f - Bitmap->Width);
-  r32 InvHeight = 1.0f / (1.0f - Bitmap->Height);
+  r32 InvWidth  = 1.0f / (r32)(Bitmap->Width - 1.0f);
+  r32 InvHeight = 1.0f / (r32)(Bitmap->Height - 1.0f);
 
   u8 *Row = (u8*)Bitmap->Memory;
   for(s32 Y = 0;
@@ -73,21 +73,26 @@ MakeSphereNormalMap(loaded_bitmap* Bitmap, r32 Roughness)
 	{
 	  v2 BitmapUV = V2(InvWidth*(r32)X, InvHeight*(r32)Y);
 
-	  v3 Normal = V3(2.0f * BitmapUV.x - 1.0f,
-			 2.0f * BitmapUV.y - 1.0f,
-			 0.0f);
-	  Normal.z = SquareRoot(1.0f - Minimum(1.0f,
-					       Square(Normal.x) - Square(Normal.y)));
+	  r32 Nx = 2.0f * BitmapUV.x - 1.0f;
+	  r32 Ny = 2.0f * BitmapUV.y - 1.0f;
 
+	  v3 Normal = V3(0.0f, 0.0f, 1.0f);
+	  r32 RootTerm = 1.0f - Square(Nx) - Square(Ny);
+	  if(RootTerm >= 0.0f)
+	    {
+	      r32 Nz = SquareRoot(RootTerm);
+	      Normal = V3(Nx, Ny, Nz);
+	    }
+	  
 	  v4 Color = {255.0f*(0.5f*(Normal.x + 1.0f)),
 		      255.0f*(0.5f*(Normal.y + 1.0f)),
-		      127.0f*Normal.z,
+		      255.0f*(0.5f*(Normal.z + 1.0f)),
 		      255.0f*Roughness};
 
-	  *Pixel = (((u32)(Color.a + 0.5f) << 24) |
-		    ((u32)(Color.r + 0.5f) << 16) |
-		    ((u32)(Color.g + 0.5f) << 8)  |
-		    ((u32)(Color.b + 0.5f) << 0));
+	  *Pixel++ = (((u32)(Color.a + 0.5f) << 24) |
+		      ((u32)(Color.r + 0.5f) << 16) |
+		      ((u32)(Color.g + 0.5f) << 8)  |
+		      ((u32)(Color.b + 0.5f) << 0));
 	}
       Row += Bitmap->Pitch;
     }
@@ -773,7 +778,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/rock03.bmp");
       State->Stairwell
 	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/rock02.bmp");
-
+      
       hero_bitmaps *Bitmap = State->HeroBitmaps;
       
       Bitmap->Head
@@ -997,6 +1002,12 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  GroundBuffer->P = NullPosition();
 	}
       
+      State->TreeNormal = MakeEmptyBitmap(&TransState->TransientArena,
+					  State->Tree.Width,
+					  State->Tree.Height,
+					  false);
+      MakeSphereNormalMap(&State->TreeNormal, 0.0f);
+
       TransState->IsInitialized = true;
     }
 
@@ -1411,7 +1422,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 						       YAxis,
 						       Color,
 						       &State->Tree,
-						       0, 0, 0, 0);
+						       &State->TreeNormal,
+						       0, 0, 0);
   
   RenderGroupToOutput(RenderGroup, DrawBuffer);
     
