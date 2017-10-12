@@ -480,7 +480,6 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
 		       V3(0, 0, -9.8f));
     }
   
-  v3 OldPlayerP = Entity->P;
   v3 PlayerDelta = V3Add(V3MulS(0.5f ,
 			      V3MulS(Square(dt),
 				    ddEntity)),
@@ -488,8 +487,7 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
   Entity->dP = V3Add(V3MulS(dt, ddEntity),
 			 Entity->dP);
   Assert(V3LengthSq(Entity->dP) <= Square(SimRegion->MaxEntityVelocity));
-  v3 NewPlayerP = V3Add(OldPlayerP, PlayerDelta);
-  
+    
   r32 DistanceRemaining = Entity->DistanceLimit;
   if(DistanceRemaining == 0.0f)
     {

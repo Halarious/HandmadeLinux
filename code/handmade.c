@@ -1509,6 +1509,11 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       MapP = V2Add(MapP,
 		   V2Add(YAxis, V2(0.0f, 6.0f)));
     }
+
+
+#if 0
+  Saturation(RenderGroup, 0.5f + 0.5f * Sin(State->Time));
+#endif
   
   RenderGroupToOutput(RenderGroup, DrawBuffer);
     

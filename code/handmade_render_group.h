@@ -34,6 +34,7 @@ typedef enum
   RenderGroupEntryType_render_entry_bitmap,
   RenderGroupEntryType_render_entry_rectangle,
   RenderGroupEntryType_render_entry_coordinate_system,
+  RenderGroupEntryType_render_entry_saturation,
 } render_group_entry_type;
 
 typedef struct
@@ -45,6 +46,11 @@ typedef struct
 {
   v4 Color;
 } render_entry_clear;
+
+typedef struct
+{
+  r32 Level;
+} render_entry_saturation;
 
 typedef struct
 {

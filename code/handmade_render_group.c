@@ -44,6 +44,7 @@ UnscaleAndBiasNormal(v4 Normal)
   
   return(Result);
 }
+
 internal void
 DrawBitmap(loaded_bitmap *Buffer, loaded_bitmap *Bitmap,
 	   r32 RealX,  r32 RealY, r32 CAlpha)
@@ -125,6 +126,46 @@ DrawBitmap(loaded_bitmap *Buffer, loaded_bitmap *Bitmap,
 	}
       SourceRow += Bitmap->Pitch;
       DestRow   += Buffer->Pitch;
+    }
+}
+
+internal void
+ChangeSaturation(loaded_bitmap *Buffer, r32 Level)
+{
+  u8* DestRow = (u8*)Buffer->Memory;
+  for(int Y = 0;
+      Y < Buffer->Height;
+      ++Y)
+    {
+      u32 *Dest   = (u32*) DestRow;
+      for(int X = 0;
+	  X < Buffer->Width;
+	  ++X)
+	{
+	  v4 D = V4((r32)((*Dest >> 16) & 0xff),
+		    (r32)((*Dest >> 8)  & 0xff),
+		    (r32)((*Dest >> 0)  & 0xff),
+		    (r32)((*Dest >> 24) & 0xff));
+	  
+	  D = SRGB255ToLinear1(D);
+
+	  r32 Avg  = (1.0f / 3.0f) * (D.r + D.g + D.b);
+	  v3 Delta = V3(D.r - Avg, D.g - Avg, D.b - Avg);
+	  	  
+	  v4 Result = ToV4(V3Add(V3(Avg, Avg, Avg),
+				 V3MulS(Level, Delta)),
+			   D.a);
+
+	  Result = Linear1ToSRGB255(Result);
+
+	  *Dest = (((u32)(Result.a + 0.5f) << 24) |
+		   ((u32)(Result.r + 0.5f) << 16) |
+		   ((u32)(Result.g + 0.5f) << 8)  |
+		   ((u32)(Result.b + 0.5f) << 0));
+	  
+	  ++Dest;
+	}
+      DestRow += Buffer->Pitch;
     }
 }
 
@@ -541,6 +582,15 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget)
 	    BaseAddress += sizeof(*Entry);
 	  } break;
 
+	case RenderGroupEntryType_render_entry_saturation:
+	  {
+	    render_entry_saturation* Entry = (render_entry_saturation*) Data; 
+
+	    ChangeSaturation(OutputTarget, Entry->Level);
+
+	    BaseAddress += sizeof(*Entry);
+	  } break;
+
 	case RenderGroupEntryType_render_entry_bitmap:
 	  {
 	    render_entry_bitmap* Entry = (render_entry_bitmap*) Data;
@@ -749,6 +799,16 @@ Clear(render_group* Group, v4 Color)
   if(Entry)
     {
       Entry->Color = Color;      
+    }  
+}
+
+internal inline void
+Saturation(render_group* Group, r32 Level)
+{
+  render_entry_saturation* Entry = PushRenderElement(Group, render_entry_saturation);
+  if(Entry)
+    {
+      Entry->Level = Level;      
     }  
 }
 
