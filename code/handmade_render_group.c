@@ -274,7 +274,7 @@ SRGBBilinearBlend(bilinear_sample TexelSample, r32 fX, r32 fY)
 }
 
 internal v3
-SampleEnvironmentMap(v2 ScreenSpaceUV, v3 Normal, r32 Roughness,
+SampleEnvironmentMap(v2 ScreenSpaceUV, v3 SampleDirection, r32 Roughness,
 		     environment_map *Map)
 {
 
@@ -283,8 +283,19 @@ SampleEnvironmentMap(v2 ScreenSpaceUV, v3 Normal, r32 Roughness,
 
   loaded_bitmap* LOD = &Map->LOD[LODIndex];
 
-  r32 tX = LOD->Width/2 + Normal.x * (r32)(LOD->Width/2);
-  r32 tY = LOD->Height/2 + Normal.y * (r32)(LOD->Height/2);;
+  Assert(SampleDirection.y > 0.0f);
+
+  r32 DistanceFromMapInZ = 1.0f;
+  r32 UVsPerMeter = 0.01f;
+  r32 C = (UVsPerMeter*DistanceFromMapInZ) / SampleDirection.y;
+  v2 Offset = V2MulS(C, V2(SampleDirection.x, SampleDirection.z));
+  v2 UV = V2Add(ScreenSpaceUV, Offset);
+
+  UV.x = Clamp01(UV.x);
+  UV.y = Clamp01(UV.y);
+  
+  r32 tX = ((UV.x * (r32)(LOD->Width  - 2)));
+  r32 tY = ((UV.y * (r32)(LOD->Height - 2)));
   
   s32 X = (s32) tX;
   s32 Y = (s32) tY;
@@ -409,8 +420,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
 	      Assert((U >= 0.0f) && (U <= 1.0f));
 	      Assert((V >= 0.0f) && (V <= 1.0f));
 
-	      r32 tX = 1.0f + ((U * (r32)(Texture->Width  - 3)));
-	      r32 tY = 1.0f + ((V * (r32)(Texture->Height - 3)));
+	      r32 tX = ((U * (r32)(Texture->Width  - 2)));
+	      r32 tY = ((V * (r32)(Texture->Height - 2)));
 	      
 	      s32 X = (s32) tX;
 	      s32 Y = (s32) tY;
@@ -442,29 +453,30 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
 		  Normal = UnscaleAndBiasNormal(Normal);
 
 		  Normal.xyz = V3Normalize(Normal.xyz);
+
+		  v3 BounceDirection = V3MulS(2.0f * Normal.z,
+					      Normal.xyz);
+		  BounceDirection.z -= 1.0f;
 		  
 		  environment_map* FarMap = 0;
 		  r32 tFarMap = 0.0f;
-		  r32 tEnvMap = Normal.y;
+		  r32 tEnvMap = BounceDirection.y;
 		  if(tEnvMap < -0.5f)
 		    {
 		      FarMap = Bottom;
 		      tFarMap = -1.0f - 2.0f*tEnvMap;
+		      BounceDirection.y = -BounceDirection.y;
 		    }
 		  else if(tEnvMap > 0.5f)
 		    {
 		      FarMap = Top;
 		      tFarMap = -1.0f + 2.0f*tEnvMap;
 		    }
-		  else
-		    {
-		      FarMap = Middle;
-		    }
 
-		  v3 LightColor = V3(0.0f, 0.0f, 0.0f); //SampleEnvironmentMap(ScreenSpaceUV, Normal.xyz, Normal.w, Middle);
+		  v3 LightColor = V3(0.0f, 0.0f, 0.0f);
 		  if(FarMap)
 		    {
-		      v3 FarMapColor = SampleEnvironmentMap(ScreenSpaceUV, Normal.xyz, Normal.w, FarMap);
+		      v3 FarMapColor = SampleEnvironmentMap(ScreenSpaceUV, BounceDirection, Normal.w, FarMap);
 		      LightColor = V3Lerp(LightColor, tFarMap, FarMapColor);
 		    }
 
