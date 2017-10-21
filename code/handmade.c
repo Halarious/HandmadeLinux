@@ -1070,7 +1070,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 					  State->TestDiffuse.Width,
 					  State->TestDiffuse.Height,
 					  false);
-      MakeSphereNormalMap(&State->TestNormal, 0.0f, 0.0f, 1.0f);
+      MakeSphereNormalMap(&State->TestNormal, 0.0f, 1.0f, 1.0f);
       //MakePyramidNormalMap(&State->TestNormal, 0.0f);
       
       TransState->EnvMapWidth = 512;
@@ -1478,7 +1478,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
   State->Time += Input->dtForFrame;
   r32 Angle = 0.1f * State->Time;
-  r32 Displacement = 100.0f*Cos(5.0f*Angle);
+  v2 Displacement = V2(100.0f*Cos(5.0f*Angle),
+		       100.0f*Sin(3.0f*Angle));
 
   v4 MapColor[] =
     {
@@ -1519,7 +1520,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	}
     }
 
-  Angle = 0.0f;
+  //Angle = 0.0f;
   
   v2 Origin = ScreenCenter;
 #if 1
@@ -1540,7 +1541,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f);
 #endif
   render_entry_coordinate_system *C = CoordinateSystem(RenderGroup,
-						       V2Add(V2(Displacement, 0.0f),
+						       V2Add(Displacement,
 						       V2Sub(V2Sub(Origin, V2MulS(0.5, XAxis)),
 							     V2MulS(0.5, YAxis))),
 						       XAxis,

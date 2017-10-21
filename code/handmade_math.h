@@ -66,6 +66,24 @@ typedef union
     };
     r32 a;
   };
+  struct
+  {
+    v2 xy;
+    r32 Ignored0_;
+    r32 Ignored1_;
+  };
+  struct
+  {
+    r32 Ignored2_;
+    v2 yz;
+    r32 Ignored3_;
+  };
+  struct
+  {
+    r32 Ignored4_;
+    r32 Ignored5_;
+    v2 zy;
+  };
   r32 E[4];
 } v4;
 
