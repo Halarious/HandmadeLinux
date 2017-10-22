@@ -344,7 +344,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
   u32 Color32 = ((RoundReal32ToUInt32(Color.a * 255.0f) << 24) |
 		 (RoundReal32ToUInt32(Color.r * 255.0f) << 16) |
 		 (RoundReal32ToUInt32(Color.g * 255.0f) << 8)  |
-		 (RoundReal32ToUInt32(Color.b * 255.0f)));
+		 (RoundReal32ToUInt32(Color.b * 255.0f) << 0));
 
   s32 WidthMax  = Buffer->Width - 1;
   s32 HeightMax = Buffer->Height - 1;
@@ -397,14 +397,14 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
     }
   
   u32 BytesPerPixel = BITMAP_BYTES_PER_PIXEL;
-  u8 *Row = Buffer->Memory
-    + Buffer->Pitch * YMin
-    + BytesPerPixel * XMin;
+  u8 *Row = ((u8*)Buffer->Memory
+	     + Buffer->Pitch * YMin
+	     + BytesPerPixel * XMin);
   for(int Y = YMin;
       Y <= YMax;
       ++Y)
     {
-      u32 *Pixel = (u32*) Row;
+      u32* Pixel = (u32*) Row;
       for(int X = XMin;
 	  X <= XMax;
 	  ++X)
@@ -432,9 +432,10 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
 	      r32 U = InvXAxisLengthSq * V2Inner(d, XAxis);
 	      r32 V = InvYAxisLengthSq * V2Inner(d, YAxis);
 
+#if 0
 	      Assert((U >= 0.0f) && (U <= 1.0f));
 	      Assert((V >= 0.0f) && (V <= 1.0f));
-
+#endif
 	      r32 tX = ((U * (r32)(Texture->Width  - 2)));
 	      r32 tY = ((V * (r32)(Texture->Height - 2)));
 	      
@@ -497,7 +498,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
 		  v3 LightColor = V3(0.0f, 0.0f, 0.0f);
 		  if(FarMap)
 		    {
-		      v3 FarMapColor = SampleEnvironmentMap(ScreenSpaceUV, BounceDirection, Normal.w, FarMap, DistanceFromMapInZ);
+		      v3 FarMapColor = SampleEnvironmentMap(ScreenSpaceUV, BounceDirection, Normal.w,
+							    FarMap, DistanceFromMapInZ);
 		      LightColor = V3Lerp(LightColor, tFarMap, FarMapColor);
 		    }
 
@@ -506,6 +508,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
 #else
 		  Texel.rgb = V3Add(V3(0.5f, 0.5f, 0.5f),
 		  		    V3MulS(0.5f, BounceDirection));
+		  Texel.a = 1.0f;
 #endif
 		}	      
 

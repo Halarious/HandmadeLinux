@@ -76,7 +76,7 @@ MakeSphereNormalMap(loaded_bitmap* Bitmap, r32 Roughness,
 	  r32 Nx = Cx * (2.0f * BitmapUV.x - 1.0f);
 	  r32 Ny = Cy * (2.0f * BitmapUV.y - 1.0f);
 
-	  v3 Normal = V3(0.0f, 0.707106781188, 0.707106781188);
+	  v3 Normal = V3(0.0f, 0.707106781188f, 0.707106781188f);
 	  r32 RootTerm = 1.0f - Square(Nx) - Square(Ny);
 	  if(RootTerm >= 0.0f)
 	    {
