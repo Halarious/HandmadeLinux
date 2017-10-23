@@ -99,6 +99,51 @@ MakeSphereNormalMap(loaded_bitmap* Bitmap, r32 Roughness,
 }
 
 internal void
+MakeSphereDiffuseMap(loaded_bitmap* Bitmap,
+		    r32 Cx, r32 Cy)
+{
+  r32 InvWidth  = 1.0f / (r32)(Bitmap->Width - 1.0f);
+  r32 InvHeight = 1.0f / (r32)(Bitmap->Height - 1.0f);
+
+  u8 *Row = (u8*)Bitmap->Memory;
+  for(s32 Y = 0;
+      Y < Bitmap->Height;
+      ++Y)
+    {
+      u32* Pixel = (u32*) Row;
+      for(s32 X = 0;
+	  X < Bitmap->Width;
+	  ++X)
+	{
+	  v2 BitmapUV = V2(InvWidth*(r32)X, InvHeight*(r32)Y);
+
+	  r32 Nx = Cx * (2.0f * BitmapUV.x - 1.0f);
+	  r32 Ny = Cy * (2.0f * BitmapUV.y - 1.0f);
+
+	  r32 RootTerm = 1.0f - Square(Nx) - Square(Ny);
+	  r32 Alpha = 0.0f;
+	  if(RootTerm >= 0.0f)
+	    {
+	      Alpha = 1.0f;
+	    }
+
+	  v3 BaseColor = V3(0.0f, 0.0f, 0.0f);
+	  Alpha *= 255.0f;
+	  v4 Color = {Alpha*BaseColor.x,
+		      Alpha*BaseColor.y,
+		      Alpha*BaseColor.z,
+		      Alpha};
+
+	  *Pixel++ = (((u32)(Color.a + 0.5f) << 24) |
+		      ((u32)(Color.r + 0.5f) << 16) |
+		      ((u32)(Color.g + 0.5f) << 8)  |
+		      ((u32)(Color.b + 0.5f) << 0));
+	}
+      Row += Bitmap->Pitch;
+    }
+}
+
+internal void
 MakePyramidNormalMap(loaded_bitmap* Bitmap, r32 Roughness)
 {
   r32 InvWidth  = 1.0f / (r32)(Bitmap->Width - 1.0f);
@@ -1071,7 +1116,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 					  State->TestDiffuse.Height,
 					  false);
       MakeSphereNormalMap(&State->TestNormal, 0.0f, 1.0f, 1.0f);
-      //MakePyramidNormalMap(&State->TestNormal, 0.0f);
+      MakeSphereDiffuseMap(&State->TestDiffuse, 1.0f, 1.0f);
       
       TransState->EnvMapWidth = 512;
       TransState->EnvMapHeight = 256;
@@ -1477,10 +1522,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
     }
 
   State->Time += Input->dtForFrame;
-  r32 Angle = 0.1f * State->Time;
-  v2 Displacement = V2(100.0f*Cos(5.0f*Angle),
-		       100.0f*Sin(3.0f*Angle));
-
+  
   v4 MapColor[] =
     {
       {1, 0, 0, 1},
@@ -1519,12 +1561,23 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  RowCheckerOn = !RowCheckerOn;
 	}
     }
-
+  TransState->EnvMaps[0].Pz = -2.0f;
+  TransState->EnvMaps[1].Pz = 0.0f;
+  TransState->EnvMaps[2].Pz = 2.0f;
   //Angle = 0.0f;
   
   v2 Origin = ScreenCenter;
+
+r32 Angle = 0.1f * State->Time;
 #if 1
-  v2 XAxis = V2MulS(100.0f, V2(Cos(Angle), Sin(Angle)));
+  v2 Displacement = V2(100.0f*Cos(5.0f*Angle),
+		       100.0f*Sin(3.0f*Angle));
+#else
+  v2 Displacement = V2(0.0f, 0.0f);
+#endif
+  
+#if 1
+  v2 XAxis = V2MulS(100.0f, V2(Cos(10.0f*Angle), Sin(10.0f*Angle)));
   v2 YAxis = V2Perp(XAxis);
 #else
   v2 XAxis = V2(100.0f, 0.0f);

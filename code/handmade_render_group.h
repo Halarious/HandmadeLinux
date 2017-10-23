@@ -11,7 +11,7 @@ typedef struct
 typedef struct
 {
   loaded_bitmap LOD[4];
-
+  r32 Pz;
 } environment_map;
 
 typedef struct

@@ -288,11 +288,6 @@ SampleEnvironmentMap(v2 ScreenSpaceUV, v3 SampleDirection, r32 Roughness,
   v2 Offset = V2MulS(C, V2(SampleDirection.x, SampleDirection.z));
 
   v2 UV = V2Add(ScreenSpaceUV, Offset);
-
-  Assert(UV.x >= 0);
-  Assert(UV.x <= 1.0f);
-  Assert(UV.y >= 0);
-  Assert(UV.y <= 1.0f);
   
   UV.x = Clamp01(UV.x);
   UV.y = Clamp01(UV.y);
@@ -309,9 +304,10 @@ SampleEnvironmentMap(v2 ScreenSpaceUV, v3 SampleDirection, r32 Roughness,
   Assert((X >= 0.0f) && (X < LOD->Width));
   Assert((Y >= 0.0f) && (Y < LOD->Height));
 
+#if 0
   u8* TexelPtr = ((u8*)LOD->Memory) + Y*LOD->Pitch + X*BITMAP_BYTES_PER_PIXEL;
   *(u32*)TexelPtr = 0xFFFFFFFF;
-  
+#endif  
   bilinear_sample Sample = BilinearSample(LOD, X, Y);
   v3 Result = SRGBBilinearBlend(Sample, fX, fY).xyz;
 
@@ -325,10 +321,11 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
 		    loaded_bitmap* NormalMap,
 		    environment_map *Top,
 		    environment_map *Middle,
-		    environment_map *Bottom)
+		    environment_map *Bottom,
+		    r32 PixelsToMeters)
 {
   Color.rgb = V3MulS(Color.a, Color.rgb);
-
+  
   r32 XAxisLength = V2Length(XAxis);
   r32 YAxisLength = V2Length(YAxis);
   
@@ -351,7 +348,13 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
 
   r32 InvWidthMax  = 1.0f / (r32)WidthMax;
   r32 InvHeightMax = 1.0f / (r32)HeightMax;
-  
+
+  r32 OriginZ = 0.0f;
+  r32 OriginY = V2Add(V2Add(Origin,
+			    V2MulS(0.5f, XAxis)),
+		      V2MulS(0.5f, YAxis)).y;
+  r32 FixedCastY = InvHeightMax * OriginY;
+    
   s32 XMin = WidthMax;
   s32 XMax = 0;
   s32 YMin = HeightMax;
@@ -427,7 +430,9 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
 	     (Edge2 < 0) &&
 	     (Edge3 < 0))
 	    {
-	      v2 ScreenSpaceUV = V2(InvWidthMax*(r32)X, InvHeightMax*(r32)Y);
+	      v2 ScreenSpaceUV = V2(InvWidthMax*(r32)X, FixedCastY);
+	      
+	      r32 ZDiff = PixelsToMeters*((r32)Y - OriginY);
 	      
 	      r32 U = InvXAxisLengthSq * V2Inner(d, XAxis);
 	      r32 V = InvYAxisLengthSq * V2Inner(d, YAxis);
@@ -478,26 +483,27 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
 		  BounceDirection.z -= 1.0f;
 
 		  BounceDirection.z = -BounceDirection.z;
-#if 0		  
+
 		  environment_map* FarMap = 0;
-		  r32 DistanceFromMapInZ  = 2.0f;
+		  r32 Pz = OriginZ + ZDiff;
+		  r32 MapInZ  = 2.0f;
 		  r32 tFarMap = 0.0f;
 		  r32 tEnvMap = BounceDirection.y;
 		  if(tEnvMap < -0.5f)
 		    {
 		      FarMap = Bottom;
 		      tFarMap = -1.0f - 2.0f*tEnvMap;
-		      DistanceFromMapInZ = -DistanceFromMapInZ;
 		    }
 		  else if(tEnvMap > 0.5f)
 		    {
 		      FarMap = Top;
 		      tFarMap = -1.0f + 2.0f*tEnvMap;
 		    }
-
+		  
 		  v3 LightColor = V3(0.0f, 0.0f, 0.0f);
 		  if(FarMap)
 		    {
+		      r32 DistanceFromMapInZ = FarMap->Pz - Pz;
 		      v3 FarMapColor = SampleEnvironmentMap(ScreenSpaceUV, BounceDirection, Normal.w,
 							    FarMap, DistanceFromMapInZ);
 		      LightColor = V3Lerp(LightColor, tFarMap, FarMapColor);
@@ -505,10 +511,10 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
 
 		  Texel.rgb = V3Add(Texel.rgb,
 				    V3MulS(Texel.a, LightColor));
-#else
+#if 0 
 		  Texel.rgb = V3Add(V3(0.5f, 0.5f, 0.5f),
 		  		    V3MulS(0.5f, BounceDirection));
-		  Texel.a = 1.0f;
+		  Texel.rgb = V3MulS(Texel.a, Texel.rgb);
 #endif
 		}	      
 
@@ -666,7 +672,8 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget)
 				Entry->NormalMap,
 				Entry->Top,
 				Entry->Middle,
-				Entry->Bottom);
+				Entry->Bottom,
+				(1.0f / RenderGroup->MetersToPixels));
 
 	    v4 Color = V4(1.0f, 1.0f, 0.0f, 1.0f);
 	    v2 Dim = V2(2, 2);
