@@ -1561,9 +1561,9 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  RowCheckerOn = !RowCheckerOn;
 	}
     }
-  TransState->EnvMaps[0].Pz = -2.0f;
+  TransState->EnvMaps[0].Pz = -1.5f;
   TransState->EnvMaps[1].Pz = 0.0f;
-  TransState->EnvMaps[2].Pz = 2.0f;
+  TransState->EnvMaps[2].Pz = 1.5f;
   //Angle = 0.0f;
   
   v2 Origin = ScreenCenter;

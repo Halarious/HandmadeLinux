@@ -283,7 +283,7 @@ SampleEnvironmentMap(v2 ScreenSpaceUV, v3 SampleDirection, r32 Roughness,
 
   loaded_bitmap* LOD = &Map->LOD[LODIndex];
 
-  r32 UVsPerMeter = 0.01f;
+  r32 UVsPerMeter = 0.1f;
   r32 C = (UVsPerMeter*DistanceFromMapInZ) / SampleDirection.y;
   v2 Offset = V2MulS(C, V2(SampleDirection.x, SampleDirection.z));
 
@@ -430,10 +430,13 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
 	     (Edge2 < 0) &&
 	     (Edge3 < 0))
 	    {
+#if 1
 	      v2 ScreenSpaceUV = V2(InvWidthMax*(r32)X, FixedCastY);
-	      
 	      r32 ZDiff = PixelsToMeters*((r32)Y - OriginY);
-	      
+#else
+	      v2 ScreenSpaceUV = V2(InvWidthMax*(r32)X, InvHeightMax*(r32)Y);
+	      r32 ZDiff = 0.0f;
+#endif
 	      r32 U = InvXAxisLengthSq * V2Inner(d, XAxis);
 	      r32 V = InvYAxisLengthSq * V2Inner(d, YAxis);
 
@@ -499,6 +502,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
 		      FarMap = Top;
 		      tFarMap = -1.0f + 2.0f*tEnvMap;
 		    }
+
+		  tFarMap *= tFarMap;
 		  
 		  v3 LightColor = V3(0.0f, 0.0f, 0.0f);
 		  if(FarMap)
