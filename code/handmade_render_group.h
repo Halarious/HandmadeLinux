@@ -54,20 +54,6 @@ typedef struct
 
 typedef struct
 {
-  v4 Color;
-  v2 Origin;
-  v2 XAxis;
-  v2 YAxis;
-  loaded_bitmap* Texture;
-  loaded_bitmap* NormalMap;
-
-  environment_map* Top;
-  environment_map* Middle;
-  environment_map* Bottom;
-} render_entry_coordinate_system;
-
-typedef struct
-{
   render_entity_basis EntityBasis;
   
   loaded_bitmap *Bitmap;
@@ -82,6 +68,20 @@ typedef struct
   v2 Dim;  
   v4 Color;
 } render_entry_rectangle;
+
+typedef struct
+{
+  v4 Color;
+  v2 Origin;
+  v2 XAxis;
+  v2 YAxis;
+  loaded_bitmap* Texture;
+  loaded_bitmap* NormalMap;
+
+  environment_map* Top;
+  environment_map* Middle;
+  environment_map* Bottom;
+} render_entry_coordinate_system;
 
 typedef struct
 {

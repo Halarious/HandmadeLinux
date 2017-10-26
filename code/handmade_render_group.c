@@ -587,16 +587,14 @@ GetRenderEntityBasisP(render_group* RenderGroup,
 {
   v3 EntityBaseP = EntityBasis->Basis->P;
   r32 ZFudge = (1.0f + 0.1f * (EntityBasis->OffsetZ + EntityBaseP.z));
-	    
-  r32 EntityGroundPointX = ScreenCenter.x
-    + RenderGroup->MetersToPixels*ZFudge*EntityBaseP.x;
-  r32 EntityGroundPointY = ScreenCenter.y
-    - RenderGroup->MetersToPixels*ZFudge*EntityBaseP.y;
-  r32 EntityZ = -RenderGroup->MetersToPixels*EntityBaseP.z;
 
-  v2 Center = {EntityBasis->Offset.x + EntityGroundPointX,
-	       EntityBasis->Offset.y + EntityGroundPointY
-	       + EntityBasis->EntityZC*EntityZ};
+  v2 EntityGroundPoint = V2Add(ScreenCenter,
+			       V2MulS(RenderGroup->MetersToPixels*ZFudge,
+				      EntityBaseP.xy));
+  r32 EntityZ = RenderGroup->MetersToPixels*EntityBaseP.z;
+  
+  v2 Center = V2Add(V2Add(EntityBasis->Offset, EntityGroundPoint),
+		    V2(0.0f, EntityBasis->EntityZC*EntityZ));
   return(Center);
 }
 
@@ -641,14 +639,13 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget)
 	case RenderGroupEntryType_render_entry_bitmap:
 	  {
 	    render_entry_bitmap* Entry = (render_entry_bitmap*) Data;
-#if 0
 	    v2 P = GetRenderEntityBasisP(RenderGroup, &Entry->EntityBasis, ScreenCenter);
 
 	    Assert(Entry->Bitmap);
 	    DrawBitmap(OutputTarget, Entry->Bitmap,
-		       P.x, P.y, Entry->A);
+		       P.x, P.y, Entry->Color.a);
 
-#endif
+
 	    BaseAddress += sizeof(*Entry);
 	  } break;
 
@@ -775,8 +772,8 @@ PushPiece(render_group *Group, loaded_bitmap* Bitmap,
       Piece->EntityBasis.Basis  = Group->DefaultBasis; 
       Piece->Bitmap = Bitmap;
       Piece->EntityBasis.Offset = V2Sub(V2MulS(Group->MetersToPixels,
-				   V2(Offset.x, -Offset.y)),
-			    Align);  
+					       V2(Offset.x, Offset.y)),
+					Align);  
       Piece->EntityBasis.OffsetZ = OffsetZ;
       Piece->EntityBasis.EntityZC = EntityZC;
       Piece->Color = Color;
@@ -802,7 +799,7 @@ PushRect(render_group *Group, v2 Offset, r32 OffsetZ,
       
       Piece->EntityBasis.Basis  = Group->DefaultBasis; 
       Piece->EntityBasis.Offset = V2Sub(V2MulS(Group->MetersToPixels,
-				   V2(Offset.x, -Offset.y)),
+				   V2(Offset.x, Offset.y)),
 			    HalfDim);  
       Piece->EntityBasis.OffsetZ = OffsetZ;
       Piece->EntityBasis.EntityZC = EntityZC;

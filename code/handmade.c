@@ -323,6 +323,7 @@ DEBUGLoadBMP(thread_context *Thread, debug_platform_read_entire_file *ReadEntire
       Result.Height = Header->Height;
       Result.Pitch  = Result.Width;
 
+      Assert(Result.Height >= 0);
       Assert(Header->Compression == 3);
       
       u32 RedMask   = Header->RedMask;
@@ -376,10 +377,14 @@ DEBUGLoadBMP(thread_context *Thread, debug_platform_read_entire_file *ReadEntire
     }  
 
   s32 BytesPerPixel = BITMAP_BYTES_PER_PIXEL;
-  Result.Pitch  = -Result.Width*BytesPerPixel;
-  Result.Memory = ((u8*)Result.Memory -
+  Result.Pitch  = Result.Width*BytesPerPixel;
+
+#if 0
+  Result.Memory = ((u8*)Result.Memory +
 		   Result.Pitch*(Result.Height - 1));
-  
+  Result.Pitch  = -Result.Width*BytesPerPixel;
+#endif
+
   return(Result);
 }
 
@@ -711,7 +716,7 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
   
 	  random_series Series = Seed(139*ChunkX + 593*ChunkY + 329*ChunkZ);
 	  
-	  v2 Center = V2(ChunkOffsetX*Width, -ChunkOffsetY*Height);
+	  v2 Center = V2(ChunkOffsetX*Width, ChunkOffsetY*Height);
 	  for(u32 GrassIndex = 0;
 	      GrassIndex < 100;
 	      ++GrassIndex)
@@ -753,7 +758,7 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
   
 	  random_series Series = Seed(139*ChunkX + 593*ChunkY + 329*ChunkZ);
 	  
-	  v2 Center = V2(ChunkOffsetX*Width, -ChunkOffsetY*Height);
+	  v2 Center = V2(ChunkOffsetX*Width, ChunkOffsetY*Height);
 	  for(u32 TuftIndex = 0;
 	      TuftIndex < 30;
 	      ++TuftIndex)
@@ -774,6 +779,19 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
     
     RenderGroupToOutput(RenderGroup, Buffer);
     EndTemporaryMemory(GroundMemory);
+}
+
+internal inline v2
+TopDownAlign(loaded_bitmap* Bitmap, v2 Align)
+{
+  Align.y = (Bitmap->Height - 1) - Align.y;
+  return(Align);
+}
+
+internal inline void
+SetTopDownAlign(hero_bitmaps* Bitmaps, v2 Align)
+{
+  Bitmaps->Align = TopDownAlign(&Bitmaps->Head, Align);
 }
 
 extern UPDATE_AND_RENDER(UpdateAndRender)
@@ -890,7 +908,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_right_cape.bmp");
       Bitmap->Torso
 	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_right_torso.bmp");
-      Bitmap->Align = V2(72, 182);
+      SetTopDownAlign(Bitmap, V2(72, 182));
       ++Bitmap;
       
       Bitmap->Head
@@ -899,7 +917,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_back_cape.bmp");
       Bitmap->Torso
 	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_back_torso.bmp");
-      Bitmap->Align = V2(72, 182);
+      SetTopDownAlign(Bitmap, V2(72, 182));
       ++Bitmap;
       
       Bitmap->Head
@@ -908,7 +926,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_left_cape.bmp");
       Bitmap->Torso
 	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_left_torso.bmp");
-      Bitmap->Align = V2(72, 182);
+      SetTopDownAlign(Bitmap, V2(72, 182));
       ++Bitmap;
       
       Bitmap->Head
@@ -917,7 +935,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_front_cape.bmp");
       Bitmap->Torso
 	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_front_torso.bmp");
-      Bitmap->Align = V2(72, 182);
+      SetTopDownAlign(Bitmap, V2(72, 182));
 
       u32 ScreenBaseX = 0;
       u32 ScreenBaseY = 0;
@@ -1330,11 +1348,12 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		      {
 			FillGroundChunk(TransState, State, FurthestBuffer, &ChunkCenterP);
 		      }
-		    
+#if 0
 		    PushRectOutline(RenderGroup, RelP.xy, 0.0f,
 				    World->ChunkDimInMeters.xy,
 				    V4(1.0f, 1.0f, 0.0f, 1.0f),
 				    1.0f);
+#endif
 		  }
 	      }
 	  }
@@ -1417,7 +1436,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	      } break;
 	    case EntityType_Wall:
 	      {
-		PushBitmap(RenderGroup, &State->Tree, V2(0, 0), 0 ,V2(40, 80), 1.0f, 1.0f);
+		v2 Align = TopDownAlign(&State->Tree, V2(40, 80));
+		PushBitmap(RenderGroup, &State->Tree, V2(0, 0), 0 , Align, 1.0f, 1.0f);
 	      } break;
 	    case EntityType_Stairwell:
 	      {
@@ -1436,8 +1456,9 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		    MakeEntityNonSpatial(Entity);
 		  }
 
+		v2 Align = TopDownAlign(&State->Sword, V2(29, 10));
 		PushBitmap(RenderGroup, &State->Shadow, V2(0, 0), 0 ,Hero->Align, ShadowAlpha, 0.0f);
-		PushBitmap(RenderGroup, &State->Sword, V2(0, 0), 0 ,V2(29, 10), 1.0f, 1.0f);
+		PushBitmap(RenderGroup, &State->Sword, V2(0, 0), 0 , Align, 1.0f, 1.0f);
 	      } break;
 	    case EntityType_Familiar:
 	      {
@@ -1520,7 +1541,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  Basis->P = GetEntityGroundPointWithoutP(Entity);
 	}
     }
-
+#if 0
   State->Time += Input->dtForFrame;
   
   v4 MapColor[] =
@@ -1628,7 +1649,8 @@ r32 Angle = 0.1f * State->Time;
 #if 0
   Saturation(RenderGroup, 0.5f + 0.5f * Sin(State->Time));
 #endif
-  
+
+#endif
   RenderGroupToOutput(RenderGroup, DrawBuffer);
     
   EndSim(SimRegion, State);
