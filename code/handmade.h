@@ -119,8 +119,6 @@ ZeroSize(memory_index Size, void *Ptr)
 
 typedef struct
 {
-  v2 Align;
-  
   loaded_bitmap Head;
   loaded_bitmap Cape;
   loaded_bitmap Torso;

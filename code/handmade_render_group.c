@@ -585,16 +585,15 @@ GetRenderEntityBasisP(render_group* RenderGroup,
 		      render_entity_basis* EntityBasis,
 		      v2 ScreenCenter)
 {
-  v3 EntityBaseP = EntityBasis->Basis->P;
-  r32 ZFudge = (1.0f + 0.1f * (EntityBasis->OffsetZ + EntityBaseP.z));
-
+  v3 EntityBaseP = V3MulS(RenderGroup->MetersToPixels, EntityBasis->Basis->P);
+  r32 ZFudge = (1.0f + 0.1f * EntityBaseP.z);
   v2 EntityGroundPoint = V2Add(ScreenCenter,
-			       V2MulS(RenderGroup->MetersToPixels*ZFudge,
-				      EntityBaseP.xy));
-  r32 EntityZ = RenderGroup->MetersToPixels*EntityBaseP.z;
-  
-  v2 Center = V2Add(V2Add(EntityBasis->Offset, EntityGroundPoint),
-		    V2(0.0f, EntityBasis->EntityZC*EntityZ));
+			       V2Add(V2MulS(ZFudge,
+					    EntityBaseP.xy),
+				     EntityBasis->Offset.xy));
+  v2 Center = V2Add(EntityGroundPoint,
+		    V2(0.0f, EntityBaseP.z + EntityBasis->Offset.z));
+
   return(Center);
 }
 
@@ -763,78 +762,59 @@ PushRenderElement_(render_group *Group, u32 Size, render_group_entry_type Type)
 }
 
 internal inline void
-PushPiece(render_group *Group, loaded_bitmap* Bitmap,
-	  v2 Offset, r32 OffsetZ, v2 Align, v2 Dim, v4 Color, r32 EntityZC)
+PushBitmap(render_group *Group, loaded_bitmap* Bitmap, v3 Offset, v4 Color)
 {
-  render_entry_bitmap* Piece = PushRenderElement(Group, render_entry_bitmap);
-  if(Piece)
+  render_entry_bitmap* Entry = PushRenderElement(Group, render_entry_bitmap);
+  if(Entry)
     {
-      Piece->EntityBasis.Basis  = Group->DefaultBasis; 
-      Piece->Bitmap = Bitmap;
-      Piece->EntityBasis.Offset = V2Sub(V2MulS(Group->MetersToPixels,
-					       V2(Offset.x, Offset.y)),
-					Align);  
-      Piece->EntityBasis.OffsetZ = OffsetZ;
-      Piece->EntityBasis.EntityZC = EntityZC;
-      Piece->Color = Color;
+      v2 Align = V2(Bitmap->AlignX, Bitmap->AlignY);
+      
+      Entry->EntityBasis.Basis  = Group->DefaultBasis; 
+      Entry->Bitmap = Bitmap;
+      Entry->EntityBasis.Offset = V3Sub(V3MulS(Group->MetersToPixels, Offset),
+					ToV3(Align, 0.0f));  
+      Entry->Color = Color;
     }
 }
 
 internal inline void
-PushBitmap(render_group *Group, loaded_bitmap* Bitmap,
-	   v2 Offset, r32 OffsetZ, v2 Align, r32 Alpha, r32 EntityZC)
-{
-  PushPiece(Group, Bitmap, Offset, OffsetZ, Align, V2(0, 0),
-	    V4(1.0f, 1.0f, 1.0f, Alpha), EntityZC);
-}
-
-internal inline void
-PushRect(render_group *Group, v2 Offset, r32 OffsetZ,
-	 v2 Dim, v4 Color, r32 EntityZC)
+PushRect(render_group *Group, v3 Offset, v2 Dim, v4 Color)
 {
   render_entry_rectangle* Piece = PushRenderElement(Group, render_entry_rectangle);
   if(Piece)
     {
-      v2 HalfDim = V2MulS(0.5f * Group->MetersToPixels, Dim);
+      v2 HalfDim = V2MulS(0.5f, Dim);
       
       Piece->EntityBasis.Basis  = Group->DefaultBasis; 
-      Piece->EntityBasis.Offset = V2Sub(V2MulS(Group->MetersToPixels,
-				   V2(Offset.x, Offset.y)),
-			    HalfDim);  
-      Piece->EntityBasis.OffsetZ = OffsetZ;
-      Piece->EntityBasis.EntityZC = EntityZC;
+      Piece->EntityBasis.Offset = V3Sub(V3MulS(Group->MetersToPixels, Offset),
+					ToV3(HalfDim, 0.0f));  
       Piece->Color = Color;
       Piece->Dim = V2MulS(Group->MetersToPixels, Dim);
     }
 }
 
 internal inline void
-PushRectOutline(render_group *Group, v2 Offset, r32 OffsetZ,
-		v2 Dim, v4 Color, r32 EntityZC)
+PushRectOutline(render_group *Group, v3 Offset, v2 Dim, v4 Color)
 {
   r32 Thickness = 0.05f;
     
   PushRect(Group,
-	    V2Sub(Offset, V2(0, 0.5f*Dim.y)),
-	    OffsetZ,
-	    V2(Dim.x, Thickness),
-	    Color, EntityZC);
+	   V3Sub(Offset, V3(0.0f, 0.5f*Dim.y, 0.0f)),
+	   V2(Dim.x, Thickness),
+	   Color);
   PushRect(Group,
-	    V2Add(Offset,V2(0, 0.5f*Dim.y)),
-	    OffsetZ,
-	    V2(Dim.x, Thickness),
-	    Color, EntityZC);
+	   V3Add(Offset,V3(0.0f, 0.5f*Dim.y, 0.0f)),
+	   V2(Dim.x, Thickness),
+	   Color);
   
   PushRect(Group,
-	    V2Sub(Offset, V2(0.5f*Dim.x, 0)),
-	    OffsetZ,
-	    V2(Thickness, Dim.y),
-	    Color, EntityZC);
+	   V3Sub(Offset, V3(0.5f*Dim.x, 0.0f, 0.0f)),
+	   V2(Thickness, Dim.y),
+	   Color);
   PushRect(Group,
-	    V2Add(Offset,V2(0.5f*Dim.x, 0)),
-	    OffsetZ,
-	    V2(Thickness, Dim.y),
-	    Color, EntityZC);
+	   V3Add(Offset,V3(0.5f*Dim.x, 0, 0.0f)),
+	   V2(Thickness, Dim.y),
+	   Color);
 }
 
 internal inline void

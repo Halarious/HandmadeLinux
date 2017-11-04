@@ -1,11 +1,12 @@
 
 typedef struct
 {
-  void* Memory;
+  s32 AlignX, AlignY;
   
   int Width;
   int Height;
   int Pitch;
+  void* Memory;
 } loaded_bitmap;
 
 typedef struct
@@ -22,10 +23,7 @@ typedef struct
 typedef struct
 {
   render_basis *Basis;
-  v2 Offset;
-  r32 OffsetZ;
-  r32 EntityZC;
-
+  v3 Offset;
 } render_entity_basis;
   
 typedef enum
@@ -92,4 +90,19 @@ typedef struct
   u32 MaxPushBufferSize;
   u8* PushBufferBase;
 } render_group;
+
+
+//NOTE: Renderer "API"
+
+internal inline void
+PushBitmap(render_group *Group, loaded_bitmap* Bitmap, v3 Offset, v4 Color);
+
+internal inline void
+PushRect(render_group *Group, v3 Offset, v2 Dim, v4 Color);
+
+internal inline void
+PushRectOutline(render_group *Group, v3 Offset, v2 Dim, v4 Color);
+
+internal inline void
+Clear(render_group* Group, v4 Color);
 

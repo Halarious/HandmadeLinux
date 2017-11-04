@@ -310,7 +310,7 @@ typedef struct
 
 internal loaded_bitmap
 DEBUGLoadBMP(thread_context *Thread, debug_platform_read_entire_file *ReadEntireFile,
-	     char* Filename)
+	     char* Filename, s32 AlignX, s32 TopDownAlignY)
 {
   loaded_bitmap Result = {};
 
@@ -322,7 +322,9 @@ DEBUGLoadBMP(thread_context *Thread, debug_platform_read_entire_file *ReadEntire
       Result.Width  = Header->Width;
       Result.Height = Header->Height;
       Result.Pitch  = Result.Width;
-
+      Result.AlignX = AlignX;
+      Result.AlignY = (Header->Height - 1) - TopDownAlignY;
+      
       Assert(Result.Height >= 0);
       Assert(Header->Compression == 3);
       
@@ -655,7 +657,7 @@ DrawHitpoints(sim_entity *Entity, render_group *Group)
 	      Color.g = 0.2f;
 	      Color.b = 0.2f;
 	    }
-	  PushRect(Group, HitP, 0, HealthDim, Color, 0.0f);
+	  PushRect(Group, ToV3(HitP, 0), HealthDim, Color);
 	  HitP = V2Add(HitP, dHitP);
 	}
     }
@@ -738,8 +740,8 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 	      v2 P = V2Add(Center,
 			   V2Sub(Offset, BitmapCenter));
       
-	      PushBitmap(RenderGroup, Stamp, P, 0.0f, V2(0.0f, 0.0f),
-			 1.0f, 1.0f);
+	      PushBitmap(RenderGroup, Stamp, ToV3(P, 0.0f),
+			 V4(1.0f, 1.0f, 1.0f, 1.0f));
 	    }
 	}
     }
@@ -771,8 +773,8 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 	      v2 P = V2Add(Center,
 			   V2Sub(Offset, BitmapCenter));
       
-	      PushBitmap(RenderGroup, Stamp, P, 0.0f, V2(0.0f, 0.0f),
-			 1.0f, 1.0f);
+	      PushBitmap(RenderGroup, Stamp, ToV3(P, 0.0f),
+			 V4(1.0f, 1.0f, 1.0f, 1.0f));
 	    }
 	}
     }
@@ -789,9 +791,16 @@ TopDownAlign(loaded_bitmap* Bitmap, v2 Align)
 }
 
 internal inline void
-SetTopDownAlign(hero_bitmaps* Bitmaps, v2 Align)
-{
-  Bitmaps->Align = TopDownAlign(&Bitmaps->Head, Align);
+SetTopDownAlignHero(hero_bitmaps* Bitmaps, v2 Align)
+{  
+  Align = TopDownAlign(&Bitmaps->Head, Align);
+
+  Bitmaps->Head.AlignX  = (s32)Align.x;
+  Bitmaps->Head.AlignY  = (s32)Align.y;
+  Bitmaps->Cape.AlignX  = (s32)Align.x;
+  Bitmaps->Cape.AlignY  = (s32)Align.y;
+  Bitmaps->Torso.AlignX = (s32)Align.x;
+  Bitmaps->Torso.AlignY = (s32)Align.y;
 }
 
 extern UPDATE_AND_RENDER(UpdateAndRender)
@@ -869,73 +878,73 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 								  0.9f*TileDepthInMeters);
       
       State->Grass[0]
-	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/grass00.bmp");
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/grass00.bmp", 0, 0);
       State->Grass[1]
-	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/grass01.bmp");
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/grass01.bmp", 0, 0);
 
       State->Stone[0]
-	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/ground00.bmp");
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/ground00.bmp", 0, 0);
       State->Stone[1]
-	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/ground01.bmp");
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/ground01.bmp", 0, 0);
       State->Stone[2]
-	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/ground02.bmp");
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/ground02.bmp", 0, 0);
       State->Stone[3]
-	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/ground03.bmp");
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/ground03.bmp", 0, 0);
 
       State->Tuft[0]
-	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/tuft00.bmp");
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/tuft00.bmp", 0, 0);
       State->Tuft[1]
-	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/tuft01.bmp");
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/tuft01.bmp", 0, 0);
       State->Tuft[2]
-	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/tuft02.bmp");
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/tuft02.bmp", 0, 0);
            
       State->Backdrop
-	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_background.bmp");
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_background.bmp", 0, 0);
       State->Shadow
-	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_shadow.bmp");
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_shadow.bmp", 72, 182);
       State->Tree
-	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/tree00.bmp");
-      State->Sword
-	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/rock03.bmp");
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/tree00.bmp", 40, 80);
       State->Stairwell
-	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/rock02.bmp");
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/rock02.bmp", 0, 0);
+      State->Sword
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test2/rock03.bmp", 29, 10);
       
       hero_bitmaps *Bitmap = State->HeroBitmaps;
       
       Bitmap->Head
-	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_right_head.bmp");
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_right_head.bmp", 0, 0);
       Bitmap->Cape
-	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_right_cape.bmp");
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_right_cape.bmp", 0, 0);
       Bitmap->Torso
-	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_right_torso.bmp");
-      SetTopDownAlign(Bitmap, V2(72, 182));
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_right_torso.bmp", 0, 0);
+      SetTopDownAlignHero(Bitmap, V2(72, 182));
       ++Bitmap;
       
       Bitmap->Head
-	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_back_head.bmp");
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_back_head.bmp", 0, 0);
       Bitmap->Cape
-	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_back_cape.bmp");
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_back_cape.bmp", 0, 0);
       Bitmap->Torso
-	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_back_torso.bmp");
-      SetTopDownAlign(Bitmap, V2(72, 182));
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_back_torso.bmp", 0, 0);
+      SetTopDownAlignHero(Bitmap, V2(72, 182));
       ++Bitmap;
       
       Bitmap->Head
-	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_left_head.bmp");
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_left_head.bmp", 0, 0);
       Bitmap->Cape
-	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_left_cape.bmp");
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_left_cape.bmp", 0, 0);
       Bitmap->Torso
-	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_left_torso.bmp");
-      SetTopDownAlign(Bitmap, V2(72, 182));
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_left_torso.bmp", 0, 0);
+      SetTopDownAlignHero(Bitmap, V2(72, 182));
       ++Bitmap;
       
       Bitmap->Head
-	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_front_head.bmp");
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_front_head.bmp", 0, 0);
       Bitmap->Cape
-	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_front_cape.bmp");
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_front_cape.bmp", 0, 0);
       Bitmap->Torso
-	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_front_torso.bmp");
-      SetTopDownAlign(Bitmap, V2(72, 182));
+	= DEBUGLoadBMP(Thread, Memory->DEBUGPlatformReadEntireFile, "../data/test/test_hero_front_torso.bmp", 0, 0);
+      SetTopDownAlignHero(Bitmap, V2(72, 182));
 
       u32 ScreenBaseX = 0;
       u32 ScreenBaseY = 0;
@@ -1283,10 +1292,11 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  v3 Delta = Subtract(State->World,
 			      &GroundBuffer->P, &State->CameraP);
 
-	  PushBitmap(RenderGroup, Bitmap,
-		     Delta.xy, Delta.z,
-		     V2MulS(0.5f, V2i(Bitmap->Width, Bitmap->Height)),
-		     1.0f, 1.0f);
+	  Bitmap->AlignX = Bitmap->Width / 2;
+	  Bitmap->AlignY = Bitmap->Height / 2;
+	    PushBitmap(RenderGroup, Bitmap,
+		     Delta,
+		     V4(1.0f, 1.0f, 1.0f, 1.0f));
 	}
     }  
   
@@ -1426,23 +1436,22 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		      }
 		  }
 	  
-		PushBitmap(RenderGroup, &State->Shadow, V2(0, 0), 0 ,Hero->Align, ShadowAlpha, 0.0f);
-		PushBitmap(RenderGroup, &Hero->Torso, V2(0, 0), 0 ,Hero->Align, 1.0f, 1.0f);
-		PushBitmap(RenderGroup, &Hero->Cape,  V2(0, 0), 0 ,Hero->Align, 1.0f, 1.0f);
-		PushBitmap(RenderGroup, &Hero->Head,  V2(0, 0), 0 ,Hero->Align, 1.0f, 1.0f);	
+		PushBitmap(RenderGroup, &State->Shadow, V3(0, 0, 0), V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
+		PushBitmap(RenderGroup, &Hero->Torso, V3(0, 0, 0),   V4(1.0f, 1.0f, 1.0f, 1.0f));
+		PushBitmap(RenderGroup, &Hero->Cape,  V3(0, 0, 0),   V4(1.0f, 1.0f, 1.0f, 1.0f));
+		PushBitmap(RenderGroup, &Hero->Head,  V3(0, 0, 0),   V4(1.0f, 1.0f, 1.0f, 1.0f));	
 
 		DrawHitpoints(Entity, RenderGroup);
 	    	    
 	      } break;
 	    case EntityType_Wall:
 	      {
-		v2 Align = TopDownAlign(&State->Tree, V2(40, 80));
-		PushBitmap(RenderGroup, &State->Tree, V2(0, 0), 0 , Align, 1.0f, 1.0f);
+		PushBitmap(RenderGroup, &State->Tree, V3(0, 0, 0), V4(1.0f, 1.0f, 1.0f, 1.0f));
 	      } break;
 	    case EntityType_Stairwell:
 	      {
-		PushRect(RenderGroup, V2(0,0), 0, Entity->WalkableDim, V4(1, 0.5f, 0, 1), 0.0f);
-		PushRect(RenderGroup, V2(0,0), Entity->WalkableHeight, Entity->WalkableDim, V4(1, 1, 0, 1), 0.0f);
+		PushRect(RenderGroup, V3(0, 0, 0), Entity->WalkableDim, V4(1, 0.5f, 0, 1));
+		PushRect(RenderGroup, V3(0, 0, Entity->WalkableHeight), Entity->WalkableDim, V4(1, 1, 0, 1));
 	      } break;
 	    case EntityType_Sword:
 	      {
@@ -1456,9 +1465,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		    MakeEntityNonSpatial(Entity);
 		  }
 
-		v2 Align = TopDownAlign(&State->Sword, V2(29, 10));
-		PushBitmap(RenderGroup, &State->Shadow, V2(0, 0), 0 ,Hero->Align, ShadowAlpha, 0.0f);
-		PushBitmap(RenderGroup, &State->Sword, V2(0, 0), 0 , Align, 1.0f, 1.0f);
+		PushBitmap(RenderGroup, &State->Shadow, V3(0, 0, 0), V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
+		PushBitmap(RenderGroup, &State->Sword, V3(0, 0, 0),  V4(1.0f, 1.0f, 1.0f, 1.0f));
 	      } break;
 	    case EntityType_Familiar:
 	      {
@@ -1503,15 +1511,15 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		  }
 		r32 BobSin = Sin(2.0f*Entity->tBob);
 
-		PushBitmap(RenderGroup, &State->Shadow, V2(0, 0), 0, Hero->Align, (0.5f*ShadowAlpha) + 0.2f*BobSin, 0.0f);
-		PushBitmap(RenderGroup, &Hero->Head, V2(0, 0), 0.25f*BobSin, Hero->Align, 1.0f, 1.0f);
+		PushBitmap(RenderGroup, &State->Shadow, V3(0, 0, 0), V4(1.0f, 1.0f, 1.0f, 0.5f*ShadowAlpha + 0.2f*BobSin));
+		PushBitmap(RenderGroup, &Hero->Head, V3(0, 0, 0.25f*BobSin), V4(1.0f, 1.0f, 1.0f, 1.0f));
 	      } break;
 	    case EntityType_Monstar:
 	      {
 		DrawHitpoints(Entity, RenderGroup);
 
-		PushBitmap(RenderGroup, &State->Shadow, V2(0, 0), 0 ,Hero->Align, ShadowAlpha, 1.0f);
-		PushBitmap(RenderGroup, &Hero->Torso, V2(0, 0), 0 ,Hero->Align, 1.0f, 1.0f);
+		PushBitmap(RenderGroup, &State->Shadow, V3(0, 0, 0), V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
+		PushBitmap(RenderGroup, &Hero->Torso, V3(0, 0, 0), V4(1.0f, 1.0f, 1.0f, 1.0f));
 	      } break;
 	      
 	    case EntityType_Space:
@@ -1521,7 +1529,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		    ++VolumeIndex)
 		  {
 		    sim_entity_collision_volume *Volume = Entity->Collision->Volumes + VolumeIndex;
-		    PushRectOutline(RenderGroup, Volume->OffsetP.xy, 0, Volume->Dim.xy, V4(0, 0.5f, 1, 1), 0.0f);    
+		    PushRectOutline(RenderGroup, V3Sub(Volume->OffsetP, V3(0.0f, 0.0f, 0.5f*Volume->Dim.z)), Volume->Dim.xy, V4(0, 0.5f, 1, 1));    
 		  }
 	      } break;
 	      
