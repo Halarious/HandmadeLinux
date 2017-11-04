@@ -22,6 +22,7 @@
 #endif
 
 #include <unistd.h>
+#include <string.h>
 #include <stdint.h>
 //TODO: PATH_MAX seems problematic in general (same in Win though), but
 //      the consensus seems to be that it usually 4096 chars (not necessarily bytes)

@@ -470,6 +470,39 @@ CatStrings(size_t SourceACount, char* SourceA,
   *Dest++ = '\0';
 }
 
+void
+DisplayBufferInWindow(DisplayInfo DisplayInfo, linux32_offscreen_buffer* Buffer)
+{
+  //NOTE TODO: This is here because we want a Y-is-up coordinate system
+  //           and for now I see no other way (this could still be more
+  //           efficent though).
+
+  char* FlipBuffer = (char*)mmap(0, Buffer->BitmapMemorySize,
+				 PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS,
+				 -1, 0);
+  for(s32 Y = (Buffer->Height - 1);
+      Y >= 0;
+      --Y)
+    {
+      void* MemoryLine = (((char*)Buffer->BitmapMemory)
+			  + Y * Buffer->Pitch);
+      void* BufferMemoryLine = (FlipBuffer
+				+ ((Buffer->Height - 1) - Y) * Buffer->Pitch); 
+      memmove(BufferMemoryLine, MemoryLine, Buffer->Pitch);
+    }
+  Buffer->BitmapInfo->data = FlipBuffer;
+  
+  XPutImage(DisplayInfo.Display,
+	    GlobalOffscreenBuffer.BitmapHandle, 
+	    DisplayInfo.GraphicsContext,
+	    GlobalOffscreenBuffer.BitmapInfo,
+	    0, 0, //NOTE Source
+	    0, 0, //NOTE Dest
+	    GlobalOffscreenBuffer.Width,
+	    GlobalOffscreenBuffer.Height);
+
+}
+
 int
 main(int ArgCount, char** Arguments)
 {
@@ -682,16 +715,8 @@ main(int ArgCount, char** Arguments)
 		    }
 		  Code.UpdateAndRender(&Thread, &Memory, NewInputState, &Buffer);
 
-		  XPutImage(
-			    DisplayInfo.Display,
-			    GlobalOffscreenBuffer.BitmapHandle, 
-			    DisplayInfo.GraphicsContext,
-			    GlobalOffscreenBuffer.BitmapInfo,
-			    0, 0, //NOTE Source
-			    0, 0, //NOTE Dest
-			    GlobalOffscreenBuffer.Width,
-			    GlobalOffscreenBuffer.Height);
-      
+		  DisplayBufferInWindow(DisplayInfo, &GlobalOffscreenBuffer);
+		  
 		  struct timespec EndTime; 
 		  clock_gettime(CLOCK_MONOTONIC, &EndTime);
 		  struct timespec ElapsedTime = SubtractTimeValues(EndTime, BeginTime);

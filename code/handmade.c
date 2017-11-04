@@ -1541,7 +1541,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  Basis->P = GetEntityGroundPointWithoutP(Entity);
 	}
     }
-#if 0
+#if 1
   State->Time += Input->dtForFrame;
   
   v4 MapColor[] =
