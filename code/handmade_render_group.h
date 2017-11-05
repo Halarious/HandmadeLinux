@@ -1,7 +1,7 @@
 
 typedef struct
 {
-  s32 AlignX, AlignY;
+  v2 Align;
   
   int Width;
   int Height;
@@ -83,6 +83,8 @@ typedef struct
 
 typedef struct
 {
+  r32 GlobalAlpha;
+
   render_basis *DefaultBasis;
   r32 MetersToPixels;
   

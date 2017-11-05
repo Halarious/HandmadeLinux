@@ -308,6 +308,13 @@ typedef struct
 } bitmap_header; 
 #pragma pack(pop)
 
+internal inline v2
+TopDownAlign(loaded_bitmap* Bitmap, v2 Align)
+{
+  Align.y = (Bitmap->Height - 1) - Align.y;
+  return(Align);
+}
+
 internal loaded_bitmap
 DEBUGLoadBMP(thread_context *Thread, debug_platform_read_entire_file *ReadEntireFile,
 	     char* Filename, s32 AlignX, s32 TopDownAlignY)
@@ -322,9 +329,8 @@ DEBUGLoadBMP(thread_context *Thread, debug_platform_read_entire_file *ReadEntire
       Result.Width  = Header->Width;
       Result.Height = Header->Height;
       Result.Pitch  = Result.Width;
-      Result.AlignX = AlignX;
-      Result.AlignY = (Header->Height - 1) - TopDownAlignY;
-      
+      Result.Align  = TopDownAlign(&Result, V2i(AlignX, TopDownAlignY));
+            
       Assert(Result.Height >= 0);
       Assert(Header->Compression == 3);
       
@@ -783,24 +789,14 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
     EndTemporaryMemory(GroundMemory);
 }
 
-internal inline v2
-TopDownAlign(loaded_bitmap* Bitmap, v2 Align)
-{
-  Align.y = (Bitmap->Height - 1) - Align.y;
-  return(Align);
-}
-
 internal inline void
 SetTopDownAlignHero(hero_bitmaps* Bitmaps, v2 Align)
 {  
   Align = TopDownAlign(&Bitmaps->Head, Align);
 
-  Bitmaps->Head.AlignX  = (s32)Align.x;
-  Bitmaps->Head.AlignY  = (s32)Align.y;
-  Bitmaps->Cape.AlignX  = (s32)Align.x;
-  Bitmaps->Cape.AlignY  = (s32)Align.y;
-  Bitmaps->Torso.AlignX = (s32)Align.x;
-  Bitmaps->Torso.AlignY = (s32)Align.y;
+  Bitmaps->Head.Align  = Align;
+  Bitmaps->Cape.Align  = Align;
+  Bitmaps->Torso.Align = Align;
 }
 
 extern UPDATE_AND_RENDER(UpdateAndRender)
@@ -964,10 +960,11 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  ScreenIndex < 2000;
 	  ++ScreenIndex)
 	{
-	  
-	  //u32 DoorDirection = RandomChoice(&Series, (DoorUp || DoorDown) ? 2 : 3);
+#if 1
+	  u32 DoorDirection = RandomChoice(&Series, (DoorUp || DoorDown) ? 2 : 3);
+#else
 	  u32 DoorDirection = RandomChoice(&Series, 2);
-	  
+#endif	  
 	  bool32 CreatedZDoor = false;
 	  if(DoorDirection == 2)
 	    {
@@ -1234,6 +1231,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	    }
 
 	  ConHero->dSword = V2(0, 0);	  
+#if 0 
 	  if(Controller->Start.EndedDown)
 	    {
 	      ConHero->dZ = 3.0f;
@@ -1255,13 +1253,27 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	    {
 	      ConHero->dSword = V2(1.0f, 0.0f);
 	    }
+#else
+	  r32 ZoomRate = 0.0f;
+	  if(Controller->ActionUp.EndedDown)
+	    {
+	      ZoomRate = 1.0f;
+	    }
+	  if(Controller->ActionDown.EndedDown)
+	    {
+	      ZoomRate = -1.0f;
+	    }
+	  State->ZOffset += ZoomRate * Input->dtForFrame;
+#endif
 	}
     }
 
   temporary_memory RenderMemory = BeginTemporaryMemory(&TransState->TransientArena);  
   render_group* RenderGroup = AllocateRenderGroup(&TransState->TransientArena, Megabytes(4),
 						  MetersToPixels);
-    
+
+  RenderGroup->GlobalAlpha = 1.0f;
+  
   loaded_bitmap DrawBuffer_ = {};
   loaded_bitmap *DrawBuffer = &DrawBuffer_;
   DrawBuffer->Width = Buffer->Width;
@@ -1280,7 +1292,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 						  V3(ScreenWidthInMeters,
 						     ScreenHeightInMeters,
 						     0.0f));
-  
+#if 0   
   for(u32 GroundBufferIndex = 0;
       GroundBufferIndex < TransState->GroundBufferCount;
       ++GroundBufferIndex)
@@ -1291,12 +1303,14 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  loaded_bitmap* Bitmap = &GroundBuffer->Bitmap;
 	  v3 Delta = Subtract(State->World,
 			      &GroundBuffer->P, &State->CameraP);
+	  Bitmap->Align = V2MulS(0.5f, V2i(Bitmap->Width, Bitmap->Height));
 
-	  Bitmap->AlignX = Bitmap->Width / 2;
-	  Bitmap->AlignY = Bitmap->Height / 2;
-	    PushBitmap(RenderGroup, Bitmap,
-		     Delta,
-		     V4(1.0f, 1.0f, 1.0f, 1.0f));
+	  render_basis *Basis = PushStruct(&TransState->TransientArena, render_basis);
+	  RenderGroup->DefaultBasis = Basis;
+	  Basis->P = V3Add(Delta, V3(0.0f, 0.0f, State->ZOffset));
+	  PushBitmap(RenderGroup, Bitmap,
+	  	     V3(0.0f, 0.0f, 0.0f),
+	  	     V4(1.0f, 1.0f, 1.0f, 1.0f));
 	}
     }  
   
@@ -1369,7 +1383,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  }
       }
   }
-
+#endif
+  
   v3 SimBoundsExpansion = {15.0f, 15.0f, 15.0f};
   rectangle3 SimBounds = AddRadiusTo(CameraBoundsInMeters,
 				     SimBoundsExpansion);
@@ -1546,10 +1561,10 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 			 Input->dtForFrame, &MoveSpec, ddP);
 	    }
 
-	  Basis->P = GetEntityGroundPointWithoutP(Entity);
+	  Basis->P = V3Add(GetEntityGroundPointWithoutP(Entity), V3(0, 0, State->ZOffset));
 	}
     }
-#if 1
+#if 0
   State->Time += Input->dtForFrame;
   
   v4 MapColor[] =
