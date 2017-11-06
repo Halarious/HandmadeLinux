@@ -206,6 +206,19 @@ Clamp(r32 Min, r32 Value, r32 Max)
 }
 #define Clamp01(Value) Clamp(0.0f, Value, 1.0f)
 
+internal inline r32
+Clamp01MapToRange(r32 Min, r32 t, r32 Max)
+{
+  r32 Result = 0.0f;
+
+  r32 Range = Max - Min;
+  if(Range != 0.0f )
+    {
+      Result = Clamp01((t - Min) / Range);
+    }
+
+  return(Result);
+}
 
 ///
 ///

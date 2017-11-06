@@ -99,7 +99,7 @@ typedef struct
   world *World;
   r32 MaxEntityRadius;
   r32 MaxEntityVelocity;
-  
+
   world_position Origin;
   rectangle3 Bounds;
   rectangle3 UpdatableBounds;

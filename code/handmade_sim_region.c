@@ -153,7 +153,7 @@ BeginSim(memory_arena *SimArena, state* State, world* World, world_position Orig
   SimRegion->Origin = Origin;
   SimRegion->UpdatableBounds = AddRadiusTo(Bounds, V3(SimRegion->MaxEntityRadius,
 						      SimRegion->MaxEntityRadius,
-						      SimRegion->MaxEntityRadius));
+						      0.0f));
   SimRegion->Bounds = AddRadiusTo(SimRegion->UpdatableBounds, V3(UpdateSafetyMargin,
 								 UpdateSafetyMargin,
 								 UpdateSafetyMarginZ));
@@ -257,9 +257,9 @@ EndSim(sim_region *SimRegion, state *State)
 	      NewCameraP.AbsTileY -= 9;
 	    }
 #else
-	  r32 CamZOffset = NewCameraP.Offset_.z;
+	  //r32 CamZOffset = NewCameraP.Offset_.z;
 	  NewCameraP = Stored->P;
-	  NewCameraP.Offset_.z = CamZOffset;
+	  //NewCameraP.Offset_.z = CamZOffset;
 #endif
 	  State->CameraP = NewCameraP;
 	}

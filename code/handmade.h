@@ -201,8 +201,7 @@ typedef struct
 
   loaded_bitmap TestDiffuse;
   loaded_bitmap TestNormal;
-
-  r32 ZOffset;
+  
 } state;
 
 typedef struct

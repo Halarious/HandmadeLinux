@@ -961,22 +961,22 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  ++ScreenIndex)
 	{
 #if 1
-	  u32 DoorDirection = RandomChoice(&Series, (DoorUp || DoorDown) ? 2 : 3);
+	  u32 DoorDirection = RandomChoice(&Series, (DoorUp || DoorDown) ? 2 : 4);
 #else
 	  u32 DoorDirection = RandomChoice(&Series, 2);
 #endif	  
+	  DoorDirection = 3;
+
 	  bool32 CreatedZDoor = false;
-	  if(DoorDirection == 2)
+	  if(DoorDirection == 3)
 	    {
 	      CreatedZDoor = true;
-	      if(AbsTileZ == ScreenBaseZ)
-		{
-		  DoorUp = true;
-		}
-	      else
-		{
-		  DoorDown = true;
-		}
+	      DoorDown = true;
+	    }
+	  else if(DoorDirection == 2)
+	    {
+	      CreatedZDoor = true;
+	      DoorUp = true;
 	    }
 	  else if (DoorDirection == 1)
 	    {
@@ -1023,11 +1023,15 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
 		  if(ShouldBeDoor)
 		    {
-		      AddWall(State, AbsTileX, AbsTileY, AbsTileZ);
+		      if((TileY % 2) || (TileX % 2))
+			{
+			  AddWall(State, AbsTileX, AbsTileY, AbsTileZ);
+			}
 		    }
 		  else if(CreatedZDoor)
 		    {
-		      if((TileX == 10) && (TileY == 5))
+		      if(((AbsTileZ % 2) && (TileX == 10) && (TileY == 5)) ||
+			 (!(AbsTileZ % 2) && (TileX == 4) && (TileY == 5)))
 			{
 			  AddStair(State, AbsTileX, AbsTileY, DoorDown ?  (AbsTileZ - 1) : AbsTileZ);
 			}
@@ -1051,17 +1055,14 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  
 	  DoorRight = false;
 	  DoorTop   = false;
-	  	  
-	  if(DoorDirection == 2)
+
+	  if(DoorDirection == 3)
 	    {
-	      if(AbsTileZ == ScreenBaseZ)
-		{
-		  AbsTileZ = ScreenBaseZ + 1;
-		}
-	      else
-		{
-		  AbsTileZ = ScreenBaseZ;
-		}
+	      AbsTileZ -= 1;
+	    }
+	  else if(DoorDirection == 2)
+	    {
+	      AbsTileZ += 1;
 	    }
 	  else if(DoorDirection == 1)
 	    {
@@ -1231,7 +1232,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	    }
 
 	  ConHero->dSword = V2(0, 0);	  
-#if 0 
+
 	  if(Controller->Start.EndedDown)
 	    {
 	      ConHero->dZ = 3.0f;
@@ -1253,26 +1254,12 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	    {
 	      ConHero->dSword = V2(1.0f, 0.0f);
 	    }
-#else
-	  r32 ZoomRate = 0.0f;
-	  if(Controller->ActionUp.EndedDown)
-	    {
-	      ZoomRate = 1.0f;
-	    }
-	  if(Controller->ActionDown.EndedDown)
-	    {
-	      ZoomRate = -1.0f;
-	    }
-	  State->ZOffset += ZoomRate * Input->dtForFrame;
-#endif
 	}
     }
 
   temporary_memory RenderMemory = BeginTemporaryMemory(&TransState->TransientArena);  
   render_group* RenderGroup = AllocateRenderGroup(&TransState->TransientArena, Megabytes(4),
 						  MetersToPixels);
-
-  RenderGroup->GlobalAlpha = 1.0f;
   
   loaded_bitmap DrawBuffer_ = {};
   loaded_bitmap *DrawBuffer = &DrawBuffer_;
@@ -1288,10 +1275,13 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
   r32 ScreenWidthInMeters  = DrawBuffer->Width*PixelsToMeters;
   r32 ScreenHeightInMeters = DrawBuffer->Height*PixelsToMeters;
-  rectangle3 CameraBoundsInMeters = RectCenterDim(V3(0,0,0),
+  rectangle3 CameraBoundsInMeters = RectCenterDim(V3(0, 0, 0),
 						  V3(ScreenWidthInMeters,
 						     ScreenHeightInMeters,
-						     0.0f));
+						     0));
+  CameraBoundsInMeters.Min.z = -3.0f*State->TypicalFloorHeight;
+  CameraBoundsInMeters.Max.z =  1.0f*State->TypicalFloorHeight;
+  
 #if 0   
   for(u32 GroundBufferIndex = 0;
       GroundBufferIndex < TransState->GroundBufferCount;
@@ -1385,13 +1375,16 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   }
 #endif
   
-  v3 SimBoundsExpansion = {15.0f, 15.0f, 15.0f};
+  v3 SimBoundsExpansion = {15.0f, 15.0f, 0.0f};
   rectangle3 SimBounds = AddRadiusTo(CameraBoundsInMeters,
 				     SimBoundsExpansion);
   
   temporary_memory SimMemory = BeginTemporaryMemory(&TransState->TransientArena);
+  world_position SimCenterP = State->CameraP;
   sim_region *SimRegion = BeginSim(&TransState->TransientArena, State, World, State->CameraP, SimBounds, Input->dtForFrame);
 
+  v3 CameraP = Subtract(World, &State->CameraP, &SimCenterP);
+  
   for(u32 EntityIndex = 0;
       EntityIndex < SimRegion->EntityCount;
       ++EntityIndex)
@@ -1412,7 +1405,22 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
 	  render_basis *Basis = PushStruct(&TransState->TransientArena, render_basis);
 	  RenderGroup->DefaultBasis = Basis;
-	  
+
+	  v3 CameraRelativeGroundP = V3Sub(GetEntityGroundPointWithoutP(Entity), CameraP);
+	  r32 FadeTopEndZ  = 0.75f * State->TypicalFloorHeight;
+	  r32 FadeTopStartZ = 0.5f * State->TypicalFloorHeight;
+	  r32 FadeBottomStartZ = -2.0f*State->TypicalFloorHeight;
+	  r32 FadeBottomEndZ   = -2.25f*State->TypicalFloorHeight;
+	  RenderGroup->GlobalAlpha = 1.0f;
+	  if(CameraRelativeGroundP.z > FadeTopStartZ)
+	    {
+	      RenderGroup->GlobalAlpha = Clamp01MapToRange(FadeTopEndZ, CameraRelativeGroundP.z, FadeTopStartZ);
+	    }
+	  else if(CameraRelativeGroundP.z < FadeBottomStartZ) 
+	    {
+	      RenderGroup->GlobalAlpha = Clamp01MapToRange(FadeBottomEndZ, CameraRelativeGroundP.z, FadeBottomStartZ);
+	    }
+
 	  hero_bitmaps *Hero = &State->HeroBitmaps[Entity->FacingDirection];
 	  switch(Entity->Type)
 	    {
@@ -1561,9 +1569,11 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 			 Input->dtForFrame, &MoveSpec, ddP);
 	    }
 
-	  Basis->P = V3Add(GetEntityGroundPointWithoutP(Entity), V3(0, 0, State->ZOffset));
+	  Basis->P = GetEntityGroundPointWithoutP(Entity);
 	}
     }
+
+  RenderGroup->GlobalAlpha = 1.0f;
 #if 0
   State->Time += Input->dtForFrame;
   
