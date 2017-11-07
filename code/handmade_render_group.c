@@ -584,6 +584,7 @@ typedef struct
 {
   v2 P;
   r32 Scale;
+  bool32 Valid;
 } entity_basis_p;
   
 internal inline entity_basis_p
@@ -591,19 +592,30 @@ GetRenderEntityBasisP(render_group* RenderGroup,
 		      render_entity_basis* EntityBasis,
 		      v2 ScreenCenter)
 {
-  entity_basis_p Result;
-  
-  v3 EntityBaseP = V3MulS(RenderGroup->MetersToPixels, EntityBasis->Basis->P);
-  r32 ZFudge = (1.0f + 0.0015f * EntityBaseP.z);
-  v2 EntityGroundPoint = V2Add(ScreenCenter,
-			       V2MulS(ZFudge,
-				      V2Add(EntityBaseP.xy,
-					    EntityBasis->Offset.xy)));
-  v2 Center = EntityGroundPoint;
-		    //V2Add(V2(0.0f, EntityBaseP.z + EntityBasis->Offset.z)));
+  entity_basis_p Result = {};
 
-  Result.P = Center;
-  Result.Scale = ZFudge;
+  v3 EntityBaseP = V3MulS(RenderGroup->MetersToPixels,
+			  EntityBasis->Basis->P);
+
+  r32 FocalLength = RenderGroup->MetersToPixels * 20.0f;
+  r32 CameraDistanceAboveTarget = RenderGroup->MetersToPixels * 20.0f;
+  r32 DistanceToPZ = CameraDistanceAboveTarget - EntityBaseP.z;
+  r32 NearClipPlane = RenderGroup->MetersToPixels * 0.2f;
+
+  v3 RawXY = ToV3(V2Add(EntityBaseP.xy,
+			EntityBasis->Offset.xy),
+		  1.0f); 
+
+  if(DistanceToPZ > NearClipPlane)
+    {
+      v3 ProjectedXY = V3MulS((1.0f / DistanceToPZ),
+			      V3MulS(FocalLength,
+				     RawXY));
+  
+      Result.P = V2Add(ScreenCenter, ProjectedXY.xy);
+      Result.Scale = ProjectedXY.z;
+      Result.Valid = true;
+    }
   
   return(Result);
 }
