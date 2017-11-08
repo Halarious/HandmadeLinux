@@ -166,9 +166,6 @@ typedef struct
   world_position CameraP;
   
   controlled_hero ControlledHeroes[ArrayCount(((input*)0)->Controllers)];
-
-  r32 MetersToPixels;
-  r32 PixelsToMeters;
     
   u32 LowEntityCount;
   low_entity LowEntities[100000];

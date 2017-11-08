@@ -312,6 +312,10 @@ internal inline v2
 TopDownAlign(loaded_bitmap* Bitmap, v2 Align)
 {
   Align.y = (Bitmap->Height - 1) - Align.y;
+
+  Align.x = SafeRatio0(Align.x, (r32)Bitmap->Width);
+  Align.y = SafeRatio0(Align.y, (r32)Bitmap->Height);
+  
   return(Align);
 }
 
@@ -329,8 +333,9 @@ DEBUGLoadBMP(thread_context *Thread, debug_platform_read_entire_file *ReadEntire
       Result.Width  = Header->Width;
       Result.Height = Header->Height;
       Result.Pitch  = Result.Width;
-      Result.Align  = TopDownAlign(&Result, V2i(AlignX, TopDownAlignY));
-            
+      Result.AlignPercentage  = TopDownAlign(&Result, V2i(AlignX, TopDownAlignY));
+      Result.WidthOverHeight  = SafeRatio0((r32)Result.Width, (r32)Result.Height);
+
       Assert(Result.Height >= 0);
       Assert(Header->Compression == 3);
       
@@ -699,8 +704,7 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 		world_position* ChunkP)
 {
   temporary_memory GroundMemory = BeginTemporaryMemory(&TransState->TransientArena);  
-  render_group* RenderGroup = AllocateRenderGroup(&TransState->TransientArena, Megabytes(4),
-							1.0f);
+  render_group* RenderGroup = AllocateRenderGroup(&TransState->TransientArena, Megabytes(4));
   Clear(RenderGroup, V4(1.0f, 1.0f, 0.0f, 1.0f));
   
   loaded_bitmap *Buffer = &GroundBuffer->Bitmap;
@@ -747,7 +751,7 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 			   V2Sub(Offset, BitmapCenter));
       
 	      PushBitmap(RenderGroup, Stamp, ToV3(P, 0.0f),
-			 V4(1.0f, 1.0f, 1.0f, 1.0f));
+			 1.0f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 	    }
 	}
     }
@@ -780,7 +784,7 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 			   V2Sub(Offset, BitmapCenter));
       
 	      PushBitmap(RenderGroup, Stamp, ToV3(P, 0.0f),
-			 V4(1.0f, 1.0f, 1.0f, 1.0f));
+			 1.0f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 	    }
 	}
     }
@@ -794,9 +798,9 @@ SetTopDownAlignHero(hero_bitmaps* Bitmaps, v2 Align)
 {  
   Align = TopDownAlign(&Bitmaps->Head, Align);
 
-  Bitmaps->Head.Align  = Align;
-  Bitmaps->Cape.Align  = Align;
-  Bitmaps->Torso.Align = Align;
+  Bitmaps->Head.AlignPercentage  = Align;
+  Bitmaps->Cape.AlignPercentage  = Align;
+  Bitmaps->Torso.AlignPercentage = Align;
 }
 
 extern UPDATE_AND_RENDER(UpdateAndRender)
@@ -807,6 +811,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   Assert(sizeof(state) <= Memory->PermanentStorageSize);
   state* State = (state*) Memory->PermanentStorage;
 
+  r32 PixelsToMeters = 1.0f / 42.0f;
   if(!Memory->IsInitialized)
     {            
       //NOTE We will do this much differently once we have a system
@@ -821,11 +826,9 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       u32 TilesPerHeight = 9;
 
       State->TypicalFloorHeight = 3.0f;
-      State->MetersToPixels = 42.0f;
-      State->PixelsToMeters = 1.0f / State->MetersToPixels;
 
-      v3 WorldChunkDimInMeters = V3(State->PixelsToMeters*(r32)GroundBufferWidth,
-				    State->PixelsToMeters*(r32)GroundBufferHeight,
+      v3 WorldChunkDimInMeters = V3(PixelsToMeters*(r32)GroundBufferWidth,
+				    PixelsToMeters*(r32)GroundBufferHeight,
 				    State->TypicalFloorHeight);
       
       InitializeArena(&State->WorldArena, Memory->PermanentStorageSize - sizeof(state),
@@ -1181,8 +1184,6 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 #endif
   
   world *World = State->World;
-  r32 MetersToPixels = State->MetersToPixels;
-  r32 PixelsToMeters = 1.0f/State->MetersToPixels;
 
   for(int ControllerIndex = 0;
       ControllerIndex < ArrayCount(Input->Controllers);
@@ -1258,8 +1259,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
     }
 
   temporary_memory RenderMemory = BeginTemporaryMemory(&TransState->TransientArena);  
-  render_group* RenderGroup = AllocateRenderGroup(&TransState->TransientArena, Megabytes(4),
-						  MetersToPixels);
+  render_group* RenderGroup = AllocateRenderGroup(&TransState->TransientArena, Megabytes(4));
   
   loaded_bitmap DrawBuffer_ = {};
   loaded_bitmap *DrawBuffer = &DrawBuffer_;
@@ -1458,18 +1458,18 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 			  }
 		      }
 		  }
-	  
-		PushBitmap(RenderGroup, &State->Shadow, V3(0, 0, 0), V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
-		PushBitmap(RenderGroup, &Hero->Torso, V3(0, 0, 0),   V4(1.0f, 1.0f, 1.0f, 1.0f));
-		PushBitmap(RenderGroup, &Hero->Cape,  V3(0, 0, 0),   V4(1.0f, 1.0f, 1.0f, 1.0f));
-		PushBitmap(RenderGroup, &Hero->Head,  V3(0, 0, 0),   V4(1.0f, 1.0f, 1.0f, 1.0f));	
+		r32 HeroSizeC = 2.5f;
+		PushBitmap(RenderGroup, &State->Shadow, V3(0, 0, 0), 0.25f, V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
+		PushBitmap(RenderGroup, &Hero->Torso, V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));
+		PushBitmap(RenderGroup, &Hero->Cape,  V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));
+		PushBitmap(RenderGroup, &Hero->Head,  V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));	
 
 		DrawHitpoints(Entity, RenderGroup);
 	    	    
 	      } break;
 	    case EntityType_Wall:
 	      {
-		PushBitmap(RenderGroup, &State->Tree, V3(0, 0, 0), V4(1.0f, 1.0f, 1.0f, 1.0f));
+		PushBitmap(RenderGroup, &State->Tree, V3(0, 0, 0), 2.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 	      } break;
 	    case EntityType_Stairwell:
 	      {
@@ -1488,8 +1488,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		    MakeEntityNonSpatial(Entity);
 		  }
 
-		PushBitmap(RenderGroup, &State->Shadow, V3(0, 0, 0), V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
-		PushBitmap(RenderGroup, &State->Sword, V3(0, 0, 0),  V4(1.0f, 1.0f, 1.0f, 1.0f));
+		PushBitmap(RenderGroup, &State->Shadow, V3(0, 0, 0), 0.5f, V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
+		PushBitmap(RenderGroup, &State->Sword, V3(0, 0, 0), 0.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 	      } break;
 	    case EntityType_Familiar:
 	      {
@@ -1534,15 +1534,15 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		  }
 		r32 BobSin = Sin(2.0f*Entity->tBob);
 
-		PushBitmap(RenderGroup, &State->Shadow, V3(0, 0, 0), V4(1.0f, 1.0f, 1.0f, 0.5f*ShadowAlpha + 0.2f*BobSin));
-		PushBitmap(RenderGroup, &Hero->Head, V3(0, 0, 0.25f*BobSin), V4(1.0f, 1.0f, 1.0f, 1.0f));
+		PushBitmap(RenderGroup, &State->Shadow, V3(0, 0, 0), 0.5f, V4(1.0f, 1.0f, 1.0f, 0.5f*ShadowAlpha + 0.2f*BobSin));
+		PushBitmap(RenderGroup, &Hero->Head, V3(0, 0, 0.25f*BobSin), 0.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 	      } break;
 	    case EntityType_Monstar:
 	      {
 		DrawHitpoints(Entity, RenderGroup);
 
-		PushBitmap(RenderGroup, &State->Shadow, V3(0, 0, 0), V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
-		PushBitmap(RenderGroup, &Hero->Torso, V3(0, 0, 0), V4(1.0f, 1.0f, 1.0f, 1.0f));
+		PushBitmap(RenderGroup, &State->Shadow, V3(0, 0, 0), 0.5f, V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
+		PushBitmap(RenderGroup, &Hero->Torso, V3(0, 0, 0), 0.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 	      } break;
 	      
 	    case EntityType_Space:
