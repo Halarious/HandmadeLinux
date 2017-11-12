@@ -83,6 +83,17 @@ typedef struct
 
 typedef struct
 {
+  r32 FocalLength;
+  r32 DistanceAboveTarget;
+} render_group_camera;
+
+typedef struct
+{
+  render_group_camera GameCamera;
+  render_group_camera RenderCamera;
+  r32 MetersToPixels;
+  v2  MonitorHalfDimInMeters;  
+
   r32 GlobalAlpha;
 
   render_basis *DefaultBasis;

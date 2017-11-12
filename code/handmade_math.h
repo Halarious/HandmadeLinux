@@ -6,6 +6,11 @@ typedef union
     r32 x;
     r32 y;
   };
+  struct
+  {
+    r32 u;
+    r32 v;
+  };
   r32 E[2];
 } v2;
 
@@ -25,6 +30,12 @@ typedef union
   };
   struct
   {
+    r32 u;
+    r32 v;
+    r32 w;
+  };
+  struct
+  {
     v2 xy;
     r32 Ignored0_;
   };
@@ -32,6 +43,16 @@ typedef union
   {
     r32 Ignored1_;
     v2 yz;
+  };
+  struct
+  {
+    v2 uv;
+    r32 Ignored2_;
+  };
+  struct
+  {
+    r32 Ignored3_;
+    v2 vw;
   };
   r32 E[3];
 } v3;
@@ -540,6 +561,13 @@ GetMaxCorner2(rectangle2 Rect)
 }
 
 internal inline v2
+GetDim2(rectangle2 Rect)
+{
+  v2 Result = V2Sub(Rect.Max, Rect.Min);
+  return(Result);
+}
+
+internal inline v2
 GetCenter2(rectangle2 Rect)
 {
   v2 Result = V2MulS(0.5f, V2Add(Rect.Min, Rect.Max));
@@ -653,6 +681,13 @@ RectMinDim(v3 Min, v3 Dim)
   Result.Min = Min;
   Result.Max = V3Add(Min, Dim);
 
+  return(Result);
+}
+
+internal inline v3
+GetDim(rectangle3 Rect)
+{
+  v3 Result = V3Sub(Rect.Max, Rect.Min);
   return(Result);
 }
 

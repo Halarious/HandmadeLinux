@@ -590,17 +590,15 @@ typedef struct
 internal inline entity_basis_p
 GetRenderEntityBasisP(render_group* RenderGroup,
 		      render_entity_basis* EntityBasis,
-		      v2 ScreenDim, r32 MetersToPixels)
+		      v2 ScreenDim)
 { 
   entity_basis_p Result = {};
 
   v2 ScreenCenter = V2MulS(0.5f, ScreenDim);
   
   v3 EntityBaseP = EntityBasis->Basis->P;
-
-  r32 FocalLength = 6.0f;
-  r32 CameraDistanceAboveTarget = 5.0f;
-  r32 DistanceToPZ = CameraDistanceAboveTarget - EntityBaseP.z;
+ 
+  r32 DistanceToPZ = RenderGroup->RenderCamera.DistanceAboveTarget - EntityBaseP.z;
   r32 NearClipPlane = 0.2f;
 
   v3 RawXY = ToV3(V2Add(EntityBaseP.xy,
@@ -610,12 +608,12 @@ GetRenderEntityBasisP(render_group* RenderGroup,
   if(DistanceToPZ > NearClipPlane)
     {
       v3 ProjectedXY = V3MulS((1.0f / DistanceToPZ),
-			      V3MulS(FocalLength,
+			      V3MulS(RenderGroup->RenderCamera.FocalLength,
 				     RawXY));
   
-      Result.P = V2Add(ScreenCenter, V2MulS(MetersToPixels,
+      Result.P = V2Add(ScreenCenter, V2MulS(RenderGroup->MetersToPixels,
 					    ProjectedXY.xy));
-      Result.Scale = MetersToPixels * ProjectedXY.z;
+      Result.Scale = RenderGroup->MetersToPixels * ProjectedXY.z;
       Result.Valid = true;
     }
   
@@ -628,8 +626,8 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget)
   v2 ScreenDim = V2((r32)OutputTarget->Width,
 		    (r32)OutputTarget->Height);
   
-  r32 MetersToPixels = ScreenDim.x / 20.0f;  
-  r32 PixelsToMeters = 1.0f / MetersToPixels;
+  r32 PixelsToMeters = 1.0f / RenderGroup->MetersToPixels;
+
   for(u32 BaseAddress = 0;
       BaseAddress < RenderGroup->PushBufferSize;)
     {	      
@@ -665,7 +663,7 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget)
 	case RenderGroupEntryType_render_entry_bitmap:
 	  {
 	    render_entry_bitmap* Entry = (render_entry_bitmap*) Data;
-	    entity_basis_p Basis = GetRenderEntityBasisP(RenderGroup, &Entry->EntityBasis, ScreenDim, MetersToPixels);
+	    entity_basis_p Basis = GetRenderEntityBasisP(RenderGroup, &Entry->EntityBasis, ScreenDim);
 	    Assert(Entry->Bitmap);
 #if 0 
 	    DrawBitmap(OutputTarget, Entry->Bitmap,
@@ -687,7 +685,7 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget)
 	case RenderGroupEntryType_render_entry_rectangle:
 	  {
 	    render_entry_rectangle* Entry = (render_entry_rectangle*) Data;
-	    entity_basis_p Basis = GetRenderEntityBasisP(RenderGroup, &Entry->EntityBasis, ScreenDim, MetersToPixels);
+	    entity_basis_p Basis = GetRenderEntityBasisP(RenderGroup, &Entry->EntityBasis, ScreenDim);
 	    	    
 	    DrawRectangle(OutputTarget,
 	    		  Basis.P,
@@ -758,7 +756,8 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget)
 }
 
 internal render_group*
-AllocateRenderGroup(memory_arena *Arena, u32 MaxPushBufferSize)
+AllocateRenderGroup(memory_arena *Arena, u32 MaxPushBufferSize,
+		    u32 ResolutionPixelsX, u32 ResolutionPixelsY)
 {
   render_group* Result = PushStruct(Arena, render_group);
   Result->PushBufferBase = PushSize(Arena, MaxPushBufferSize);
@@ -770,6 +769,18 @@ AllocateRenderGroup(memory_arena *Arena, u32 MaxPushBufferSize)
   Result->PushBufferSize = 0;
 
   Result->GlobalAlpha = 1.0f;
+  Result->GameCamera.FocalLength = 0.6f;
+  Result->GameCamera.DistanceAboveTarget = 9.0f;
+
+  Result->RenderCamera = Result->GameCamera;
+  Result->RenderCamera.DistanceAboveTarget = 30.0f;
+  
+  r32 WidthOfMonitor = 0.635f;
+  Result->MetersToPixels = (r32)ResolutionPixelsX * WidthOfMonitor;
+  r32 PixelsToMeters = 1.0f / Result->MetersToPixels;
+
+  Result->MonitorHalfDimInMeters = V2(0.5f*ResolutionPixelsX * PixelsToMeters,
+				      0.5f*ResolutionPixelsY * PixelsToMeters);
   
   return(Result);
 }
@@ -895,5 +906,29 @@ CoordinateSystem(render_group* Group, v2 Origin, v2 XAxis, v2 YAxis,
       Entry->Bottom = Bottom;
     }
   return(Entry);
+}
+
+inline internal v2
+Unproject(render_group* Group, v2 ProjectedXY, r32 AtDistanceFromCamera)
+{
+  v2 WorldXY = V2MulS((AtDistanceFromCamera / Group->GameCamera.FocalLength), ProjectedXY);
+  return(WorldXY);
+}
+
+inline internal rectangle2
+GetCameraRectangleAtDistance(render_group* Group, r32 DistanceFromCamera)
+{
+  v2 RawXY = Unproject(Group, Group->MonitorHalfDimInMeters, DistanceFromCamera);
+
+  rectangle2 Result = RectCenterHalfDim2(V2(0,0), RawXY);
+  
+  return(Result);
+}
+                            
+inline internal rectangle2  
+GetCameraRectangleAtTarget(render_group* Group)
+{
+  rectangle2 Result = GetCameraRectangleAtDistance(Group, Group->GameCamera.DistanceAboveTarget);
+  return(Result);
 }
 

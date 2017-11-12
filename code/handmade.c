@@ -704,7 +704,7 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 		world_position* ChunkP)
 {
   temporary_memory GroundMemory = BeginTemporaryMemory(&TransState->TransientArena);  
-  render_group* RenderGroup = AllocateRenderGroup(&TransState->TransientArena, Megabytes(4));
+  render_group* RenderGroup = AllocateRenderGroup(&TransState->TransientArena, Megabytes(4), 1920, 1080);
   Clear(RenderGroup, V4(1.0f, 1.0f, 0.0f, 1.0f));
   
   loaded_bitmap *Buffer = &GroundBuffer->Bitmap;
@@ -811,7 +811,6 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   Assert(sizeof(state) <= Memory->PermanentStorageSize);
   state* State = (state*) Memory->PermanentStorage;
 
-  r32 PixelsToMeters = 1.0f / 42.0f;
   if(!Memory->IsInitialized)
     {            
       //NOTE We will do this much differently once we have a system
@@ -821,7 +820,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	InitializeArena(&State->Font.GlyphArena, Memory->PermanentStorageSize - sizeof(state),
 	(u8*)Memory->PermanentStorage + sizeof(state) + Megabytes(1));
       */
-            
+      r32 PixelsToMeters = 1.0f / 42.0f;
+ 
       u32 TilesPerWidth = 17;
       u32 TilesPerHeight = 9;
 
@@ -968,7 +968,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 #else
 	  u32 DoorDirection = RandomChoice(&Series, 2);
 #endif	  
-	  DoorDirection = 3;
+	  //DoorDirection = 3;
 
 	  bool32 CreatedZDoor = false;
 	  if(DoorDirection == 3)
@@ -1258,9 +1258,6 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	}
     }
 
-  temporary_memory RenderMemory = BeginTemporaryMemory(&TransState->TransientArena);  
-  render_group* RenderGroup = AllocateRenderGroup(&TransState->TransientArena, Megabytes(4));
-  
   loaded_bitmap DrawBuffer_ = {};
   loaded_bitmap *DrawBuffer = &DrawBuffer_;
   DrawBuffer->Width = Buffer->Width;
@@ -1268,17 +1265,17 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   DrawBuffer->Pitch = Buffer->Pitch;
   DrawBuffer->Memory = Buffer->Memory;
 
+  temporary_memory RenderMemory = BeginTemporaryMemory(&TransState->TransientArena);  
+  render_group* RenderGroup = AllocateRenderGroup(&TransState->TransientArena, Megabytes(4), DrawBuffer->Width, DrawBuffer->Height);
+  
   Clear(RenderGroup, V4(0.25f, 0.25f, 0.25f, 1.0f));
   
   v2 ScreenCenter = V2(0.5f * (r32)DrawBuffer->Width,
 		       0.5f * (r32)DrawBuffer->Height);
 
-  r32 ScreenWidthInMeters  = DrawBuffer->Width*PixelsToMeters;
-  r32 ScreenHeightInMeters = DrawBuffer->Height*PixelsToMeters;
-  rectangle3 CameraBoundsInMeters = RectCenterDim(V3(0, 0, 0),
-						  V3(ScreenWidthInMeters,
-						     ScreenHeightInMeters,
-						     0));
+  rectangle2 ScreenBounds = GetCameraRectangleAtTarget(RenderGroup);
+  rectangle3 CameraBoundsInMeters = RectMinMax(ToV3(ScreenBounds.Min, 0),
+					       ToV3(ScreenBounds.Max, 0));
   CameraBoundsInMeters.Min.z = -3.0f*State->TypicalFloorHeight;
   CameraBoundsInMeters.Max.z =  1.0f*State->TypicalFloorHeight;
   
@@ -1385,6 +1382,10 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
   v3 CameraP = Subtract(World, &State->CameraP, &SimCenterP);
   
+  PushRectOutline(RenderGroup, V3(0.0f, 0.0f, 0.0f), GetDim2(ScreenBounds), V4(1.0f, 1.0f, 0.0f, 1.0f));
+  //PushRectOutline(RenderGroup, V3(0.0f, 0.0f, 0.0f), GetDim(CameraBoundsInMeters).xy, V4(1.0f, 1.0f, 1.0f, 1.0f));
+  PushRectOutline(RenderGroup, V3(0.0f, 0.0f, 0.0f), GetDim(SimBounds).xy, V4(0.0f, 1.0f, 1.0f, 1.0f));
+  PushRectOutline(RenderGroup, V3(0.0f, 0.0f, 0.0f), GetDim(SimRegion->Bounds).xy, V4(1.0f, 0.0f, 1.0f, 1.0f));
   for(u32 EntityIndex = 0;
       EntityIndex < SimRegion->EntityCount;
       ++EntityIndex)
@@ -1459,7 +1460,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		      }
 		  }
 		r32 HeroSizeC = 2.5f;
-		PushBitmap(RenderGroup, &State->Shadow, V3(0, 0, 0), 0.25f, V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
+		PushBitmap(RenderGroup, &State->Shadow, V3(0, 0, 0), HeroSizeC*1.0f, V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
 		PushBitmap(RenderGroup, &Hero->Torso, V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 		PushBitmap(RenderGroup, &Hero->Cape,  V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 		PushBitmap(RenderGroup, &Hero->Head,  V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));	
@@ -1534,26 +1535,29 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		  }
 		r32 BobSin = Sin(2.0f*Entity->tBob);
 
-		PushBitmap(RenderGroup, &State->Shadow, V3(0, 0, 0), 0.5f, V4(1.0f, 1.0f, 1.0f, 0.5f*ShadowAlpha + 0.2f*BobSin));
-		PushBitmap(RenderGroup, &Hero->Head, V3(0, 0, 0.25f*BobSin), 0.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
+		PushBitmap(RenderGroup, &State->Shadow, V3(0, 0, 0), 2.5f, V4(1.0f, 1.0f, 1.0f, 0.5f*ShadowAlpha + 0.2f*BobSin));
+		PushBitmap(RenderGroup, &Hero->Head, V3(0, 0, 0.25f*BobSin), 2.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 	      } break;
 	    case EntityType_Monstar:
 	      {
 		DrawHitpoints(Entity, RenderGroup);
 
-		PushBitmap(RenderGroup, &State->Shadow, V3(0, 0, 0), 0.5f, V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
-		PushBitmap(RenderGroup, &Hero->Torso, V3(0, 0, 0), 0.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
+		PushBitmap(RenderGroup, &State->Shadow, V3(0, 0, 0), 4.5f, V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
+		PushBitmap(RenderGroup, &Hero->Torso, V3(0, 0, 0), 4.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 	      } break;
 	      
 	    case EntityType_Space:
 	      {
+#if 0
 		for(u32 VolumeIndex = 0;
 		    VolumeIndex < Entity->Collision->VolumeCount;
 		    ++VolumeIndex)
 		  {
 		    sim_entity_collision_volume *Volume = Entity->Collision->Volumes + VolumeIndex;
+
 		    PushRectOutline(RenderGroup, V3Sub(Volume->OffsetP, V3(0.0f, 0.0f, 0.5f*Volume->Dim.z)), Volume->Dim.xy, V4(0, 0.5f, 1, 1));    
 		  }
+#endif
 	      } break;
 	      
 	    default:
