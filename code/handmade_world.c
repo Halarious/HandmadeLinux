@@ -9,8 +9,8 @@ NullPosition()
   world_position Result = {};
 
   Result.ChunkX = WORLD_CHUNK_UNINITIALIZED;
-  Result.ChunkY = WORLD_CHUNK_UNINITIALIZED;
-  Result.ChunkZ = WORLD_CHUNK_UNINITIALIZED;
+  //Result.ChunkY = WORLD_CHUNK_UNINITIALIZED;
+  //Result.ChunkZ = WORLD_CHUNK_UNINITIALIZED;
   
   return(Result);
 }

@@ -205,7 +205,7 @@ typedef struct
 {
   bool32 IsInitialized;
   memory_arena TransientArena;
-  
+
   u32 GroundBufferCount;
   ground_buffer* GroundBuffers;
 

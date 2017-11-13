@@ -401,6 +401,17 @@ DEBUGLoadBMP(thread_context *Thread, debug_platform_read_entire_file *ReadEntire
   return(Result);
 }
 
+internal loaded_bitmap
+DEBUGLoadBMPDef(thread_context *Thread, debug_platform_read_entire_file *ReadEntireFile,
+		char* Filename, s32 AlignX, s32 TopDownAlignY)
+{
+  loaded_bitmap Result = DEBUGLoadBMP(Thread, ReadEntireFile,
+				      Filename,
+				      0, 0);
+  Result.AlignPercentage = V2(0.5f, 0.5f);
+  return(Result);
+}
+
 typedef struct
 {
   low_entity *Low;
@@ -704,16 +715,23 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 		world_position* ChunkP)
 {
   temporary_memory GroundMemory = BeginTemporaryMemory(&TransState->TransientArena);  
-  render_group* RenderGroup = AllocateRenderGroup(&TransState->TransientArena, Megabytes(4), 1920, 1080);
-  Clear(RenderGroup, V4(1.0f, 1.0f, 0.0f, 1.0f));
-  
+
   loaded_bitmap *Buffer = &GroundBuffer->Bitmap;
+  Buffer->AlignPercentage = V2(0.5f, 0.5f);
+  Buffer->WidthOverHeight = 1.0f;
+  
+  render_group* RenderGroup = AllocateRenderGroup(&TransState->TransientArena, Megabytes(4),
+						  Buffer->Width, Buffer->Height);
+  Clear(RenderGroup, V4(1.0f, 1.0f, 0.0f, 1.0f));
 
   GroundBuffer->P = *ChunkP;
 
-  r32 Width  = (r32)Buffer->Width;
-  r32 Height = (r32)Buffer->Height;  
+  r32 Width  = State->World->ChunkDimInMeters.x;
+  r32 Height = State->World->ChunkDimInMeters.y;  
+  v2 HalfDim = V2MulS(0.5f, V2(Width, Height));
 
+  HalfDim = V2MulS(2.0, HalfDim);
+  
   for(s32 ChunkOffsetY = -1;
       ChunkOffsetY <= 1;
       ++ChunkOffsetY)
@@ -744,14 +762,11 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 		  Stamp = State->Stone + RandomChoice(&Series, ArrayCount(State->Stone));
 		}
 
-	      v2 BitmapCenter = V2MulS(0.5f, V2i(Stamp->Width, Stamp->Height));
-      	      v2 Offset = {Width*RandomUnilateral(&Series),
-			   Height*RandomUnilateral(&Series)};
-	      v2 P = V2Add(Center,
-			   V2Sub(Offset, BitmapCenter));
+      	      v2 Offset = V2Hadamard(HalfDim, V2(RandomBilateral(&Series), RandomBilateral(&Series)));
+	      v2 P = V2Add(Center, Offset);
       
 	      PushBitmap(RenderGroup, Stamp, ToV3(P, 0.0f),
-			 1.0f, V4(1.0f, 1.0f, 1.0f, 1.0f));
+			 4.0f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 	    }
 	}
     }
@@ -777,18 +792,15 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 	    {
 	      loaded_bitmap *Stamp = State->Tuft + RandomChoice(&Series, ArrayCount(State->Tuft));
 
-	      v2 BitmapCenter = V2MulS(0.5f, V2i(Stamp->Width, Stamp->Height));
-	      v2 Offset = {Width*RandomUnilateral(&Series),
-			   Height*RandomUnilateral(&Series)};
-	      v2 P = V2Add(Center,
-			   V2Sub(Offset, BitmapCenter));
+      	      v2 Offset = V2Hadamard(HalfDim, V2(RandomBilateral(&Series), RandomBilateral(&Series)));
+	      v2 P = V2Add(Center, Offset);
       
 	      PushBitmap(RenderGroup, Stamp, ToV3(P, 0.0f),
-			 1.0f, V4(1.0f, 1.0f, 1.0f, 1.0f));
+			 0.4f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 	    }
 	}
     }
-    
+
     RenderGroupToOutput(RenderGroup, Buffer);
     EndTemporaryMemory(GroundMemory);
 }
@@ -1026,10 +1038,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
 		  if(ShouldBeDoor)
 		    {
-		      if((TileY % 2) || (TileX % 2))
-			{
-			  AddWall(State, AbsTileX, AbsTileY, AbsTileZ);
-			}
+		      AddWall(State, AbsTileX, AbsTileY, AbsTileZ);
 		    }
 		  else if(CreatedZDoor)
 		    {
@@ -1117,7 +1126,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       InitializeArena(&TransState->TransientArena, Memory->TransientStorageSize - sizeof(transient_state),
 		      (u8*)Memory->TransientStorage + sizeof(transient_state));
 
-      TransState->GroundBufferCount = 64;//128;
+      TransState->GroundBufferCount = 64;
       TransState->GroundBuffers = PushArray(&TransState->TransientArena,
 					    TransState->GroundBufferCount,
 					    ground_buffer);
@@ -1279,7 +1288,6 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   CameraBoundsInMeters.Min.z = -3.0f*State->TypicalFloorHeight;
   CameraBoundsInMeters.Max.z =  1.0f*State->TypicalFloorHeight;
   
-#if 0   
   for(u32 GroundBufferIndex = 0;
       GroundBufferIndex < TransState->GroundBufferCount;
       ++GroundBufferIndex)
@@ -1290,14 +1298,23 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  loaded_bitmap* Bitmap = &GroundBuffer->Bitmap;
 	  v3 Delta = Subtract(State->World,
 			      &GroundBuffer->P, &State->CameraP);
-	  Bitmap->Align = V2MulS(0.5f, V2i(Bitmap->Width, Bitmap->Height));
 
-	  render_basis *Basis = PushStruct(&TransState->TransientArena, render_basis);
-	  RenderGroup->DefaultBasis = Basis;
-	  Basis->P = V3Add(Delta, V3(0.0f, 0.0f, State->ZOffset));
-	  PushBitmap(RenderGroup, Bitmap,
-	  	     V3(0.0f, 0.0f, 0.0f),
-	  	     V4(1.0f, 1.0f, 1.0f, 1.0f));
+	  if ((Delta.z >= -1.0f)&& (Delta.z < 1.0f))
+	    {
+	      render_basis *Basis = PushStruct(&TransState->TransientArena, render_basis);
+	      RenderGroup->DefaultBasis = Basis;
+	      Basis->P = Delta;
+	      r32 GroundSideInMeters = World->ChunkDimInMeters.x;
+	      PushBitmap(RenderGroup, Bitmap,
+			 V3(0.0f, 0.0f, 0.0f),
+			 GroundSideInMeters, V4(1.0f, 1.0f, 1.0f, 1.0f));
+#if 1
+	      PushRectOutline(RenderGroup,
+			      V3(0.0f, 0.0f, 0.0f),
+			      V2(GroundSideInMeters, GroundSideInMeters),
+			      V4(1.0f, 1.0f, 0.0f, 1.0f));
+#endif
+	    }
 	}
     }  
   
@@ -1359,18 +1376,11 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		      {
 			FillGroundChunk(TransState, State, FurthestBuffer, &ChunkCenterP);
 		      }
-#if 0
-		    PushRectOutline(RenderGroup, RelP.xy, 0.0f,
-				    World->ChunkDimInMeters.xy,
-				    V4(1.0f, 1.0f, 0.0f, 1.0f),
-				    1.0f);
-#endif
 		  }
 	      }
 	  }
       }
   }
-#endif
   
   v3 SimBoundsExpansion = {15.0f, 15.0f, 0.0f};
   rectangle3 SimBounds = AddRadiusTo(CameraBoundsInMeters,
@@ -1382,6 +1392,10 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
   v3 CameraP = Subtract(World, &State->CameraP, &SimCenterP);
   
+  render_basis *Basis = PushStruct(&TransState->TransientArena, render_basis);
+  Basis->P = V3(0.0f, 0.0f, 0.0f);
+  RenderGroup->DefaultBasis = Basis;
+	  
   PushRectOutline(RenderGroup, V3(0.0f, 0.0f, 0.0f), GetDim2(ScreenBounds), V4(1.0f, 1.0f, 0.0f, 1.0f));
   //PushRectOutline(RenderGroup, V3(0.0f, 0.0f, 0.0f), GetDim(CameraBoundsInMeters).xy, V4(1.0f, 1.0f, 1.0f, 1.0f));
   PushRectOutline(RenderGroup, V3(0.0f, 0.0f, 0.0f), GetDim(SimBounds).xy, V4(0.0f, 1.0f, 1.0f, 1.0f));
