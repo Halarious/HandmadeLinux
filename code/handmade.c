@@ -723,9 +723,10 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
   render_group* RenderGroup = AllocateRenderGroup(&TransState->TransientArena, Megabytes(4),
 						  Buffer->Width, Buffer->Height);
   Clear(RenderGroup, V4(1.0f, 1.0f, 0.0f, 1.0f));
-#if 0
+
   GroundBuffer->P = *ChunkP;
 
+#if 0
   r32 Width  = State->World->ChunkDimInMeters.x;
   r32 Height = State->World->ChunkDimInMeters.y;  
   v2 HalfDim = V2MulS(0.5f, V2(Width, Height));
@@ -815,8 +816,16 @@ SetTopDownAlignHero(hero_bitmaps* Bitmaps, v2 Align)
   Bitmaps->Torso.AlignPercentage = Align;
 }
 
+#if HANDMADE_INTERNAL
+memory* DebugGlobalMemory;
+#endif
 extern UPDATE_AND_RENDER(UpdateAndRender)
-{    
+{
+#if HANDMADE_INTERNAL
+  DebugGlobalMemory = Memory;
+#endif
+  BEGIN_TIMED_BLOCK(UpdateAndRender);
+  
   u32 GroundBufferWidth = 256;
   u32 GroundBufferHeight = 256;
         
@@ -1710,6 +1719,8 @@ r32 Angle = 0.1f * State->Time;
  
   CheckArena(&State->WorldArena);
   CheckArena(&TransState->TransientArena);
+
+  END_TIMED_BLOCK(UpdateAndRender);
 }
 /*
 

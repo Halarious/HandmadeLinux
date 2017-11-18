@@ -507,6 +507,32 @@ DisplayBufferInWindow(DisplayInfo DisplayInfo, linux32_offscreen_buffer* Buffer)
 
 }
 
+internal void
+HandleDebugCycleCounters(memory* Memory)
+{
+  #if HANDMADE_INTERNAL
+  printf("DEBUG CYCLE COUNTS: \n");
+  for(s32 CounterIndex = 0;
+      CounterIndex < ArrayCount(Memory->Counters);
+      ++CounterIndex)
+    {
+      debug_cycle_counter* Counter = Memory->Counters + CounterIndex;
+
+      if(Counter->HitCount)
+	{
+	  printf("\t%d: %luc %uh %luc/h\n",
+		 CounterIndex,
+		 Counter->CycleCount,
+		 Counter->HitCount,
+		 Counter->CycleCount / Counter->HitCount);
+
+	  Counter->CycleCount = 0;
+	  Counter->HitCount = 0;
+	}
+    }
+  #endif
+}
+
 int
 main(int ArgCount, char** Arguments)
 {
@@ -719,8 +745,12 @@ main(int ArgCount, char** Arguments)
 		    {
 		      Linux32PlaybackInput(&Linux32State, NewInputState);
 		    }
-
-		  //Code.UpdateAndRender(&Thread, &Memory, NewInputState, &Buffer);
+		  if(Code.UpdateAndRender)
+		    {
+		      Code.UpdateAndRender(&Thread, &Memory, NewInputState, &Buffer);
+		      HandleDebugCycleCounters(&Memory);
+		    }
+		  
 		  DisplayBufferInWindow(DisplayInfo, &GlobalOffscreenBuffer);
 
 		  struct timespec EndTime; 
@@ -747,7 +777,8 @@ main(int ArgCount, char** Arguments)
 		      SleepTime.tv_nsec = ((SleepTimeInSeconds - SleepTime.tv_sec) * 1000000000.0f) - Epsilon;
 		      clock_nanosleep(CLOCK_MONOTONIC, 0, &SleepTime, &RemainingSleepTime);
 
-		      if(RemainingSleepTime)
+		      if(RemainingSleepTime.tv_sec ||
+			 RemainingSleepTime.tv_nsec)
 			{
 			  printf("Missed sleep\n\t");
 			}
@@ -764,14 +795,17 @@ main(int ArgCount, char** Arguments)
 		      printf("Missed a frame\n\t");
 		    }
 		  
+		  
+		  clock_gettime(CLOCK_MONOTONIC, &EndTime);	    
+#if 0
 		  s64 EndCycleCount = __builtin_readcyclecounter();	      
 		  s64 CyclesElapsed = EndCycleCount - LastCycleCount;
 		  LastCycleCount = EndCycleCount;
-		  
-		  clock_gettime(CLOCK_MONOTONIC, &EndTime);	    
-		  
+
 		  ElapsedTime = SubtractTimeValues(EndTime, LastTime);
 		  printf("%.2fms/f, %uMc/f \n", (r32)ElapsedTime.tv_nsec/1000000.0f, CyclesElapsed / (1000*1000));
+#endif
+
 		  LastTime = EndTime;
 		  
 		    

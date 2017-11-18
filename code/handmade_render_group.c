@@ -324,6 +324,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
 		    environment_map *Bottom,
 		    r32 PixelsToMeters)
 {
+  BEGIN_TIMED_BLOCK(DrawRectangleSlowly);
+
   Color.rgb = V3MulS(Color.a, Color.rgb);
   
   r32 XAxisLength = V2Length(XAxis);
@@ -412,6 +414,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
 	  X <= XMax;
 	  ++X)
 	{
+	  BEGIN_TIMED_BLOCK(FillPixel);
 #if 1
 	  v2 PixelP = V2i(X, Y);
 	  v2 d = V2Sub(PixelP, Origin);
@@ -430,6 +433,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
 	     (Edge2 < 0) &&
 	     (Edge3 < 0))
 	    {
+	      BEGIN_TIMED_BLOCK(TestPixel);
 #if 1
 	      v2 ScreenSpaceUV = V2(InvWidthMax*(r32)X, FixedCastY);
 	      r32 ZDiff = PixelsToMeters*((r32)Y - OriginY);
@@ -459,7 +463,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
 	      bilinear_sample TexelSample
 		= BilinearSample(Texture, X, Y);
 	      v4 Texel = SRGBBilinearBlend(TexelSample, fX, fY);
-	      
+
+#if 0
 	      if(NormalMap)
 		{		  
 		  bilinear_sample NormalSample
@@ -521,7 +526,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
 		  		    V3MulS(0.5f, BounceDirection));
 		  Texel.rgb = V3MulS(Texel.a, Texel.rgb);
 #endif
-		}	      
+		}
+#endif
 
 	      Texel = V4Hadamard(Texel, Color);
 	      Texel.r = Clamp01(Texel.r);
@@ -545,15 +551,20 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
 			((u32)(Blended255.g + 0.5f) << 8)  |
 			((u32)(Blended255.b + 0.5f) << 0));
 
+	      END_TIMED_BLOCK(TestPixel);
 	    }
 #else
 	  *Pixel = Color32;
 #endif
 
 	  ++Pixel;
+
+	  END_TIMED_BLOCK(FillPixel);
 	}
       Row += Buffer->Pitch; 
     }
+  
+  END_TIMED_BLOCK(DrawRectangleSlowly);
 }
 
 internal void
@@ -622,7 +633,9 @@ GetRenderEntityBasisP(render_group* RenderGroup,
 
 internal void
 RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget)
-{    
+{
+  BEGIN_TIMED_BLOCK(RenderGroupToOutput);
+  
   v2 ScreenDim = V2((r32)OutputTarget->Width,
 		    (r32)OutputTarget->Height);
   
@@ -753,6 +766,8 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget)
 	  InvalidDefaultCase;
 	}
     }
+
+  END_TIMED_BLOCK(RenderGroupToOutput);
 }
 
 internal render_group*
