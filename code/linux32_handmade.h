@@ -1,3 +1,5 @@
+//TODO: Do we want this here?
+#include "handmade_intrinsics.h"
 
 typedef struct
 {

@@ -66,21 +66,21 @@ RoundReal32ToUInt32(r32 Value)
 inline internal s32
 FloorReal32ToInt32(r32 Value)
 {
-  u32 Result = floorf(Value);
+  s32 Result = floorf(Value);
   return(Result);
 }
 
 inline internal s32
 CeilReal32ToInt32(r32 Value)
 {
-  u32 Result = ceilf(Value);
+  s32 Result = ceilf(Value);
   return(Result);
 }
 
 inline internal s32
 TruncateReal32ToInt32(r32 Value)
 {
-  u32 Result = (u32)(Value);
+  s32 Result = (u32)(Value);
   return(Result);
 }
 
@@ -137,3 +137,4 @@ FindLeastSignificantSetBit(u32 Value)
 #endif
   return(Result);
 }
+

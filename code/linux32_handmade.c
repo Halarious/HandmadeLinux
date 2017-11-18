@@ -58,17 +58,21 @@ SubtractTimeValues(struct timespec EndTime, struct timespec BeginTime)
 {
   struct timespec Result = {};
 
-  s32 BeginTimeNanos = BeginTime.tv_nsec;
-  s32 EndTimeNanos   = EndTime.tv_nsec;
+  s64 BeginTimeNanos = BeginTime.tv_nsec;
+  s64 EndTimeNanos   = EndTime.tv_nsec;
   if(BeginTimeNanos > EndTimeNanos)
     {
-      Result.tv_nsec  = 1000000000 - (BeginTimeNanos - EndTimeNanos);
-      EndTime.tv_sec -= 1;
+      Result.tv_nsec  = (time_t)(1000000000L - (BeginTimeNanos - EndTimeNanos));
+      if(EndTime.tv_sec)
+	{
+	  EndTime.tv_sec -= 1;
+	}
     }
   else
     {
       Result.tv_nsec = EndTimeNanos - BeginTimeNanos;
     }
+  
   Result.tv_sec = EndTime.tv_sec - BeginTime.tv_sec;
 
   return(Result);
@@ -633,8 +637,10 @@ main(int ArgCount, char** Arguments)
 	  //     looks like it's not the greatest idea to use rdtsc for actual
 	  //     time calculations because of inconsistent clock rate and
 	  //     whatnot.
-	  struct timespec BeginTime;
-	  clock_gettime(CLOCK_MONOTONIC, &BeginTime);
+	  struct timespec LastTime;
+	  clock_gettime(CLOCK_MONOTONIC, &LastTime);
+	  //TODO: This is LLVM only obviously
+	  s64 LastCycleCount = __builtin_readcyclecounter();
 	  while(GlobalRunning)
 	    {
 	      NewInputState->dtForFrame = TargetSecondsPerFrame;
@@ -713,14 +719,15 @@ main(int ArgCount, char** Arguments)
 		    {
 		      Linux32PlaybackInput(&Linux32State, NewInputState);
 		    }
-		  Code.UpdateAndRender(&Thread, &Memory, NewInputState, &Buffer);
 
+		  //Code.UpdateAndRender(&Thread, &Memory, NewInputState, &Buffer);
 		  DisplayBufferInWindow(DisplayInfo, &GlobalOffscreenBuffer);
-		  
+
 		  struct timespec EndTime; 
 		  clock_gettime(CLOCK_MONOTONIC, &EndTime);
-		  struct timespec ElapsedTime = SubtractTimeValues(EndTime, BeginTime);
-		  r32 ElapsedTimeSeconds      = (r32)ElapsedTime.tv_nsec/1000000000.0f; 
+
+		  struct timespec ElapsedTime = SubtractTimeValues(EndTime, LastTime);
+		  r32 ElapsedTimeSeconds      = (r32)ElapsedTime.tv_nsec / 1000000000.0f; 
 		  //TODO See what happens if for some reason we miss (a) frame(s),
 		  //     and what is expected as a framerate if it even matters.
 		  if(ElapsedTimeSeconds < TargetSecondsPerFrame)
@@ -729,29 +736,45 @@ main(int ArgCount, char** Arguments)
 		      //     very close to 33.33ms of wait time, like in Caseys' example. Win sleep is a bit different (DWORD for ms time)
 		      //     and it would appear that linux is more precise but I couldn't figure out why I was getting like .10+ ms
 		      //     off all he time while using the sleep (granularity give back nano precision so it shouldn't happen),
-		      //     but for no it is as it is and later we should do something about this to make it sane and get rid of
+		      //     but for now it is as it is and later we should do something about this to make it sane and get rid of
 		      //     the spinlock
+		      r32 Epsilon = 1000000.0f;
+		      
 		      struct timespec SleepTime = {};
-		      SleepTime.tv_nsec = (TargetSecondsPerFrame*1000000000) - ElapsedTime.tv_nsec - 1000000;
-		      clock_nanosleep(CLOCK_MONOTONIC, 0, &SleepTime, &SleepTime);
-		  
+		      struct timespec RemainingSleepTime = {};
+		      r32 SleepTimeInSeconds = TargetSecondsPerFrame - ElapsedTimeSeconds;
+		      SleepTime.tv_sec  = FloorReal32ToInt32(SleepTimeInSeconds);
+		      SleepTime.tv_nsec = ((SleepTimeInSeconds - SleepTime.tv_sec) * 1000000000.0f) - Epsilon;
+		      clock_nanosleep(CLOCK_MONOTONIC, 0, &SleepTime, &RemainingSleepTime);
+
+		      if(RemainingSleepTime)
+			{
+			  printf("Missed sleep\n\t");
+			}
+		      
 		      while(ElapsedTimeSeconds < TargetSecondsPerFrame)
 			{		      
 			  clock_gettime(CLOCK_MONOTONIC, &EndTime);
-			  ElapsedTime      = SubtractTimeValues(EndTime, BeginTime);
+			  ElapsedTime      = SubtractTimeValues(EndTime, LastTime);
 			  ElapsedTimeSeconds = (r32)ElapsedTime.tv_nsec/1000000000.0f; 
 			}
 		    }
 		  else
 		    {
-		      printf("Missed a frame");
+		      printf("Missed a frame\n\t");
 		    }
-	      
+		  
+		  s64 EndCycleCount = __builtin_readcyclecounter();	      
+		  s64 CyclesElapsed = EndCycleCount - LastCycleCount;
+		  LastCycleCount = EndCycleCount;
+		  
 		  clock_gettime(CLOCK_MONOTONIC, &EndTime);	    
-		  ElapsedTime = SubtractTimeValues(EndTime, BeginTime);
-		  printf("Time elapsed %.2fms\n", (r32)ElapsedTime.tv_nsec/1000000.0f);
-		  BeginTime = EndTime;
-
+		  
+		  ElapsedTime = SubtractTimeValues(EndTime, LastTime);
+		  printf("%.2fms/f, %uMc/f \n", (r32)ElapsedTime.tv_nsec/1000000.0f, CyclesElapsed / (1000*1000));
+		  LastTime = EndTime;
+		  
+		    
 		  //TODO: Find a way to stop flickering caused by clearing the screen
 		  //      to blackness
 		  int OffsetX = 10;

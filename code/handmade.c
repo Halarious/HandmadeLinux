@@ -723,7 +723,7 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
   render_group* RenderGroup = AllocateRenderGroup(&TransState->TransientArena, Megabytes(4),
 						  Buffer->Width, Buffer->Height);
   Clear(RenderGroup, V4(1.0f, 1.0f, 0.0f, 1.0f));
-
+#if 0
   GroundBuffer->P = *ChunkP;
 
   r32 Width  = State->World->ChunkDimInMeters.x;
@@ -800,7 +800,7 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 	    }
 	}
     }
-
+#endif
     RenderGroupToOutput(RenderGroup, Buffer);
     EndTemporaryMemory(GroundMemory);
 }
