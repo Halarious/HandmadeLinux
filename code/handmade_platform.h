@@ -101,6 +101,7 @@ enum
     DebugCycleCounter_UpdateAndRender,
     DebugCycleCounter_RenderGroupToOutput,
     DebugCycleCounter_DrawRectangleSlowly,
+    DebugCycleCounter_DrawRectangleHopefullyQuickly,
     DebugCycleCounter_FillPixel,
     DebugCycleCounter_TestPixel,
     DebugCycleCounter_Count,

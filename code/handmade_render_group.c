@@ -314,6 +314,7 @@ SampleEnvironmentMap(v2 ScreenSpaceUV, v3 SampleDirection, r32 Roughness,
   return(Result);
 }
 
+
 internal void
 DrawRectangleSlowly(loaded_bitmap *Buffer,
 		    v2 Origin, v2 XAxis, v2 YAxis,
@@ -568,6 +569,244 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
 }
 
 internal void
+DrawRectangleHopefullyQuickly(loaded_bitmap *Buffer,
+			      v2 Origin, v2 XAxis, v2 YAxis,
+			      v4 Color, loaded_bitmap* Texture,
+			      r32 PixelsToMeters)
+{
+  BEGIN_TIMED_BLOCK(DrawRectangleHopefullyQuickly);
+
+  Color.rgb = V3MulS(Color.a, Color.rgb);
+  
+  r32 XAxisLength = V2Length(XAxis);
+  r32 YAxisLength = V2Length(YAxis);
+  
+  v2 NxAxis = V2MulS(YAxisLength / XAxisLength,
+		     XAxis);
+  v2 NyAxis = V2MulS(XAxisLength / YAxisLength,
+		     YAxis);
+  r32 NzScale = 0.5f * (XAxisLength + YAxisLength);
+		  
+  r32 InvXAxisLengthSq = 1.0f / V2LengthSq(XAxis);
+  r32 InvYAxisLengthSq = 1.0f / V2LengthSq(YAxis);
+
+  u32 Color32 = ((RoundReal32ToUInt32(Color.a * 255.0f) << 24) |
+		 (RoundReal32ToUInt32(Color.r * 255.0f) << 16) |
+		 (RoundReal32ToUInt32(Color.g * 255.0f) << 8)  |
+		 (RoundReal32ToUInt32(Color.b * 255.0f) << 0));
+
+  s32 WidthMax  = Buffer->Width - 1;
+  s32 HeightMax = Buffer->Height - 1;
+
+  r32 InvWidthMax  = 1.0f / (r32)WidthMax;
+  r32 InvHeightMax = 1.0f / (r32)HeightMax;
+
+  r32 OriginZ = 0.0f;
+  r32 OriginY = V2Add(V2Add(Origin,
+			    V2MulS(0.5f, XAxis)),
+		      V2MulS(0.5f, YAxis)).y;
+  r32 FixedCastY = InvHeightMax * OriginY;
+    
+  s32 XMin = WidthMax;
+  s32 XMax = 0;
+  s32 YMin = HeightMax;
+  s32 YMax = 0;
+  
+  v2 P[4] = {Origin,
+	     V2Add(Origin, XAxis),
+	     V2Add(V2Add(Origin, XAxis),
+		   YAxis),
+	     V2Add(Origin, YAxis)};
+
+  for(u32 PIndex = 0;
+      PIndex < ArrayCount(P);
+      ++PIndex)
+    {
+      v2 TestP = P[PIndex];
+      s32 FloorX = FloorReal32ToInt32(TestP.x);
+      s32 CeilX  = CeilReal32ToInt32(TestP.x);
+      s32 FloorY = FloorReal32ToInt32(TestP.y);
+      s32 CeilY  = CeilReal32ToInt32(TestP.y);
+
+      if(XMin > FloorX) {XMin = FloorX;}
+      if(YMin > FloorY) {YMin = FloorY;}
+      if(XMax < CeilX)  {XMax = CeilX;}
+      if(YMax < CeilY)  {YMax = CeilY;}
+    }
+
+  if(XMin < 0)
+    {
+      XMin = 0;
+    }
+  if(XMax > WidthMax)
+    {
+      XMax = WidthMax;
+    }
+  if(YMin < 0)
+    {
+      YMin = 0;
+    }
+  if(YMax > HeightMax)
+    {
+      YMax = HeightMax;
+    }
+
+  v2 nXAxis = V2MulS(InvXAxisLengthSq, XAxis);
+  v2 nYAxis = V2MulS(InvYAxisLengthSq, YAxis);
+
+  r32 Inv255 = 1.0f / 255.0f;
+  r32 One255 = 255.0f;
+  
+  u32 BytesPerPixel = BITMAP_BYTES_PER_PIXEL;
+  u8 *Row = ((u8*)Buffer->Memory
+	     + Buffer->Pitch * YMin
+	     + BytesPerPixel * XMin);
+  for(int Y = YMin;
+      Y <= YMax;
+      ++Y)
+    {
+      u32* Pixel = (u32*) Row;
+      for(int X = XMin;
+	  X <= XMax;
+	  ++X)
+	{
+	  BEGIN_TIMED_BLOCK(FillPixel);
+
+	  v2 PixelP = V2i(X, Y);
+	  v2 d = V2Sub(PixelP, Origin);
+
+	  r32 U = V2Inner(d, nXAxis);
+	  r32 V = V2Inner(d, nYAxis);
+	  
+	  if((U >= 0.0f) &&
+	     (U <= 1.0f) &&
+	     (V >= 0.0f) &&
+	     (V <= 1.0f))
+	    {
+	      BEGIN_TIMED_BLOCK(TestPixel);
+
+	      r32 tX = ((U * (r32)(Texture->Width  - 2)));
+	      r32 tY = ((V * (r32)(Texture->Height - 2)));
+	      
+	      s32 X = (s32) tX;
+	      s32 Y = (s32) tY;
+
+	      r32 fX = tX - (r32)X;
+	      r32 fY = tY - (r32)Y;
+	      
+	      Assert((X >= 0.0f) && (X < Texture->Width));
+	      Assert((Y >= 0.0f) && (Y < Texture->Height));
+
+	      u8* TexelPtr = (((u8*)Texture->Memory)
+			      + Y * Texture->Pitch
+			      + X * BITMAP_BYTES_PER_PIXEL);
+	      u32 SampleA = *(u32*)(TexelPtr);
+	      u32 SampleB = *(u32*)(TexelPtr + BITMAP_BYTES_PER_PIXEL);
+	      u32 SampleC = *(u32*)(TexelPtr + Texture->Pitch);
+	      u32 SampleD = *(u32*)(TexelPtr + Texture->Pitch + BITMAP_BYTES_PER_PIXEL);
+	      
+	      r32 TexelaR = (r32)((SampleA >> 16) & 0xff);
+	      r32 TexelaG = (r32)((SampleA >> 8) & 0xff);
+	      r32 TexelaB = (r32)((SampleA >> 0) & 0xff);
+	      r32 TexelaA = (r32)((SampleA >> 24) & 0xff);
+	      
+	      r32 TexelbR = (r32)((SampleB >> 16) & 0xff);
+	      r32 TexelbG = (r32)((SampleB >> 8) & 0xff);
+	      r32 TexelbB = (r32)((SampleB >> 0) & 0xff);
+	      r32 TexelbA = (r32)((SampleB >> 24) & 0xff);
+	      	      
+	      r32 TexelcR = (r32)((SampleC >> 16) & 0xff);
+	      r32 TexelcG = (r32)((SampleC >> 8) & 0xff);
+	      r32 TexelcB = (r32)((SampleC >> 0) & 0xff);
+	      r32 TexelcA = (r32)((SampleC >> 24) & 0xff);
+	      	     
+	      r32 TexeldR = (r32)((SampleD >> 16) & 0xff);
+	      r32 TexeldG = (r32)((SampleD >> 8) & 0xff);
+	      r32 TexeldB = (r32)((SampleD >> 0) & 0xff);
+	      r32 TexeldA = (r32)((SampleD >> 24) & 0xff);
+	      	      
+	      TexelaR = Square(Inv255*TexelaR);
+	      TexelaG = Square(Inv255*TexelaG);
+	      TexelaB = Square(Inv255*TexelaB);
+	      TexelaA = Inv255*TexelaA;
+
+	      TexelbR = Square(Inv255*TexelbR);
+	      TexelbG = Square(Inv255*TexelbG);
+	      TexelbB = Square(Inv255*TexelbB);
+	      TexelbA = Inv255*TexelbA;
+
+	      TexelcR = Square(Inv255*TexelcR);
+	      TexelcG = Square(Inv255*TexelcG);
+	      TexelcB = Square(Inv255*TexelcB);
+	      TexelcA = Inv255*TexelcA;
+
+	      TexeldR = Square(Inv255*TexeldR);
+	      TexeldG = Square(Inv255*TexeldG);
+	      TexeldB = Square(Inv255*TexeldB);
+	      TexeldA = Inv255*TexeldA;
+
+	      r32 ifX = 1.0f - fX;
+	      r32 ifY = 1.0f - fY;
+
+	      r32 l0 = ifY*ifX;
+	      r32 l1 = ifY*fX;
+	      r32 l2 = fY*ifX;
+	      r32 l3 = fY*fX;
+	      
+	      r32 TexelR = l0*TexelaR + l1*TexelbR + l2*TexelcR + l3*TexeldR;
+	      r32 TexelG = l0*TexelaG + l1*TexelbG + l2*TexelcG + l3*TexeldG;
+	      r32 TexelB = l0*TexelaB + l1*TexelbB + l2*TexelcB + l3*TexeldB;
+	      r32 TexelA = l0*TexelaA + l1*TexelbA + l2*TexelcA + l3*TexeldA;
+	      
+	      TexelR = TexelR * Color.r;
+	      TexelG = TexelG * Color.g;
+	      TexelB = TexelB * Color.b;
+	      TexelA = TexelA * Color.a;
+
+	      TexelR = Clamp01(TexelR);
+	      TexelG = Clamp01(TexelG);
+	      TexelB = Clamp01(TexelB);
+	      	      
+	      r32 DestR = (r32)((*Pixel >> 16) & 0xff);
+	      r32 DestG = (r32)((*Pixel >>  8) & 0xff);
+	      r32 DestB = (r32)((*Pixel >>  0) & 0xff);
+	      r32 DestA = (r32)((*Pixel >> 24) & 0xff);
+
+	      DestR = Square(Inv255*DestR);
+	      DestG = Square(Inv255*DestG);
+	      DestB = Square(Inv255*DestB);
+	      DestA = Inv255*DestA;
+
+	      r32 InvTexelA = 1.0f - TexelA;
+	      r32 BlendedR = InvTexelA * DestR + TexelR;
+	      r32 BlendedG = InvTexelA * DestG + TexelG;
+	      r32 BlendedB = InvTexelA * DestB + TexelB;
+	      r32 BlendedA = InvTexelA * DestA + TexelA;
+	      
+	      BlendedR = One255*SquareRoot(BlendedR);
+	      BlendedG = One255*SquareRoot(BlendedG);
+	      BlendedB = One255*SquareRoot(BlendedB);
+	      BlendedA = One255*BlendedA;
+
+	      *Pixel = (((u32)(BlendedA + 0.5f) << 24) |
+			((u32)(BlendedR + 0.5f) << 16) |
+			((u32)(BlendedG + 0.5f) << 8)  |
+			((u32)(BlendedB + 0.5f) << 0));
+
+	      END_TIMED_BLOCK(TestPixel);
+	    }
+
+	  ++Pixel;
+
+	  END_TIMED_BLOCK(FillPixel);
+	}
+      Row += Buffer->Pitch; 
+    }
+  
+  END_TIMED_BLOCK(DrawRectangleHopefullyQuickly);
+}
+
+internal void
 DrawRectangleOutline(loaded_bitmap *Buffer,
 		     v2 vMin, v2 vMax,
 		     v3 Color, r32 R)
@@ -682,14 +921,13 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget)
 	    DrawBitmap(OutputTarget, Entry->Bitmap,
 		       P.x, P.y, Entry->Color.a);
 #else
-	    DrawRectangleSlowly(OutputTarget,
-				Basis.P,
-				V2MulS(Basis.Scale, V2(Entry->Size.x, 0.0f)),
-				V2MulS(Basis.Scale, V2(0.0f, Entry->Size.y)),
-				Entry->Color,
-				Entry->Bitmap,
-				0, 0, 0, 0,
-				PixelsToMeters);
+	    DrawRectangleHopefullyQuickly(OutputTarget,
+					  Basis.P,
+					  V2MulS(Basis.Scale, V2(Entry->Size.x, 0.0f)),
+					  V2MulS(Basis.Scale, V2(0.0f, Entry->Size.y)),
+					  Entry->Color,
+					  Entry->Bitmap,
+					  PixelsToMeters);
 #endif
 
 	    BaseAddress += sizeof(*Entry);
@@ -723,7 +961,7 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget)
 				Entry->Middle,
 				Entry->Bottom,
 				PixelsToMeters);
-
+	    
 	    v4 Color = V4(1.0f, 1.0f, 0.0f, 1.0f);
 	    v2 Dim = V2(2, 2);
 	    v2 P = Entry->Origin; 
