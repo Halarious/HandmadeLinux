@@ -595,8 +595,8 @@ DrawRectangleHopefullyQuickly(loaded_bitmap *Buffer,
 		 (RoundReal32ToUInt32(Color.g * 255.0f) << 8)  |
 		 (RoundReal32ToUInt32(Color.b * 255.0f) << 0));
 
-  s32 WidthMax  = Buffer->Width - 1;
-  s32 HeightMax = Buffer->Height - 1;
+  s32 WidthMax  = Buffer->Width - 1 - 3;
+  s32 HeightMax = Buffer->Height - 1 - 3;
 
   r32 InvWidthMax  = 1.0f / (r32)WidthMax;
   r32 InvHeightMax = 1.0f / (r32)HeightMax;
@@ -666,97 +666,150 @@ DrawRectangleHopefullyQuickly(loaded_bitmap *Buffer,
       ++Y)
     {
       u32* Pixel = (u32*) Row;
-      for(int X = XMin;
-	  X <= XMax;
-	  ++X)
+      for(int XI = XMin;
+	  XI <= XMax;
+	  XI += 4)
 	{
-	  BEGIN_TIMED_BLOCK(FillPixel);
+	  BEGIN_TIMED_BLOCK(TestPixel);
 
-	  v2 PixelP = V2i(X, Y);
-	  v2 d = V2Sub(PixelP, Origin);
+	  r32 TexelaR[4];
+	  r32 TexelaG[4];
+	  r32 TexelaB[4];
+	  r32 TexelaA[4];
 
-	  r32 U = V2Inner(d, nXAxis);
-	  r32 V = V2Inner(d, nYAxis);
+	  r32 TexelbR[4];
+	  r32 TexelbG[4];
+	  r32 TexelbB[4];
+	  r32 TexelbA[4];
 	  
-	  if((U >= 0.0f) &&
-	     (U <= 1.0f) &&
-	     (V >= 0.0f) &&
-	     (V <= 1.0f))
+	  r32 TexelcR[4];
+	  r32 TexelcG[4];
+	  r32 TexelcB[4];
+	  r32 TexelcA[4];
+	  
+	  r32 TexeldR[4];
+	  r32 TexeldG[4];
+	  r32 TexeldB[4];
+	  r32 TexeldA[4];
+
+	  r32 DestR[4];
+	  r32 DestG[4];
+	  r32 DestB[4];
+	  r32 DestA[4];
+	  
+	  r32 BlendedR[4];
+	  r32 BlendedG[4];
+	  r32 BlendedB[4];
+	  r32 BlendedA[4];
+	  
+	  r32 fX[4];
+	  r32 fY[4];
+	    
+	  bool32 ShouldFill[4];
+	  
+	  for(u32 I = 0;
+	      I < 4;
+	      ++I)
 	    {
-	      BEGIN_TIMED_BLOCK(TestPixel);
+	      v2 PixelP = V2i(XI + I, Y);
+	      v2 d = V2Sub(PixelP, Origin);
 
-	      r32 tX = ((U * (r32)(Texture->Width  - 2)));
-	      r32 tY = ((V * (r32)(Texture->Height - 2)));
+	      r32 U = V2Inner(d, nXAxis);
+	      r32 V = V2Inner(d, nYAxis);
+
+	      ShouldFill[I] = ((U >= 0.0f) &&
+			       (U <= 1.0f) &&
+			       (V >= 0.0f) &&
+			       (V <= 1.0f));
+	      if(ShouldFill[I])
+		{
+		  r32 tX = ((U * (r32)(Texture->Width  - 2)));
+		  r32 tY = ((V * (r32)(Texture->Height - 2)));
 	      
-	      s32 X = (s32) tX;
-	      s32 Y = (s32) tY;
+		  s32 X = (s32) tX;
+		  s32 Y = (s32) tY;
 
-	      r32 fX = tX - (r32)X;
-	      r32 fY = tY - (r32)Y;
+		  fX[I] = tX - (r32)X;
+		  fY[I] = tY - (r32)Y;
 	      
-	      Assert((X >= 0.0f) && (X < Texture->Width));
-	      Assert((Y >= 0.0f) && (Y < Texture->Height));
+		  Assert((X >= 0.0f) && (X < Texture->Width));
+		  Assert((Y >= 0.0f) && (Y < Texture->Height));
 
-	      u8* TexelPtr = (((u8*)Texture->Memory)
-			      + Y * Texture->Pitch
-			      + X * BITMAP_BYTES_PER_PIXEL);
-	      u32 SampleA = *(u32*)(TexelPtr);
-	      u32 SampleB = *(u32*)(TexelPtr + BITMAP_BYTES_PER_PIXEL);
-	      u32 SampleC = *(u32*)(TexelPtr + Texture->Pitch);
-	      u32 SampleD = *(u32*)(TexelPtr + Texture->Pitch + BITMAP_BYTES_PER_PIXEL);
+		  u8* TexelPtr = (((u8*)Texture->Memory)
+				  + Y * Texture->Pitch
+				  + X * BITMAP_BYTES_PER_PIXEL);
+		  u32 SampleA = *(u32*)(TexelPtr);
+		  u32 SampleB = *(u32*)(TexelPtr + BITMAP_BYTES_PER_PIXEL);
+		  u32 SampleC = *(u32*)(TexelPtr + Texture->Pitch);
+		  u32 SampleD = *(u32*)(TexelPtr + Texture->Pitch + BITMAP_BYTES_PER_PIXEL);
 	      
-	      r32 TexelaR = (r32)((SampleA >> 16) & 0xff);
-	      r32 TexelaG = (r32)((SampleA >> 8) & 0xff);
-	      r32 TexelaB = (r32)((SampleA >> 0) & 0xff);
-	      r32 TexelaA = (r32)((SampleA >> 24) & 0xff);
+		  TexelaR[I] = (r32)((SampleA >> 16) & 0xff);
+		  TexelaG[I] = (r32)((SampleA >> 8) & 0xff);
+		  TexelaB[I] = (r32)((SampleA >> 0) & 0xff);
+		  TexelaA[I] = (r32)((SampleA >> 24) & 0xff);
 	      
-	      r32 TexelbR = (r32)((SampleB >> 16) & 0xff);
-	      r32 TexelbG = (r32)((SampleB >> 8) & 0xff);
-	      r32 TexelbB = (r32)((SampleB >> 0) & 0xff);
-	      r32 TexelbA = (r32)((SampleB >> 24) & 0xff);
-	      	      
-	      r32 TexelcR = (r32)((SampleC >> 16) & 0xff);
-	      r32 TexelcG = (r32)((SampleC >> 8) & 0xff);
-	      r32 TexelcB = (r32)((SampleC >> 0) & 0xff);
-	      r32 TexelcA = (r32)((SampleC >> 24) & 0xff);
-	      	     
-	      r32 TexeldR = (r32)((SampleD >> 16) & 0xff);
-	      r32 TexeldG = (r32)((SampleD >> 8) & 0xff);
-	      r32 TexeldB = (r32)((SampleD >> 0) & 0xff);
-	      r32 TexeldA = (r32)((SampleD >> 24) & 0xff);
-	      	      
-	      TexelaR = Square(Inv255*TexelaR);
-	      TexelaG = Square(Inv255*TexelaG);
-	      TexelaB = Square(Inv255*TexelaB);
-	      TexelaA = Inv255*TexelaA;
+		  TexelbR[I] = (r32)((SampleB >> 16) & 0xff);
+		  TexelbG[I] = (r32)((SampleB >> 8) & 0xff);
+		  TexelbB[I] = (r32)((SampleB >> 0) & 0xff);
+		  TexelbA[I] = (r32)((SampleB >> 24) & 0xff);
+	      	  
+		  TexelcR[I] = (r32)((SampleC >> 16) & 0xff);
+		  TexelcG[I] = (r32)((SampleC >> 8) & 0xff);
+		  TexelcB[I] = (r32)((SampleC >> 0) & 0xff);
+		  TexelcA[I] = (r32)((SampleC >> 24) & 0xff);
+	      	  
+		  TexeldR[I] = (r32)((SampleD >> 16) & 0xff);
+		  TexeldG[I] = (r32)((SampleD >> 8) & 0xff);
+		  TexeldB[I] = (r32)((SampleD >> 0) & 0xff);
+		  TexeldA[I] = (r32)((SampleD >> 24) & 0xff);
+		  	      	      	      
+		  DestR[I] = (r32)((*(Pixel + I)  >> 16) & 0xff);
+		  DestG[I] = (r32)((*(Pixel + I) >>  8) & 0xff);
+		  DestB[I] = (r32)((*(Pixel + I) >>  0) & 0xff);
+		  DestA[I] = (r32)((*(Pixel + I) >> 24) & 0xff);
+		}
+	    }
 
-	      TexelbR = Square(Inv255*TexelbR);
-	      TexelbG = Square(Inv255*TexelbG);
-	      TexelbB = Square(Inv255*TexelbB);
-	      TexelbA = Inv255*TexelbA;
+	  for(u32 I = 0;
+	      I < 4;
+	      ++I)
+	    {
 
-	      TexelcR = Square(Inv255*TexelcR);
-	      TexelcG = Square(Inv255*TexelcG);
-	      TexelcB = Square(Inv255*TexelcB);
-	      TexelcA = Inv255*TexelcA;
+	      TexelaR[I] = Inv255*TexelaR[I];
+	      TexelaR[I] *= TexelaR[I]; 
+	      TexelaG[I] = Inv255*TexelaG[I];
+	      TexelaG[I] *= TexelaG[I];
+	      TexelaB[I] = Inv255*TexelaB[I];
+	      TexelaB[I] *= TexelaB[I];
+	      TexelaA[I] = Inv255*TexelaA[I];
+	      
+	      TexelbR[I] = Square(Inv255*TexelbR[I]);
+	      TexelbG[I] = Square(Inv255*TexelbG[I]);
+	      TexelbB[I] = Square(Inv255*TexelbB[I]);
+	      TexelbA[I] = Inv255*TexelbA[I];
 
-	      TexeldR = Square(Inv255*TexeldR);
-	      TexeldG = Square(Inv255*TexeldG);
-	      TexeldB = Square(Inv255*TexeldB);
-	      TexeldA = Inv255*TexeldA;
+	      TexelcR[I] = Square(Inv255*TexelcR[I]);
+	      TexelcG[I] = Square(Inv255*TexelcG[I]);
+	      TexelcB[I] = Square(Inv255*TexelcB[I]);
+	      TexelcA[I] = Inv255*TexelcA[I];
 
-	      r32 ifX = 1.0f - fX;
-	      r32 ifY = 1.0f - fY;
+	      TexeldR[I] = Square(Inv255*TexeldR[I]);
+	      TexeldG[I] = Square(Inv255*TexeldG[I]);
+	      TexeldB[I] = Square(Inv255*TexeldB[I]);
+	      TexeldA[I] = Inv255*TexeldA[I];
+
+	      r32 ifX = 1.0f - fX[I];
+	      r32 ifY = 1.0f - fY[I];
 
 	      r32 l0 = ifY*ifX;
-	      r32 l1 = ifY*fX;
-	      r32 l2 = fY*ifX;
-	      r32 l3 = fY*fX;
+	      r32 l1 = ifY*fX[I];
+	      r32 l2 = fY[I]*ifX;
+	      r32 l3 = fY[I]*fX[I];
 	      
-	      r32 TexelR = l0*TexelaR + l1*TexelbR + l2*TexelcR + l3*TexeldR;
-	      r32 TexelG = l0*TexelaG + l1*TexelbG + l2*TexelcG + l3*TexeldG;
-	      r32 TexelB = l0*TexelaB + l1*TexelbB + l2*TexelcB + l3*TexeldB;
-	      r32 TexelA = l0*TexelaA + l1*TexelbA + l2*TexelcA + l3*TexeldA;
+	      r32 TexelR = l0*TexelaR[I] + l1*TexelbR[I] + l2*TexelcR[I] + l3*TexeldR[I];
+	      r32 TexelG = l0*TexelaG[I] + l1*TexelbG[I] + l2*TexelcG[I] + l3*TexeldG[I];
+	      r32 TexelB = l0*TexelaB[I] + l1*TexelbB[I] + l2*TexelcB[I] + l3*TexeldB[I];
+	      r32 TexelA = l0*TexelaA[I] + l1*TexelbA[I] + l2*TexelcA[I] + l3*TexeldA[I];
 	      
 	      TexelR = TexelR * Color.r;
 	      TexelG = TexelG * Color.g;
@@ -766,39 +819,41 @@ DrawRectangleHopefullyQuickly(loaded_bitmap *Buffer,
 	      TexelR = Clamp01(TexelR);
 	      TexelG = Clamp01(TexelG);
 	      TexelB = Clamp01(TexelB);
-	      	      
-	      r32 DestR = (r32)((*Pixel >> 16) & 0xff);
-	      r32 DestG = (r32)((*Pixel >>  8) & 0xff);
-	      r32 DestB = (r32)((*Pixel >>  0) & 0xff);
-	      r32 DestA = (r32)((*Pixel >> 24) & 0xff);
 
-	      DestR = Square(Inv255*DestR);
-	      DestG = Square(Inv255*DestG);
-	      DestB = Square(Inv255*DestB);
-	      DestA = Inv255*DestA;
+	      DestR[I] = Square(Inv255*DestR[I]);
+	      DestG[I] = Square(Inv255*DestG[I]);
+	      DestB[I] = Square(Inv255*DestB[I]);
+	      DestA[I] = Inv255*DestA[I];
 
 	      r32 InvTexelA = 1.0f - TexelA;
-	      r32 BlendedR = InvTexelA * DestR + TexelR;
-	      r32 BlendedG = InvTexelA * DestG + TexelG;
-	      r32 BlendedB = InvTexelA * DestB + TexelB;
-	      r32 BlendedA = InvTexelA * DestA + TexelA;
+	      BlendedR[I] = InvTexelA * DestR[I] + TexelR;
+	      BlendedG[I] = InvTexelA * DestG[I] + TexelG;
+	      BlendedB[I] = InvTexelA * DestB[I] + TexelB;
+	      BlendedA[I] = InvTexelA * DestA[I] + TexelA;
 	      
-	      BlendedR = One255*SquareRoot(BlendedR);
-	      BlendedG = One255*SquareRoot(BlendedG);
-	      BlendedB = One255*SquareRoot(BlendedB);
-	      BlendedA = One255*BlendedA;
-
-	      *Pixel = (((u32)(BlendedA + 0.5f) << 24) |
-			((u32)(BlendedR + 0.5f) << 16) |
-			((u32)(BlendedG + 0.5f) << 8)  |
-			((u32)(BlendedB + 0.5f) << 0));
-
-	      END_TIMED_BLOCK(TestPixel);
+	      BlendedR[I] = One255*SquareRoot(BlendedR[I]);
+	      BlendedG[I] = One255*SquareRoot(BlendedG[I]);
+	      BlendedB[I] = One255*SquareRoot(BlendedB[I]);
+	      BlendedA[I] = One255*BlendedA[I];
 	    }
+	  
+	  for(u32 I = 0;
+	      I < 4;
+	      ++I)
+	    {
+	      if(ShouldFill[I])
+		{
+		  *(Pixel + I) = (((u32)(BlendedA[I] + 0.5f) << 24) |
+				  ((u32)(BlendedR[I] + 0.5f) << 16) |
+				  ((u32)(BlendedG[I] + 0.5f) << 8)  |
+				  ((u32)(BlendedB[I] + 0.5f) << 0));
+		}
 
-	  ++Pixel;
+      	    }
 
-	  END_TIMED_BLOCK(FillPixel);
+	  Pixel += 4;
+	  
+	  END_TIMED_BLOCK(TestPixel);
 	}
       Row += Buffer->Pitch; 
     }

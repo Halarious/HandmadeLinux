@@ -19,6 +19,8 @@
 
 #if COMPILER_MSVC
 #include <intrin.h>
+#else
+#include <x86intrin.h>
 #endif
 
 #include <unistd.h>
