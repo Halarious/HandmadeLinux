@@ -4,7 +4,7 @@
 #endif
 
 #if !defined(COMPILER_LLVM)
-#define COMPILER_CLAG 0
+#define COMPILER_LLVM 0
 #endif
 
 #if !COMPILER_MSCV && !COMPILER_LLVM
@@ -19,15 +19,16 @@
 
 #if COMPILER_MSVC
 #include <intrin.h>
-#else
+#elif COMPILER_LLVM
 #include <x86intrin.h>
+#else
 #endif
 
 #include <unistd.h>
 #include <string.h>
 #include <stdint.h>
 //TODO: PATH_MAX seems problematic in general (same in Win though), but
-//      the consensus seems to be that it usually 4096 chars (not necessarily bytes)
+//      the consensus seems to be that its usually 4096 chars (not necessarily bytes)
 //      so we will use it for now
 #include <limits.h>
 #include <float.h>
@@ -60,7 +61,7 @@ typedef double r64;
 
 #define Pi32 3.14159265359f
 
-#ifdef __clang__
+#if COMPILER_LLVM
 #define Assert(Expresion) if(!(Expresion)){ __builtin_trap();}
 #else
 #define Assert(Expresion) if(!(Expresion)){(*((int*)0) = 0);}
@@ -104,8 +105,7 @@ enum
     DebugCycleCounter_RenderGroupToOutput,
     DebugCycleCounter_DrawRectangleSlowly,
     DebugCycleCounter_DrawRectangleHopefullyQuickly,
-    DebugCycleCounter_FillPixel,
-    DebugCycleCounter_TestPixel,
+    DebugCycleCounter_ProcessPixel,
     DebugCycleCounter_Count,
   };
 
@@ -121,10 +121,12 @@ extern struct memory* DebugGlobalMemory;
 #if COMPILER_LLVM
 #define BEGIN_TIMED_BLOCK(ID) u64 StartCycleCount##ID = __builtin_readcyclecounter();
 #define END_TIMED_BLOCK(ID)   DebugGlobalMemory->Counters[DebugCycleCounter_##ID].CycleCount += (__builtin_readcyclecounter() - StartCycleCount##ID); ++DebugGlobalMemory->Counters[DebugCycleCounter_##ID].HitCount;
+#define END_TIMED_BLOCK_COUNTED(ID, Count) DebugGlobalMemory->Counters[DebugCycleCounter_##ID].CycleCount += (__builtin_readcyclecounter() - StartCycleCount##ID); DebugGlobalMemory->Counters[DebugCycleCounter_##ID].HitCount += Count;
 
 #elif COMPILER_MSVC
 #define BEGIN_TIMED_BLOCK(ID) u64 StartCycleCount##ID = __rdtsc();
 #define END_TIMED_BLOCK(ID)   DebugGlobalMemory->Counters[DebugCycleCounter_##ID].CycleCount += (__rdtsc() - StartCycleCount##ID); ++DebugGlobalMemory->Counters[DebugCycleCounter_##ID].HitCount;
+#define END_TIMED_BLOCK_COUNTED(ID, Count) DebugGlobalMemory->Counters[DebugCycleCounter_##ID].CycleCount += (__rdtsc() - StartCycleCount##ID); DebugGlobalMemory->Counters[DebugCycleCounter_##ID].HitCount += Count;
 
 #else
 #define BEGIN_TIMED_BLOCK(ID) 
