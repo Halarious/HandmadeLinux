@@ -406,6 +406,8 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
   u8 *Row = ((u8*)Buffer->Memory
 	     + Buffer->Pitch * YMin
 	     + BytesPerPixel * XMin);
+
+  BEGIN_TIMED_BLOCK(ProcessPixel);
   for(int Y = YMin;
       Y <= YMax;
       ++Y)
@@ -560,17 +562,40 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
 	}
       Row += Buffer->Pitch; 
     }
-  
+  END_TIMED_BLOCK_COUNTED(ProcessPixel, (XMax - XMin + 1) * (YMax - YMin + 1));
+ 
   END_TIMED_BLOCK(DrawRectangleSlowly);
 }
 
-internal void
-DrawRectangleHopefullyQuickly(loaded_bitmap *Buffer,
-			      v2 Origin, v2 XAxis, v2 YAxis,
-			      v4 Color, loaded_bitmap* Texture,
-			      r32 PixelsToMeters)
+typedef struct
 {
-  BEGIN_TIMED_BLOCK(DrawRectangleHopefullyQuickly);
+  s32 mm_add_ps;
+  s32 mm_mul_ps;
+  s32 mm_castps_si128; 
+  s32 mm_and_ps;
+  s32 mm_or_si128;
+  s32 mm_andnot_si128;
+  s32 mm_min_ps;
+  s32 mm_max_ps;
+  s32 mm_cmple_ps;
+  s32 mm_cmpge_ps;
+  s32 mm_cvtepi32_ps;
+  s32 mm_cvtps_epi32;
+  s32 mm_cvttps_epi32;
+  s32 mm_sub_ps;
+  s32 mm_and_si128;
+  s32 mm_srli_epi32;
+  s32 mm_slli_epi32;
+  s32 mm_sqrt_ps;
+} counts;
+
+internal void
+DrawRectangleQuickly(loaded_bitmap *Buffer,
+		     v2 Origin, v2 XAxis, v2 YAxis,
+		     v4 Color, loaded_bitmap* Texture,
+		     r32 PixelsToMeters)
+{
+  BEGIN_TIMED_BLOCK(DrawRectangleQuickly);
 
   Color.rgb = V3MulS(Color.a, Color.rgb);
   
@@ -649,9 +674,10 @@ DrawRectangleHopefullyQuickly(loaded_bitmap *Buffer,
   __m128 Inv255_4x = _mm_set1_ps(Inv255);
   r32 One255 = 255.0f;
   __m128 One255_4x = _mm_set1_ps(One255);
-  
-  __m128 One  = _mm_set1_ps(1.0f);
+
   __m128 Zero = _mm_set1_ps(0.0f);
+  __m128 One  = _mm_set1_ps(1.0f);
+  __m128 Four_4x  = _mm_set1_ps(4.0f);
   __m128 MaskFF = _mm_set1_epi32(0xff);
   __m128 Colorr_4x = _mm_set1_ps(Color.r);
   __m128 Colorg_4x = _mm_set1_ps(Color.g);
@@ -677,6 +703,17 @@ DrawRectangleHopefullyQuickly(loaded_bitmap *Buffer,
       Y <= YMax;
       ++Y)
     {
+
+      __m128 PixelPy = _mm_set1_ps((r32)Y);
+      PixelPy = _mm_sub_ps(PixelPy, Originy_4x);
+ 
+      __m128 PixelPx = _mm_set_ps((r32)(XMin + 3),
+				  (r32)(XMin + 2),
+				  (r32)(XMin + 1),
+				  (r32)(XMin + 0));
+      PixelPx = _mm_sub_ps(PixelPx, Originx_4x);
+      
+      
       u32* Pixel = (u32*) Row;
       for(int XI = XMin;
 	  XI <= XMax;
@@ -685,17 +722,40 @@ DrawRectangleHopefullyQuickly(loaded_bitmap *Buffer,
 #define mmSquare(V) _mm_mul_ps(V, V)	  
 #define M(a, i) ((float *)&(a))[i]
 #define Mi(a, i) ((u32 *)&(a))[i]
-	  
-	  __m128 PixelPx = _mm_set_ps((r32)(XI + 3),
-				      (r32)(XI + 2),
-				      (r32)(XI + 1),
-				      (r32)(XI + 0));
-	  __m128 PixelPy = _mm_set1_ps((r32)Y);
 
-	  __m128 dx = _mm_sub_ps(PixelPx, Originx_4x);
-	  __m128 dy = _mm_sub_ps(PixelPy, Originy_4x);
-	  __m128 U = _mm_add_ps(_mm_mul_ps(dx, nXAxisx_4x), _mm_mul_ps(dy, nXAxisy_4x));
-	  __m128 V = _mm_add_ps(_mm_mul_ps(dx, nYAxisx_4x), _mm_mul_ps(dy, nYAxisy_4x));
+#define COUNT_CYCLES 0
+#if COUNT_CYCLES
+	  counts Counts = {};
+	  
+#define _mm_add_ps(a, b)       ++Counts.mm_add_ps; a; b 
+#define _mm_mul_ps(a, b)       ++Counts.mm_mul_ps; a; b 
+#define _mm_castps_si128(a)    ++Counts.mm_castps_si128; a 
+#define _mm_and_ps(a, b)       ++Counts.mm_and_ps; a; b
+#define _mm_or_si128(a, b)     ++Counts.mm_or_si128; a; b  
+#define _mm_andnot_si128(a, b) ++Counts.mm_andnot_si128; a; b  
+#define _mm_min_ps(a, b)       ++Counts.mm_min_ps; a; b 
+#define _mm_max_ps(a, b)       ++Counts.mm_max_ps; a; b  
+#define _mm_cmple_ps(a, b)     ++Counts.mm_cmple_ps; a; b  
+#define _mm_cmpge_ps(a, b)     ++Counts.mm_cmpge_ps; a; b  
+#define _mm_cvtepi32_ps(a)     ++Counts.mm_cvtepi32_ps; a 
+#define _mm_cvtps_epi32(a)     ++Counts.mm_cvtps_epi32; a
+#define _mm_cvttps_epi32(a)    ++Counts.mm_cvttps_epi32; a 
+#define _mm_sub_ps(a, b)       ++Counts.mm_sub_ps; a; b 
+#define _mm_and_si128(a, b)    ++Counts.mm_and_si128; a; b  
+#define _mm_srli_epi32(a, b)   ++Counts.mm_srli_epi32; a; b  
+#define _mm_slli_epi32(a, b)   ++Counts.mm_slli_epi32; a; b
+#define _mm_sqrt_ps(a)         ++Counts.mm_sqrt_ps; a
+#undef _mmSquare 
+#define _mmSquare(a) ++Count.mm_mul_ps; a
+#define __m128  s32
+#define __m128i s32
+
+#define _mm_loadu_si128(a) 0
+#define _mm_storeu_si128(a, b)
+#endif
+	  
+	  __m128 U = _mm_add_ps(_mm_mul_ps(PixelPx, nXAxisx_4x), _mm_mul_ps(PixelPy, nXAxisy_4x));
+	  __m128 V = _mm_add_ps(_mm_mul_ps(PixelPx, nYAxisx_4x), _mm_mul_ps(PixelPy, nYAxisy_4x));
 
 	  __m128i WriteMask = _mm_castps_si128(_mm_and_ps(_mm_and_ps(_mm_cmpge_ps(U, Zero),
 								     _mm_cmple_ps(U, One)),
@@ -843,14 +903,42 @@ DrawRectangleHopefullyQuickly(loaded_bitmap *Buffer,
 	  
 	      _mm_storeu_si128((__m128i*)Pixel, MaskedOut);
 	    }
-	  
-	  Pixel += 4;	  
+#if COUNT_CYLCES
+#undef _mm_add_ps
+	    
+	    r32 Total = 0;
+#define Sum(L, A) (L* (r32)A); Total += (L* (r32)A)
+	    r32 Thrd = 1.0f / 3.0f;
+	    r32 Half = 1.0f / 2.0f;
+	    
+	    r32 mm_add_ps       = Sum(Half, Counts.mm_add_ps);
+	    r32 mm_mul_ps       = Sum(Half, Counts.mm_mul_ps);
+	    r32 mm_castps_si128 = Sum(0, Counts.mm_castps_si128); 
+	    r32 mm_and_ps       = Sum(Thrd, Counts.mm_and_ps);
+	    r32 mm_or_si128     = Sum(Thrd, Counts.mm_or_si128);
+	    r32 mm_andnot_si128 = Sum(Thrd, Counts.mm_andnot_si128);
+	    r32 mm_min_ps       = Sum(Half, Counts.mm_min_ps);
+	    r32 mm_max_ps       = Sum(Half, Counts.mm_max_ps);
+	    r32 mm_cmple_ps     = Sum(Half, Counts.mm_cmple_ps);
+	    r32 mm_cmpge_ps     = Sum(Half, Counts.mm_cmpge_ps);
+	    r32 mm_cvtepi32_ps  = Sum(1, Counts.mm_cvtepi32_ps);
+	    r32 mm_cvtps_epi32  = Sum(1, Counts.mm_cvtps_epi32);
+	    r32 mm_cvttps_epi32 = Sum(1, Counts.mm_cvttps_epi32);
+	    r32 mm_sub_ps       = Sum(Half, Counts.mm_sub_ps);
+	    r32 mm_and_si128    = Sum(Thrd, Counts.mm_and_si128);
+	    r32 mm_srli_epi32   = Sum(1, Counts.mm_srli_epi32);
+	    r32 mm_slli_epi32   = Sum(1, Counts.mm_slli_epi32);
+	    r32 mm_sqrt_ps      = Sum(3, Counts.mm_sqrt_ps);
+#endif
+	    
+	    PixelPx  = _mm_add_ps(PixelPx, Four_4x);
+	    Pixel += 4;	  
 	}
       Row += Buffer->Pitch; 
     }
 
   END_TIMED_BLOCK_COUNTED(ProcessPixel, (XMax - XMin + 1)*(YMax - YMin + 1));
-  END_TIMED_BLOCK(DrawRectangleHopefullyQuickly);
+  END_TIMED_BLOCK(DrawRectangleQuickly);
 }
 
 internal void
@@ -964,17 +1052,23 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget)
 	    render_entry_bitmap* Entry = (render_entry_bitmap*) Data;
 	    entity_basis_p Basis = GetRenderEntityBasisP(RenderGroup, &Entry->EntityBasis, ScreenDim);
 	    Assert(Entry->Bitmap);
-#if 0 
-	    DrawBitmap(OutputTarget, Entry->Bitmap,
-		       P.x, P.y, Entry->Color.a);
+#if 0
+	    DrawRectangleSlowly(OutputTarget,
+				Basis.P,
+				V2MulS(Basis.Scale, V2(Entry->Size.x, 0.0f)),
+				V2MulS(Basis.Scale, V2(0.0f, Entry->Size.y)),
+				Entry->Color,
+				Entry->Bitmap,
+				0, 0, 0, 0,
+				PixelsToMeters);
 #else
-	    DrawRectangleHopefullyQuickly(OutputTarget,
-					  Basis.P,
-					  V2MulS(Basis.Scale, V2(Entry->Size.x, 0.0f)),
-					  V2MulS(Basis.Scale, V2(0.0f, Entry->Size.y)),
-					  Entry->Color,
-					  Entry->Bitmap,
-					  PixelsToMeters);
+	    DrawRectangleQuickly(OutputTarget,
+				 Basis.P,
+				 V2MulS(Basis.Scale, V2(Entry->Size.x, 0.0f)),
+				 V2MulS(Basis.Scale, V2(0.0f, Entry->Size.y)),
+				 Entry->Color,
+				 Entry->Bitmap,
+				 PixelsToMeters);
 #endif
 
 	    BaseAddress += sizeof(*Entry);
