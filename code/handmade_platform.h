@@ -22,6 +22,7 @@
 #elif COMPILER_LLVM
 #include <x86intrin.h>
 #else
+#error SSE/NEON optimizations are not available for this compiler!!!
 #endif
 
 #include <unistd.h>
@@ -44,6 +45,9 @@ typedef int32_t s64;
 typedef int32_t s32;
 typedef int16_t s16;
 typedef int8_t  s8;
+
+typedef uintptr_t uintptr;
+typedef  intptr_t intptr;
 
 typedef size_t memory_index;
 

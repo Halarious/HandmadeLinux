@@ -802,7 +802,7 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 	}
     }
 #endif
-    RenderGroupToOutput(RenderGroup, Buffer);
+    TiledRenderGroupToOutput(RenderGroup, Buffer);
     EndTemporaryMemory(GroundMemory);
 }
 
@@ -841,13 +841,13 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	InitializeArena(&State->Font.GlyphArena, Memory->PermanentStorageSize - sizeof(state),
 	(u8*)Memory->PermanentStorage + sizeof(state) + Megabytes(1));
       */
-      r32 PixelsToMeters = 1.0f / 42.0f;
- 
+
       u32 TilesPerWidth = 17;
       u32 TilesPerHeight = 9;
 
       State->TypicalFloorHeight = 3.0f;
-
+      
+      r32 PixelsToMeters = 1.0f / 42.0f;
       v3 WorldChunkDimInMeters = V3(PixelsToMeters*(r32)GroundBufferWidth,
 				    PixelsToMeters*(r32)GroundBufferHeight,
 				    State->TypicalFloorHeight);
@@ -1153,10 +1153,6 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
       State->TestDiffuse = MakeEmptyBitmap(&TransState->TransientArena,
 					   256, 256, false);
-      DrawRectangle(&State->TestDiffuse, V2(0.0f, 0.0f),
-		    V2i(State->TestDiffuse.Width,
-			State->TestDiffuse.Height),
-		    V4(0.5f, 0.5f, 0.5f, 0.5f));
       State->TestNormal = MakeEmptyBitmap(&TransState->TransientArena,
 					  State->TestDiffuse.Width,
 					  State->TestDiffuse.Height,
@@ -1313,6 +1309,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	      render_basis *Basis = PushStruct(&TransState->TransientArena, render_basis);
 	      RenderGroup->DefaultBasis = Basis;
 	      Basis->P = Delta;
+
 	      r32 GroundSideInMeters = World->ChunkDimInMeters.x;
 	      PushBitmap(RenderGroup, Bitmap,
 			 V3(0.0f, 0.0f, 0.0f),
@@ -1711,7 +1708,7 @@ r32 Angle = 0.1f * State->Time;
 #endif
 
 #endif
-  RenderGroupToOutput(RenderGroup, DrawBuffer);
+  TiledRenderGroupToOutput(RenderGroup, DrawBuffer);
     
   EndSim(SimRegion, State);
   EndTemporaryMemory(SimMemory);
