@@ -1141,11 +1141,31 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget, rect
 internal void
 TiledRenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget)
 {
-  //rectangle2i ClipRect = {0, 0, OutputTarget->Width, OutputTarget->Height};
-  rectangle2i ClipRect = {4, 4, OutputTarget->Width - 4, OutputTarget->Height - 4};
+  s32 TileCountX = 4;
+  s32 TileCountY = 4;
 
-  RenderGroupToOutput(RenderGroup, OutputTarget, ClipRect, false);
-  RenderGroupToOutput(RenderGroup, OutputTarget, ClipRect, true);
+  s32 TileWidth  = OutputTarget->Width  / TileCountX;
+  s32 TileHeight = OutputTarget->Height / TileCountY;
+  
+  for(s32 TileY = 0;
+      TileY < TileCountY;
+      ++TileY)
+    {
+      for(s32 TileX = 0;
+	  TileX < TileCountX;
+	  ++TileX)
+	{
+	  rectangle2i ClipRect;
+
+	  ClipRect.MinX = TileX*TileWidth + 4;
+	  ClipRect.MaxX = ClipRect.MinX + TileWidth - 4;
+	  ClipRect.MinY = TileY*TileHeight + 4;
+	  ClipRect.MaxY = ClipRect.MinY + TileHeight - 4;
+	  
+	  RenderGroupToOutput(RenderGroup, OutputTarget, ClipRect, false);
+	  RenderGroupToOutput(RenderGroup, OutputTarget, ClipRect, true);
+	}
+    }
 }
 
 internal render_group*
