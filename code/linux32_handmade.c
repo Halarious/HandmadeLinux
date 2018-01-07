@@ -6,6 +6,7 @@
 #include <X11/extensions/Xrandr.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <pthread.h>
 #include <dlfcn.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -533,9 +534,80 @@ HandleDebugCycleCounters(memory* Memory)
   #endif
 }
 
+typedef struct
+{
+  char* StringToPrint;
+} work_queue_entry;
+
+global_variable u32 NextEntryToDo = 0;
+global_variable u32 EntryCount;
+work_queue_entry Entries[256];
+
+internal void
+PushString(char* String)
+{
+  Assert(EntryCount < ArrayCount(Entries));
+
+  work_queue_entry* Entry = Entries + EntryCount++;
+  Entry->StringToPrint = String;
+}
+
+typedef struct
+{
+  u32 LogicalThreadIndex;
+} linux32_thread_info;
+  
+void*
+ThreadProc(void* lpParameter)
+{
+  linux32_thread_info* ThreadInfo = (linux32_thread_info*) lpParameter;
+
+  for(;;)
+    {
+      if(NextEntryToDo < EntryCount)
+	{
+	  u32 EntryIndex = NextEntryToDo++;
+	  work_queue_entry* Entry = Entries + EntryIndex;
+
+	  char Buffer[256];
+	  sprintf(Buffer, "Thread %u: %s\n", ThreadInfo->LogicalThreadIndex, Entry->StringToPrint);
+	  
+	  puts(Buffer);
+	}
+    }
+
+  return(0);
+}
+
 int
 main(int ArgCount, char** Arguments)
 {
+  linux32_state Linux32State = {};
+
+  linux32_thread_info ThreadInfo[8];
+  for(u32 Index = 0;
+      Index < ArrayCount(ThreadInfo);
+      ++Index)
+    {
+      linux32_thread_info* Info = ThreadInfo + Index;
+      Info->LogicalThreadIndex = Index; 
+
+      pthread_t ThreadID;
+      pthread_create(&ThreadID, 0, &ThreadProc, Info);
+    }
+
+  PushString("String 0\n");
+  PushString("String 1\n");
+  PushString("String 2\n");
+  PushString("String 3\n");
+  PushString("String 4\n");
+  PushString("String 5\n");
+  PushString("String 6\n");
+  PushString("String 7\n");
+  PushString("String 8\n");
+  PushString("String 9\n");
+  PushString("String 10\n");
+    
   char ELFFilename[PATH_MAX];
   ssize_t SizeOfFilename = readlink("/proc/self/exe", ELFFilename, sizeof(ELFFilename));  
   char* OnePastLastSlash = ELFFilename;
@@ -622,8 +694,6 @@ main(int ArgCount, char** Arguments)
 		   ButtonPressMask | ButtonReleaseMask |
 		   PointerMotionMask);
       XMapWindow(DisplayInfo.Display, DisplayInfo.Window);
-
-      linux32_state Linux32State = {};
       
 #if HANDMADE_INTERNAL
       void* BaseAddress = (void*) Terabytes(2);

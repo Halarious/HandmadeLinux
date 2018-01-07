@@ -45,3 +45,4 @@ typedef struct
   FILE *PlaybackHandle;
   int InputPlaybackIndex;
 } linux32_state;
+
