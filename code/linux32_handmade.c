@@ -7,6 +7,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include <dlfcn.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -539,24 +540,40 @@ typedef struct
   char* StringToPrint;
 } work_queue_entry;
 
-global_variable u32 NextEntryToDo = 0;
-global_variable u32 EntryCount;
+global_variable u32 volatile EntryCompletionCount = 0;
+global_variable u32 volatile NextEntryToDo = 0;
+global_variable u32 volatile EntryCount;
 work_queue_entry Entries[256];
 
+#define CompletePastWritesBeforeFutureWrites asm volatile("" ::: "memory"); _mm_sfence();
+#define CompletePastReadsBeforeFutureReads   asm volatile("" ::: "memory");
+
 internal void
-PushString(char* String)
+PushString(sem_t* SemaphoreHandle, char* String)
 {
   Assert(EntryCount < ArrayCount(Entries));
 
-  work_queue_entry* Entry = Entries + EntryCount++;
+  work_queue_entry* Entry = Entries + EntryCount;
   Entry->StringToPrint = String;
+
+  CompletePastWritesBeforeFutureWrites;
+  
+  ++EntryCount;
+
+  sem_post(SemaphoreHandle);
 }
 
 typedef struct
 {
-  u32 LogicalThreadIndex;
+  sem_t* SemaphoreHandle;
+  u32    LogicalThreadIndex;
 } linux32_thread_info;
-  
+
+#if COMPILER_MSVC
+#elif COMPILER_LLVM
+#else
+#endif
+
 void*
 ThreadProc(void* lpParameter)
 {
@@ -566,13 +583,20 @@ ThreadProc(void* lpParameter)
     {
       if(NextEntryToDo < EntryCount)
 	{
-	  u32 EntryIndex = NextEntryToDo++;
+	  u32 EntryIndex = __sync_add_and_fetch(&NextEntryToDo, 1) - 1;
+	  CompletePastReadsBeforeFutureReads;
 	  work_queue_entry* Entry = Entries + EntryIndex;
 
 	  char Buffer[256];
 	  sprintf(Buffer, "Thread %u: %s\n", ThreadInfo->LogicalThreadIndex, Entry->StringToPrint);
 	  
 	  puts(Buffer);
+
+	  __sync_add_and_fetch(&EntryCompletionCount, 1);
+	}
+      else
+	{
+	  sem_wait(ThreadInfo->SemaphoreHandle);
 	}
     }
 
@@ -584,30 +608,55 @@ main(int ArgCount, char** Arguments)
 {
   linux32_state Linux32State = {};
 
-  linux32_thread_info ThreadInfo[8];
+  linux32_thread_info ThreadInfo[4];
+  sem_t SemaphoreHandle;
+  
+  u32 InitialCount = 0;
+  u32 ThreadCount  = ArrayCount(ThreadInfo); 
+  u32 SemaphoreResult = sem_init (&SemaphoreHandle, 0, InitialCount);
+
+  Assert(!SemaphoreResult);
+  
   for(u32 Index = 0;
       Index < ArrayCount(ThreadInfo);
       ++Index)
     {
       linux32_thread_info* Info = ThreadInfo + Index;
+      Info->SemaphoreHandle    = &SemaphoreHandle;
       Info->LogicalThreadIndex = Index; 
 
       pthread_t ThreadID;
       pthread_create(&ThreadID, 0, &ThreadProc, Info);
     }
 
-  PushString("String 0\n");
-  PushString("String 1\n");
-  PushString("String 2\n");
-  PushString("String 3\n");
-  PushString("String 4\n");
-  PushString("String 5\n");
-  PushString("String 6\n");
-  PushString("String 7\n");
-  PushString("String 8\n");
-  PushString("String 9\n");
-  PushString("String 10\n");
-    
+  PushString(&SemaphoreHandle, "String A0\n");
+  PushString(&SemaphoreHandle, "String A1\n");
+  PushString(&SemaphoreHandle, "String A2\n");
+  PushString(&SemaphoreHandle, "String A3\n");
+  PushString(&SemaphoreHandle, "String A4\n");
+  PushString(&SemaphoreHandle, "String A5\n");
+  PushString(&SemaphoreHandle, "String A6\n");
+  PushString(&SemaphoreHandle, "String A7\n");
+  PushString(&SemaphoreHandle, "String A8\n");
+  PushString(&SemaphoreHandle, "String A9\n");
+  PushString(&SemaphoreHandle, "String A10\n");
+
+  sleep(5);
+  
+  PushString(&SemaphoreHandle, "String B0\n");
+  PushString(&SemaphoreHandle, "String B1\n");
+  PushString(&SemaphoreHandle, "String B2\n");
+  PushString(&SemaphoreHandle, "String B3\n");
+  PushString(&SemaphoreHandle, "String B4\n");
+  PushString(&SemaphoreHandle, "String B5\n");
+  PushString(&SemaphoreHandle, "String B6\n");
+  PushString(&SemaphoreHandle, "String B7\n");
+  PushString(&SemaphoreHandle, "String B8\n");
+  PushString(&SemaphoreHandle, "String B9\n");
+  PushString(&SemaphoreHandle, "String B10\n");
+
+  while(EntryCount != EntryCompletionCount);
+  
   char ELFFilename[PATH_MAX];
   ssize_t SizeOfFilename = readlink("/proc/self/exe", ELFFilename, sizeof(ELFFilename));  
   char* OnePastLastSlash = ELFFilename;
