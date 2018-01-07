@@ -139,7 +139,6 @@ extern struct memory* DebugGlobalMemory;
 
 #endif
 
-
 #define BITMAP_BYTES_PER_PIXEL 4
 typedef struct
 {
