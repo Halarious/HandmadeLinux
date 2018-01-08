@@ -209,6 +209,8 @@ typedef struct
   u32 GroundBufferCount;
   ground_buffer* GroundBuffers;
 
+  platform_work_queue* RenderQueue;
+  
   u32 EnvMapWidth;
   u32 EnvMapHeight;
   environment_map EnvMaps[3];
@@ -227,6 +229,9 @@ GetLowEntity(state *State, u32 Index)
 
   return(Result);
 }
+
+global_variable platform_add_entry* PlatformAddEntry;
+global_variable platform_complete_all_work* PlatformCompleteAllWork;
 
 internal void
 AddCollisionRule(state *State, u32 StorageIndexA, u32 StorageIndexB, bool32 CanCollide);

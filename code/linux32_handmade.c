@@ -535,31 +535,41 @@ HandleDebugCycleCounters(memory* Memory)
   #endif
 }
 
+typedef void work_queue_callback(platform_work_queue* Queue, void* Data);
 typedef struct
 {
-  void* UserPointer;
-} work_queue_entry_storage;
+  platform_work_queue_callback* Callback;
+  void* Data;
+} platform_work_queue_entry;
 
-typedef struct
+struct platform_work_queue
 {
-  u32 volatile EntryCount;
-  u32 volatile EntryCompletionCount;
-  u32 volatile NextEntryToDo;
+  u32 volatile CompletionGoal;
+  u32 volatile CompletionCount;
+
+  u32 volatile NextEntryToWrite;
+  u32 volatile NextEntryToRead;
   sem_t SemaphoreHandle;
 
-  work_queue_entry_storage Entries[256];
-} work_queue;
+  platform_work_queue_entry Entries[256];
+};
 
 internal void
-AddWorkQueueEntry(work_queue* Queue, void* Ptr)
+Linux32AddEntry(platform_work_queue* Queue, platform_work_queue_callback* Callback, void* Data)
 {
-  Assert(Queue->EntryCount < ArrayCount(Queue->Entries));
-  
-  Queue->Entries[Queue->EntryCount].UserPointer = Ptr;
+  u32 NewNextEntryToWrite = (Queue->NextEntryToWrite + 1) % ArrayCount(Queue->Entries);
+  Assert((NewNextEntryToWrite + 1) != Queue->NextEntryToRead);
+
+  platform_work_queue_entry* Entry = Queue->Entries + Queue->NextEntryToWrite;
+  Entry->Callback = Callback;
+  Entry->Data = Data;
+  ++Queue->CompletionGoal;
   asm volatile("" ::: "memory");
   _mm_sfence();
-  ++Queue->EntryCount;
+
+  Queue->NextEntryToWrite = NewNextEntryToWrite;
   sem_post(&Queue->SemaphoreHandle);
+
 }
 
 #if COMPILER_MSVC
@@ -567,62 +577,50 @@ AddWorkQueueEntry(work_queue* Queue, void* Ptr)
 #else
 #endif
 
-typedef struct
+internal bool32
+Linux32DoNextWorkQueueEntry(platform_work_queue* Queue)
 {
-  void* Data;
-  bool32 IsValid;
-} work_queue_entry;
-  
-internal work_queue_entry
-CompleteAndGetNextWorkQueueEntry(work_queue* Queue, work_queue_entry Completed)
-{
-  work_queue_entry Result = {};
+  bool32 WeShouldSleep = false;
 
-  if(Completed.IsValid)
+  u32 OriginalNextEntryToRead = Queue->NextEntryToRead;
+  u32 NewNextEntryToRead = (OriginalNextEntryToRead + 1) % ArrayCount(Queue->Entries);;
+  if(OriginalNextEntryToRead != Queue->NextEntryToWrite)
     {
-      //NOTE: Analogue to InterlockedIncrement
-      __sync_add_and_fetch(&Queue->EntryCompletionCount, 1);
+      u32 Index = __sync_val_compare_and_swap(&Queue->NextEntryToRead,
+					      OriginalNextEntryToRead,
+					      NewNextEntryToRead);
+      if(Index == OriginalNextEntryToRead)
+	{
+	  platform_work_queue_entry Entry = Queue->Entries[Index];
+	  Entry.Callback(Queue, Entry.Data);
+	  //NOTE: Analogue to InterlockedIncrement
+	  __sync_add_and_fetch(&Queue->CompletionCount, 1);
+	}
+    }
+  else
+    {
+      WeShouldSleep = true;
+    }
+  
+  return(WeShouldSleep);
+}
+
+internal void
+Linux32CompleteAllWork(platform_work_queue* Queue)
+{
+  while(Queue->CompletionGoal != Queue->CompletionCount)
+    {
+      Linux32DoNextWorkQueueEntry(Queue);
     }
 
-  u32 OriginalNextEntryToDo = Queue->NextEntryToDo;
-  if(OriginalNextEntryToDo < Queue->EntryCount)
-    {
-      
-      u32 Index = __sync_val_compare_and_swap(&Queue->NextEntryToDo,
-					      OriginalNextEntryToDo,
-					      OriginalNextEntryToDo + 1);
-      if(Index == OriginalNextEntryToDo)
-	{
-	  Result.Data = Queue->Entries[Index].UserPointer;
-	  Result.IsValid = true;
-	  asm volatile("" ::: "memory");
-      	}
-      }
-  
-  return(Result);
-}
-
-internal bool32
-QueueWorkStillInProgress(work_queue* Queue)
-{
-  bool32 Result = (Queue->EntryCount != Queue->EntryCompletionCount);
-  return(Result);
-}
-
-internal inline void
-DoWorkerWork(work_queue_entry Entry, u32 LogicalThreadIndex)
-{
-  Assert(Entry.IsValid);
-    
-  char Buffer[256];
-  sprintf(Buffer, "Thread %u: %s\n", LogicalThreadIndex, (char*)Entry.Data);
-  puts(Buffer);
+  Queue->CompletionGoal = 0;
+  Queue->CompletionCount = 0;
 }
 
 typedef struct
 {
-  u32    LogicalThreadIndex;
-  work_queue* Queue;
+  u32 LogicalThreadIndex;
+  platform_work_queue* Queue;
 } linux32_thread_info;
 
 void*
@@ -630,15 +628,9 @@ ThreadProc(void* lpParameter)
 {
   linux32_thread_info* ThreadInfo = (linux32_thread_info*) lpParameter;
 
-  work_queue_entry Entry = {};
   for(;;)
     {
-      Entry = CompleteAndGetNextWorkQueueEntry(ThreadInfo->Queue, Entry);
-      if(Entry.IsValid)
-	{
-	  DoWorkerWork(Entry, ThreadInfo->LogicalThreadIndex);
-	}
-      else
+      if(Linux32DoNextWorkQueueEntry(ThreadInfo->Queue))
 	{
 	  sem_wait(&ThreadInfo->Queue->SemaphoreHandle);
 	}
@@ -647,10 +639,12 @@ ThreadProc(void* lpParameter)
   return(0);
 }
 
-internal void
-PushString(work_queue *Queue, char* String)
+internal 
+PLATFORM_WORK_QUEUE_CALLBACK(DoWorkerWork)
 {
-  AddWorkQueueEntry(Queue, String);
+  char Buffer[256];
+  sprintf(Buffer, "Thread %lu: %s\n", pthread_self(), (char*)Data);
+  puts(Buffer);
 }
 
 int
@@ -658,9 +652,9 @@ main(int ArgCount, char** Arguments)
 {
   linux32_state Linux32State = {};
 
-  linux32_thread_info ThreadInfo[3];
+  linux32_thread_info ThreadInfo[4];
 
-  work_queue Queue = {};
+  platform_work_queue Queue = {};
 
   u32 InitialCount = 0;
   u32 ThreadCount  = ArrayCount(ThreadInfo); 
@@ -680,39 +674,31 @@ main(int ArgCount, char** Arguments)
       pthread_create(&ThreadID, 0, &ThreadProc, Info);
     }
 
-  PushString(ThreadInfo->Queue, "String A0\n");
-  PushString(ThreadInfo->Queue, "String A1\n");
-  PushString(ThreadInfo->Queue, "String A2\n");
-  PushString(ThreadInfo->Queue, "String A3\n");
-  PushString(ThreadInfo->Queue, "String A4\n");
-  PushString(ThreadInfo->Queue, "String A5\n");
-  PushString(ThreadInfo->Queue, "String A6\n");
-  PushString(ThreadInfo->Queue, "String A7\n");
-  PushString(ThreadInfo->Queue, "String A8\n");
-  PushString(ThreadInfo->Queue, "String A9\n");
-  PushString(ThreadInfo->Queue, "String A10\n");
+  Linux32AddEntry(ThreadInfo->Queue, DoWorkerWork, "String A0\n");
+  Linux32AddEntry(ThreadInfo->Queue, DoWorkerWork, "String A1\n");
+  Linux32AddEntry(ThreadInfo->Queue, DoWorkerWork, "String A2\n");
+  Linux32AddEntry(ThreadInfo->Queue, DoWorkerWork, "String A3\n");
+  Linux32AddEntry(ThreadInfo->Queue, DoWorkerWork, "String A4\n");
+  Linux32AddEntry(ThreadInfo->Queue, DoWorkerWork, "String A5\n");
+  Linux32AddEntry(ThreadInfo->Queue, DoWorkerWork, "String A6\n");
+  Linux32AddEntry(ThreadInfo->Queue, DoWorkerWork, "String A7\n");
+  Linux32AddEntry(ThreadInfo->Queue, DoWorkerWork, "String A8\n");
+  Linux32AddEntry(ThreadInfo->Queue, DoWorkerWork, "String A9\n");
+  Linux32AddEntry(ThreadInfo->Queue, DoWorkerWork, "String A10\n");
 
-  PushString(ThreadInfo->Queue, "String B0\n");
-  PushString(ThreadInfo->Queue, "String B1\n");
-  PushString(ThreadInfo->Queue, "String B2\n");
-  PushString(ThreadInfo->Queue, "String B3\n");
-  PushString(ThreadInfo->Queue, "String B4\n");
-  PushString(ThreadInfo->Queue, "String B5\n");
-  PushString(ThreadInfo->Queue, "String B6\n");
-  PushString(ThreadInfo->Queue, "String B7\n");
-  PushString(ThreadInfo->Queue, "String B8\n");
-  PushString(ThreadInfo->Queue, "String B9\n");
-  PushString(ThreadInfo->Queue, "String B10\n");
+  Linux32AddEntry(ThreadInfo->Queue, DoWorkerWork, "String B0\n");
+  Linux32AddEntry(ThreadInfo->Queue, DoWorkerWork, "String B1\n");
+  Linux32AddEntry(ThreadInfo->Queue, DoWorkerWork, "String B2\n");
+  Linux32AddEntry(ThreadInfo->Queue, DoWorkerWork, "String B3\n");
+  Linux32AddEntry(ThreadInfo->Queue, DoWorkerWork, "String B4\n");
+  Linux32AddEntry(ThreadInfo->Queue, DoWorkerWork, "String B5\n");
+  Linux32AddEntry(ThreadInfo->Queue, DoWorkerWork, "String B6\n");
+  Linux32AddEntry(ThreadInfo->Queue, DoWorkerWork, "String B7\n");
+  Linux32AddEntry(ThreadInfo->Queue, DoWorkerWork, "String B8\n");
+  Linux32AddEntry(ThreadInfo->Queue, DoWorkerWork, "String B9\n");
+  Linux32AddEntry(ThreadInfo->Queue, DoWorkerWork, "String B10\n");
 
-  work_queue_entry Entry = {};
-  while(QueueWorkStillInProgress(ThreadInfo->Queue))
-    {
-      Entry = CompleteAndGetNextWorkQueueEntry(&Queue, Entry);
-      if(Entry.IsValid)
-	{
-	  DoWorkerWork(Entry, 3);
-	}
-    }
+  Linux32CompleteAllWork(&Queue);
   
   char ELFFilename[PATH_MAX];
   ssize_t SizeOfFilename = readlink("/proc/self/exe", ELFFilename, sizeof(ELFFilename));  
@@ -748,8 +734,10 @@ main(int ArgCount, char** Arguments)
   DisplayInfo DisplayInfo = {};
   DisplayInfo.Display         = XOpenDisplay(NULL);
   DisplayInfo.Screen          = DefaultScreen(DisplayInfo.Display);
-  int w = 960;//DisplayWidth(DisplayInfo.Display, DisplayInfo.Screen)/2;
-  int h = 540;//DisplayHeight(DisplayInfo.Display, DisplayInfo.Screen)/2;
+  s32 w = 960;//DisplayWidth(DisplayInfo.Display, DisplayInfo.Screen)/2;
+  s32 h = 540;//DisplayHeight(DisplayInfo.Display, DisplayInfo.Screen)/2;
+  //s32 w = 1280;
+  //s32 h = 720;
   DisplayInfo.RootWindow      = RootWindow(DisplayInfo.Display, DisplayInfo.Screen);
   DisplayInfo.Visual          = DefaultVisual(DisplayInfo.Display, DisplayInfo.Screen);
   DisplayInfo.ScreenDepth     = DefaultDepth(DisplayInfo.Display, DisplayInfo.Screen); 
@@ -810,6 +798,9 @@ main(int ArgCount, char** Arguments)
       memory Memory = {};
       Memory.PermanentStorageSize = Megabytes(256);
       Memory.TransientStorageSize = Gigabytes((u64)1);
+      Memory.HighPriorityQueue = &Queue;
+      Memory.PlatformAddEntry = Linux32AddEntry;
+      Memory.PlatformCompleteAllWork = Linux32CompleteAllWork;
       Memory.DEBUGPlatformReadEntireFile = DEBUGPlatformReadEntireFile;
       Memory.DEBUGPlatformFreeFileMemory = DEBUGPlatformFreeFileMemory;
       Memory.DEBUGPlatformWriteEntireFile = DEBUGPlatformWriteEntireFile;

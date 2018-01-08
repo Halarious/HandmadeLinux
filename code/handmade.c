@@ -802,7 +802,7 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 	}
     }
 #endif
-    TiledRenderGroupToOutput(RenderGroup, Buffer);
+    TiledRenderGroupToOutput(TransState->RenderQueue, RenderGroup, Buffer);
     EndTemporaryMemory(GroundMemory);
 }
 
@@ -842,6 +842,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	(u8*)Memory->PermanentStorage + sizeof(state) + Megabytes(1));
       */
 
+      PlatformAddEntry = Memory->PlatformAddEntry;
+      PlatformCompleteAllWork = Memory->PlatformCompleteAllWork;
       u32 TilesPerWidth = 17;
       u32 TilesPerHeight = 9;
 
@@ -1135,6 +1137,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       InitializeArena(&TransState->TransientArena, Memory->TransientStorageSize - sizeof(transient_state),
 		      (u8*)Memory->TransientStorage + sizeof(transient_state));
 
+      TransState->RenderQueue = Memory->HighPriorityQueue;
       TransState->GroundBufferCount = 256;
       TransState->GroundBuffers = PushArray(&TransState->TransientArena,
 					    TransState->GroundBufferCount,
@@ -1708,7 +1711,7 @@ r32 Angle = 0.1f * State->Time;
 #endif
 
 #endif
-  TiledRenderGroupToOutput(RenderGroup, DrawBuffer);
+  TiledRenderGroupToOutput(TransState->RenderQueue, RenderGroup, DrawBuffer);
     
   EndSim(SimRegion, State);
   EndTemporaryMemory(SimMemory);
