@@ -46,14 +46,14 @@ InitScreenBuffer(DisplayInfo DisplayInfo,
   Buffer->BitmapInfo->bits_per_pixel = 32;
   Buffer->BytesPerPixel              = (Buffer->BitmapInfo->bits_per_pixel)/8;
   Buffer->BitmapInfo->bytes_per_line = Width*Buffer->BytesPerPixel;
-  
-  Buffer->BitmapMemorySize  = Buffer->Width*Buffer->Height*Buffer->BytesPerPixel;
+
+  Buffer->Pitch             = Width * Buffer->BytesPerPixel;
+  Buffer->BitmapMemorySize  = Align16(Buffer->Pitch * Buffer->Height);
   Buffer->BitmapMemory      = mmap(0, Buffer->BitmapMemorySize,
 				   PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS,
 				   -1, 0);
   Buffer->BitmapInfo->data  = (char*)(Buffer->BitmapMemory);
-  Buffer->Pitch             = Width*Buffer->BytesPerPixel;
-}
+  }
 
 internal struct timespec
 SubtractTimeValues(struct timespec EndTime, struct timespec BeginTime)
@@ -565,8 +565,7 @@ Linux32AddEntry(platform_work_queue* Queue, platform_work_queue_callback* Callba
   Entry->Data = Data;
   ++Queue->CompletionGoal;
   asm volatile("" ::: "memory");
-  _mm_sfence();
-
+  
   Queue->NextEntryToWrite = NewNextEntryToWrite;
   sem_post(&Queue->SemaphoreHandle);
 

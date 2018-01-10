@@ -81,6 +81,8 @@ typedef double r64;
 #define Gigabytes(Value) (Megabytes(Value)*1024LL)
 #define Terabytes(Value) (Gigabytes(Value)*1024LL)
 
+#define Align16(Value) ((Value + 15) & ~15)
+
 typedef struct
 {
 } thread_context;

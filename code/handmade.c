@@ -821,6 +821,9 @@ memory* DebugGlobalMemory;
 #endif
 extern UPDATE_AND_RENDER(UpdateAndRender)
 {
+  PlatformAddEntry = Memory->PlatformAddEntry;
+  PlatformCompleteAllWork = Memory->PlatformCompleteAllWork;
+
 #if HANDMADE_INTERNAL
   DebugGlobalMemory = Memory;
 #endif
@@ -842,8 +845,6 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	(u8*)Memory->PermanentStorage + sizeof(state) + Megabytes(1));
       */
 
-      PlatformAddEntry = Memory->PlatformAddEntry;
-      PlatformCompleteAllWork = Memory->PlatformCompleteAllWork;
       u32 TilesPerWidth = 17;
       u32 TilesPerHeight = 9;
 

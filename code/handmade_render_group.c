@@ -650,24 +650,35 @@ DrawRectangleQuickly(loaded_bitmap *Buffer,
 
   if(HasArea(FillRect))
     {
-      __m128i StartupClipMask = _mm_set1_epi32(0xFFFFFFFF);
-      s32 FillWidth = FillRect.MaxX - FillRect.MinX;
-      s32 FillWidthAlign = FillWidth & 3;
-      if(FillWidthAlign > 0)
-	{
-	  s32 Adjustment = (4 - FillWidthAlign);
-	  switch(Adjustment)
-	    {
-	  
-	    case 1: { StartupClipMask = _mm_slli_si128(StartupClipMask, 1*4); } break;
-	    case 2: { StartupClipMask = _mm_slli_si128(StartupClipMask, 2*4); } break;
-	    case 3: { StartupClipMask = _mm_slli_si128(StartupClipMask, 3*4); } break;
+      __m128i StartClipMask = _mm_set1_epi32(0xFFFFFFFF);
+      __m128i EndClipMask = _mm_set1_epi32(0xFFFFFFFF);
 
-	      InvalidDefaultCase;
-	    }
-      
-	  FillWidth += Adjustment;
-	  FillRect.MinX = FillRect.MaxX - FillWidth;
+      __m128i StartClipMasks[] =
+	{
+	  _mm_slli_si128(StartClipMask, 0*4),
+	  _mm_slli_si128(StartClipMask, 1*4),
+	  _mm_slli_si128(StartClipMask, 2*4),
+	  _mm_slli_si128(StartClipMask, 3*4),
+	};
+
+      __m128i EndClipMasks[] =
+	{
+	  _mm_srli_si128(EndClipMask, 0*4),
+	  _mm_srli_si128(EndClipMask, 3*4),
+	  _mm_srli_si128(EndClipMask, 2*4),
+	  _mm_srli_si128(EndClipMask, 1*4),
+	};
+	
+      if(FillRect.MinX & 3)
+	{
+	  StartClipMask = StartClipMasks[FillRect.MinX & 3];
+	  FillRect.MinX = FillRect.MinX & ~3;
+	}
+
+      if(FillRect.MaxX & 3)
+	{
+	  EndClipMask = EndClipMasks[FillRect.MaxX & 3];
+	  FillRect.MaxX = (FillRect.MaxX & ~3) + 4;
 	}
     
       v2 nXAxis = V2MulS(InvXAxisLengthSq, XAxis);
@@ -731,7 +742,7 @@ DrawRectangleQuickly(loaded_bitmap *Buffer,
 				      (r32)(MinX + 0));
 	  PixelPx = _mm_sub_ps(PixelPx, Originx_4x);
 
-	  __m128 ClipMask = StartupClipMask;
+	  __m128 ClipMask = StartClipMask;
       
 	  u32* Pixel = (u32*) Row;
 	  for(int XI = MinX;
@@ -754,7 +765,7 @@ DrawRectangleQuickly(loaded_bitmap *Buffer,
 	      WriteMask = _mm_and_si128(WriteMask, ClipMask);
 	      //if(_mm_movemask_epi8(WriteMask))
 	      {
-		__m128i OriginalDest = _mm_loadu_si128((__m128i*) Pixel);
+		__m128i OriginalDest = _mm_load_si128((__m128i*) Pixel);
  
 		U = _mm_min_ps(_mm_max_ps(U, Zero), One);
 		V = _mm_min_ps(_mm_max_ps(V, Zero), One);
@@ -915,13 +926,21 @@ DrawRectangleQuickly(loaded_bitmap *Buffer,
 		__m128i MaskedOut = _mm_or_si128(_mm_and_si128(WriteMask, Out),
 						 _mm_andnot_si128(WriteMask, OriginalDest));
 	  
-		_mm_storeu_si128((__m128i*)Pixel, MaskedOut);
+		_mm_store_si128((__m128i*)Pixel, MaskedOut);
 	      }
 
 	      PixelPx  = _mm_add_ps(PixelPx, Four_4x);
-	      Pixel += 4;	  
-	      ClipMask = _mm_set1_epi32(0xFFFFFFFF);
+	      Pixel += 4;
 
+	      if((XI + 8) < MaxX)
+		{
+		  ClipMask = _mm_set1_epi32(0xFFFFFFFF);
+		}
+	      else
+		{
+		  ClipMask = EndClipMask;
+		}
+	      
 	      IACA_END;
 	    }
 	  Row += RowAdvance; 
@@ -1160,9 +1179,13 @@ TiledRenderGroupToOutput(platform_work_queue* RenderQueue,
   s32 const TileCountX = 4;
   s32 const TileCountY = 4;
   tile_render_work WorkArray[TileCountX*TileCountY];
+
+  Assert(((uintptr)OutputTarget->Memory & 15) == 0);
   
   s32 TileWidth  = OutputTarget->Width  / TileCountX;
   s32 TileHeight = OutputTarget->Height / TileCountY;
+
+  TileWidth = ((TileWidth + 3) / 4) * 4;
 
   s32 WorkCount = 0;
   for(s32 TileY = 0;
@@ -1174,13 +1197,18 @@ TiledRenderGroupToOutput(platform_work_queue* RenderQueue,
 	  ++TileX)
 	{
 	  tile_render_work* Work = WorkArray + WorkCount++;
+
 	  rectangle2i ClipRect;
+	  ClipRect.MinX = TileX*TileWidth;
+	  ClipRect.MaxX = ClipRect.MinX + TileWidth;
+	  ClipRect.MinY = TileY*TileHeight;
+	  ClipRect.MaxY = ClipRect.MinY + TileHeight;
 
-	  ClipRect.MinX = TileX*TileWidth + 4;
-	  ClipRect.MaxX = ClipRect.MinX + TileWidth - 4;
-	  ClipRect.MinY = TileY*TileHeight + 4;
-	  ClipRect.MaxY = ClipRect.MinY + TileHeight - 4;
-
+	  if(ClipRect.MaxX > OutputTarget->Width)
+	    {
+	      ClipRect.MaxX = OutputTarget->Width;
+	    }
+	  
 	  Work->RenderGroup  = RenderGroup;
 	  Work->OutputTarget = OutputTarget;
 	  Work->ClipRect = ClipRect;
