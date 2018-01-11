@@ -47,8 +47,8 @@ InitScreenBuffer(DisplayInfo DisplayInfo,
   Buffer->BytesPerPixel              = (Buffer->BitmapInfo->bits_per_pixel)/8;
   Buffer->BitmapInfo->bytes_per_line = Width*Buffer->BytesPerPixel;
 
-  Buffer->Pitch             = Width * Buffer->BytesPerPixel;
-  Buffer->BitmapMemorySize  = Align16(Buffer->Pitch * Buffer->Height);
+  Buffer->Pitch             = Align16(Width * Buffer->BytesPerPixel);
+  Buffer->BitmapMemorySize  = Buffer->Pitch * Buffer->Height;
   Buffer->BitmapMemory      = mmap(0, Buffer->BitmapMemorySize,
 				   PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS,
 				   -1, 0);
@@ -733,11 +733,13 @@ main(int ArgCount, char** Arguments)
   DisplayInfo DisplayInfo = {};
   DisplayInfo.Display         = XOpenDisplay(NULL);
   DisplayInfo.Screen          = DefaultScreen(DisplayInfo.Display);
-  s32 w = 960;//DisplayWidth(DisplayInfo.Display, DisplayInfo.Screen)/2;
-  s32 h = 540;//DisplayHeight(DisplayInfo.Display, DisplayInfo.Screen)/2;
-  //s32 w = 1280;
-  //s32 h = 720;
-  DisplayInfo.RootWindow      = RootWindow(DisplayInfo.Display, DisplayInfo.Screen);
+  //s32 w = 960;//DisplayWidth(DisplayInfo.Display, DisplayInfo.Screen)/2;
+  //s32 h = 540;//DisplayHeight(DisplayInfo.Display, DisplayInfo.Screen)/2;
+  s32 w = 1280;
+  s32 h = 720;
+  //s32 w = 1279;
+  //s32 h = 719;
+    DisplayInfo.RootWindow      = RootWindow(DisplayInfo.Display, DisplayInfo.Screen);
   DisplayInfo.Visual          = DefaultVisual(DisplayInfo.Display, DisplayInfo.Screen);
   DisplayInfo.ScreenDepth     = DefaultDepth(DisplayInfo.Display, DisplayInfo.Screen); 
   DisplayInfo.GraphicsContext = DefaultGC(DisplayInfo.Display, DisplayInfo.Screen);

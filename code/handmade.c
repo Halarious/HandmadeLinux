@@ -1283,6 +1283,11 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   DrawBuffer->Pitch = Buffer->Pitch;
   DrawBuffer->Memory = Buffer->Memory;
 
+#if 0
+  DrawBuffer->Width = 1279;
+  DrawBuffer->Height = 719;
+#endif
+  
   temporary_memory RenderMemory = BeginTemporaryMemory(&TransState->TransientArena);  
   render_group* RenderGroup = AllocateRenderGroup(&TransState->TransientArena, Megabytes(4), DrawBuffer->Width, DrawBuffer->Height);
   

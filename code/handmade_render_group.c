@@ -1204,9 +1204,14 @@ TiledRenderGroupToOutput(platform_work_queue* RenderQueue,
 	  ClipRect.MinY = TileY*TileHeight;
 	  ClipRect.MaxY = ClipRect.MinY + TileHeight;
 
-	  if(ClipRect.MaxX > OutputTarget->Width)
+	  if(TileX == (TileCountX - 1))
 	    {
 	      ClipRect.MaxX = OutputTarget->Width;
+	    }
+
+	  if(TileY == (TileCountY - 1))
+	    {
+	      ClipRect.MaxY = OutputTarget->Height;
 	    }
 	  
 	  Work->RenderGroup  = RenderGroup;
