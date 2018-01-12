@@ -15,17 +15,6 @@ typedef struct
   loaded_bitmap LOD[4];
   r32 Pz;
 } environment_map;
-
-typedef struct
-{
-  v3 P;
-} render_basis;
-
-typedef struct
-{
-  render_basis *Basis;
-  v3 Offset;
-} render_entity_basis;
   
 typedef enum
 {
@@ -54,15 +43,14 @@ typedef struct
 typedef struct
 {
   loaded_bitmap *Bitmap;
-  render_entity_basis EntityBasis;
+  v2 P;
   v2 Size;
   v4 Color;
 } render_entry_bitmap;
 
 typedef struct
 {
-  render_entity_basis EntityBasis;
-
+  v2 P;
   v2 Dim;  
   v4 Color;
 } render_entry_rectangle;
@@ -76,6 +64,8 @@ typedef struct
   loaded_bitmap* Texture;
   loaded_bitmap* NormalMap;
 
+  //r32 PixelsToMeters;
+  
   environment_map* Top;
   environment_map* Middle;
   environment_map* Bottom;
@@ -83,20 +73,22 @@ typedef struct
 
 typedef struct
 {
+  r32 MetersToPixels;
+  v2 ScreenCenter;
+  
   r32 FocalLength;
   r32 DistanceAboveTarget;
-} render_group_camera;
+
+  v3 OffsetP;
+  r32 Scale;
+} render_transform;
 
 typedef struct
 {
-  render_group_camera GameCamera;
-  render_group_camera RenderCamera;
-  r32 MetersToPixels;
-  v2  MonitorHalfDimInMeters;  
-
   r32 GlobalAlpha;
 
-  render_basis *DefaultBasis;
+  v2  MonitorHalfDimInMeters;
+  render_transform Transform;  
     
   u32 PushBufferSize;
   u32 MaxPushBufferSize;

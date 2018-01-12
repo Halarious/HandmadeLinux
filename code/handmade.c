@@ -1315,17 +1315,14 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
 	  if ((Delta.z >= -1.0f)&& (Delta.z < 1.0f))
 	    {
-	      render_basis *Basis = PushStruct(&TransState->TransientArena, render_basis);
-	      RenderGroup->DefaultBasis = Basis;
-	      Basis->P = Delta;
-
 	      r32 GroundSideInMeters = World->ChunkDimInMeters.x;
 	      PushBitmap(RenderGroup, Bitmap,
-			 V3(0.0f, 0.0f, 0.0f),
-			 GroundSideInMeters, V4(1.0f, 1.0f, 1.0f, 1.0f));
+			 Delta,
+			 GroundSideInMeters,
+			 V4(1.0f, 1.0f, 1.0f, 1.0f));
 #if 1
 	      PushRectOutline(RenderGroup,
-			      V3(0.0f, 0.0f, 0.0f),
+			      Delta,
 			      V2(GroundSideInMeters, GroundSideInMeters),
 			      V4(1.0f, 1.0f, 0.0f, 1.0f));
 #endif
@@ -1407,10 +1404,6 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
   v3 CameraP = Subtract(World, &State->CameraP, &SimCenterP);
   
-  render_basis *Basis = PushStruct(&TransState->TransientArena, render_basis);
-  Basis->P = V3(0.0f, 0.0f, 0.0f);
-  RenderGroup->DefaultBasis = Basis;
-	  
   PushRectOutline(RenderGroup, V3(0.0f, 0.0f, 0.0f), GetDim2(ScreenBounds), V4(1.0f, 1.0f, 0.0f, 1.0f));
   //PushRectOutline(RenderGroup, V3(0.0f, 0.0f, 0.0f), GetDim(CameraBoundsInMeters).xy, V4(1.0f, 1.0f, 1.0f, 1.0f));
   PushRectOutline(RenderGroup, V3(0.0f, 0.0f, 0.0f), GetDim(SimBounds).xy, V4(0.0f, 1.0f, 1.0f, 1.0f));
@@ -1433,9 +1426,6 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  move_spec MoveSpec = DefaultMoveSpec();
 	  v3 ddP = {};
 
-	  render_basis *Basis = PushStruct(&TransState->TransientArena, render_basis);
-	  RenderGroup->DefaultBasis = Basis;
-
 	  v3 CameraRelativeGroundP = V3Sub(GetEntityGroundPointWithoutP(Entity), CameraP);
 	  r32 FadeTopEndZ  = 0.75f * State->TypicalFloorHeight;
 	  r32 FadeTopStartZ = 0.5f * State->TypicalFloorHeight;
@@ -1454,6 +1444,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  hero_bitmaps *Hero = &State->HeroBitmaps[Entity->FacingDirection];
 	  switch(Entity->Type)
 	    {
+
 	    case EntityType_Hero:
 	      {
 		for(u32 ControlIndex = 0;
@@ -1488,24 +1479,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 			  }
 		      }
 		  }
-		r32 HeroSizeC = 2.5f;
-		PushBitmap(RenderGroup, &State->Shadow, V3(0, 0, 0), HeroSizeC*1.0f, V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
-		PushBitmap(RenderGroup, &Hero->Torso, V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));
-		PushBitmap(RenderGroup, &Hero->Cape,  V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));
-		PushBitmap(RenderGroup, &Hero->Head,  V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));	
+	      } break;
 
-		DrawHitpoints(Entity, RenderGroup);
-	    	    
-	      } break;
-	    case EntityType_Wall:
-	      {
-		PushBitmap(RenderGroup, &State->Tree, V3(0, 0, 0), 2.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
-	      } break;
-	    case EntityType_Stairwell:
-	      {
-		PushRect(RenderGroup, V3(0, 0, 0), Entity->WalkableDim, V4(1, 0.5f, 0, 1));
-		PushRect(RenderGroup, V3(0, 0, Entity->WalkableHeight), Entity->WalkableDim, V4(1, 1, 0, 1));
-	      } break;
 	    case EntityType_Sword:
 	      {
 		MoveSpec.UnitMaxAccelVector = false;
@@ -1518,9 +1493,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		    MakeEntityNonSpatial(Entity);
 		  }
 
-		PushBitmap(RenderGroup, &State->Shadow, V3(0, 0, 0), 0.5f, V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
-		PushBitmap(RenderGroup, &State->Sword, V3(0, 0, 0), 0.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 	      } break;
+
 	    case EntityType_Familiar:
 	      {
 		sim_entity *ClosestHero = 0;
@@ -1563,14 +1537,64 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		    Entity->tBob -= 2.0f * Pi32;
 		  }
 		r32 BobSin = Sin(2.0f*Entity->tBob);
+		
+	      } break;
+	      
+	    default:
+	      {
 
+	      } break;
+	    }
+
+	  if(!IsSet(Entity, EntityFlag_Nonspatial) &&
+	     IsSet(Entity, EntityFlag_Moveable))
+	    {	      
+	      MoveEntity(State, SimRegion, Entity,
+			 Input->dtForFrame, &MoveSpec, ddP);
+	    }
+
+	  RenderGroup->Transform.OffsetP = GetEntityGroundPointWithoutP(Entity);
+	  
+	  switch(Entity->Type)
+	    {
+	    case EntityType_Hero:
+	      {
+		r32 HeroSizeC = 2.5f;
+		PushBitmap(RenderGroup, &State->Shadow, V3(0, 0, 0), HeroSizeC*1.0f, V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
+		PushBitmap(RenderGroup, &Hero->Torso, V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));
+		PushBitmap(RenderGroup, &Hero->Cape,  V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));
+		PushBitmap(RenderGroup, &Hero->Head,  V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));	
+		DrawHitpoints(Entity, RenderGroup);
+	    	    
+	      } break;
+
+	    case EntityType_Wall:
+	      {
+		PushBitmap(RenderGroup, &State->Tree, V3(0, 0, 0), 2.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
+	      } break;
+
+	    case EntityType_Stairwell:
+	      {
+		PushRect(RenderGroup, V3(0, 0, 0), Entity->WalkableDim, V4(1, 0.5f, 0, 1));
+		PushRect(RenderGroup, V3(0, 0, Entity->WalkableHeight), Entity->WalkableDim, V4(1, 1, 0, 1));
+	      } break;
+
+	    case EntityType_Sword:
+	      {
+		PushBitmap(RenderGroup, &State->Shadow, V3(0, 0, 0), 0.5f, V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
+		PushBitmap(RenderGroup, &State->Sword, V3(0, 0, 0), 0.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
+	      } break;
+
+	    case EntityType_Familiar:
+	      {
+		r32 BobSin = Sin(2.0f * Entity->tBob);
 		PushBitmap(RenderGroup, &State->Shadow, V3(0, 0, 0), 2.5f, V4(1.0f, 1.0f, 1.0f, 0.5f*ShadowAlpha + 0.2f*BobSin));
 		PushBitmap(RenderGroup, &Hero->Head, V3(0, 0, 0.25f*BobSin), 2.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 	      } break;
+
 	    case EntityType_Monstar:
 	      {
 		DrawHitpoints(Entity, RenderGroup);
-
 		PushBitmap(RenderGroup, &State->Shadow, V3(0, 0, 0), 4.5f, V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
 		PushBitmap(RenderGroup, &Hero->Torso, V3(0, 0, 0), 4.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 	      } break;
@@ -1583,7 +1607,6 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		    ++VolumeIndex)
 		  {
 		    sim_entity_collision_volume *Volume = Entity->Collision->Volumes + VolumeIndex;
-
 		    PushRectOutline(RenderGroup, V3Sub(Volume->OffsetP, V3(0.0f, 0.0f, 0.5f*Volume->Dim.z)), Volume->Dim.xy, V4(0, 0.5f, 1, 1));    
 		  }
 #endif
@@ -1594,15 +1617,6 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		InvalidCodePath;
 	      } break;
 	    }
-
-	  if(!IsSet(Entity, EntityFlag_Nonspatial) &&
-	     IsSet(Entity, EntityFlag_Moveable))
-	    {	      
-	      MoveEntity(State, SimRegion, Entity,
-			 Input->dtForFrame, &MoveSpec, ddP);
-	    }
-
-	  Basis->P = GetEntityGroundPointWithoutP(Entity);
 	}
     }
 
@@ -1680,18 +1694,19 @@ r32 Angle = 0.1f * State->Time;
 #else
   v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f);
 #endif
-  render_entry_coordinate_system *C = CoordinateSystem(RenderGroup,
-						       V2Add(Displacement,
-						       V2Sub(V2Sub(Origin, V2MulS(0.5, XAxis)),
-							     V2MulS(0.5, YAxis))),
-						       XAxis,
-						       YAxis,
-						       Color,
-						       &State->TestDiffuse,
-						       &State->TestNormal,
-						       TransState->EnvMaps + 2,
-						       TransState->EnvMaps + 1,
-						       TransState->EnvMaps + 0);
+  CoordinateSystem(RenderGroup,
+		   V2Add(Displacement,
+			 V2Sub(V2Sub(Origin, V2MulS(0.5, XAxis)),
+			       V2MulS(0.5, YAxis))),
+		   XAxis,
+		   YAxis,
+		   Color,
+		   &State->TestDiffuse,
+		   &State->TestNormal,
+		   TransState->EnvMaps + 2,
+		   TransState->EnvMaps + 1,
+		   TransState->EnvMaps + 0);
+  
   v2 MapP = V2(0.0f, 0.0f);
   for(u32 MapIndex = 0;
       MapIndex < ArrayCount(TransState->EnvMaps);
