@@ -1011,10 +1011,12 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget, rect
 				0, 0, 0, 0,
 				NullPixelsToMeters);
 #else
+	    v2 XAxis = V2(1.0f, 0.0f);//V2(Cos(Angle), Sin(Angle));
+	    v2 YAxis = V2(0.0f, 1.0f);//V2Perp(XAxis);
 	    DrawRectangleQuickly(OutputTarget,
 				 Entry->P,
-				 V2(Entry->Size.x, 0.0f),
-				 V2(0.0f, Entry->Size.y),
+				 V2MulS(Entry->Size.x, XAxis),
+				 V2MulS(Entry->Size.y, YAxis),
 				 Entry->Color,
 				 Entry->Bitmap,
 				 NullPixelsToMeters,
@@ -1163,8 +1165,11 @@ TiledRenderGroupToOutput(platform_work_queue* RenderQueue,
 	  Work->RenderGroup  = RenderGroup;
 	  Work->OutputTarget = OutputTarget;
 	  Work->ClipRect = ClipRect;
-	  
+#if 1
 	  PlatformAddEntry(RenderQueue, DoTiledRenderWork, Work);
+#else
+	  DoTiledRenderWork(RenderQueue, Work)
+#endif
 	}
     }
 
@@ -1172,8 +1177,7 @@ TiledRenderGroupToOutput(platform_work_queue* RenderQueue,
 }
 
 internal render_group*
-AllocateRenderGroup(memory_arena *Arena, u32 MaxPushBufferSize,
-		    u32 ResolutionPixelsX, u32 ResolutionPixelsY)
+AllocateRenderGroup(memory_arena *Arena, u32 MaxPushBufferSize)
 {
   render_group* Result = PushStruct(Arena, render_group);
   Result->PushBufferBase = PushSize(Arena, MaxPushBufferSize);
@@ -1182,22 +1186,45 @@ AllocateRenderGroup(memory_arena *Arena, u32 MaxPushBufferSize,
   Result->PushBufferSize = 0;
 
   Result->GlobalAlpha = 1.0f;
-
-  r32 WidthOfMonitor = 0.635f;
-  r32 MetersToPixels = (r32)ResolutionPixelsX * WidthOfMonitor;
-  r32 PixelsToMeters = SafeRatio1(1.0, MetersToPixels);
-  Result->MonitorHalfDimInMeters = V2(0.5f*ResolutionPixelsX * PixelsToMeters,
-				      0.5f*ResolutionPixelsY * PixelsToMeters);
   
-  Result->Transform.MetersToPixels = MetersToPixels; 
-  Result->Transform.FocalLength = 0.6f;
-  Result->Transform.DistanceAboveTarget = 9.0f;
-  Result->Transform.ScreenCenter = V2(0.5f*ResolutionPixelsX,
-				       0.5f*ResolutionPixelsY);
   Result->Transform.OffsetP = V3(0.0f, 0.0f, 0.0f);
   Result->Transform.Scale = 1.0f;
   
   return(Result);
+}
+
+internal inline void
+Perspective(render_group* RenderGroup, s32 PixelWidth, s32 PixelHeight,
+	    r32 MetersToPixels, r32 FocalLength, r32 DistanceAboveTarget)
+{
+  r32 PixelsToMeters = SafeRatio1(1.0, MetersToPixels);
+  RenderGroup->MonitorHalfDimInMeters = V2(0.5f* PixelWidth * PixelsToMeters,
+				      0.5f* PixelHeight * PixelsToMeters);
+
+  RenderGroup->Transform.MetersToPixels = MetersToPixels; 
+  RenderGroup->Transform.FocalLength = FocalLength;
+  RenderGroup->Transform.DistanceAboveTarget = DistanceAboveTarget;
+  RenderGroup->Transform.ScreenCenter = V2(0.5f*PixelWidth,
+				      0.5f*PixelHeight);
+
+  RenderGroup->Transform.Orthographic = false;
+}
+
+internal inline void
+Orthographic(render_group* RenderGroup, s32 PixelWidth, s32 PixelHeight,
+	    r32 MetersToPixels)
+{
+  r32 PixelsToMeters = SafeRatio1(1.0, MetersToPixels);
+  RenderGroup->MonitorHalfDimInMeters = V2(0.5f* PixelWidth * PixelsToMeters,
+				      0.5f* PixelHeight * PixelsToMeters);
+
+  RenderGroup->Transform.MetersToPixels = MetersToPixels; 
+  RenderGroup->Transform.FocalLength = 1.0f;
+  RenderGroup->Transform.DistanceAboveTarget = 1.0f;
+  RenderGroup->Transform.ScreenCenter = V2(0.5f*PixelWidth,
+				      0.5f*PixelHeight);
+
+  RenderGroup->Transform.Orthographic = true;
 }
 
 typedef struct
@@ -1214,32 +1241,43 @@ GetRenderEntityBasisP(render_transform* Transform, v3 OriginalP)
 
   v3 P = V3Add(ToV3(OriginalP.xy, 0.0f), Transform->OffsetP);
 
-  r32 OffsetZ = 0;
-  
-  r32 DistanceAboveTarget = Transform->DistanceAboveTarget;
-#if 0
-  if(1)
+  if(!Transform->Orthographic)
     {
-      DistanceAboveTarget += 50.0f;
-    }
+      r32 OffsetZ = 0;
+  
+      r32 DistanceAboveTarget = Transform->DistanceAboveTarget;
+#if 0
+      if(1)
+	{
+	  DistanceAboveTarget += 50.0f;
+	}
 #endif
   
-  r32 DistanceToPZ = DistanceAboveTarget - P.z;
-  r32 NearClipPlane = 0.2f;
+      r32 DistanceToPZ = DistanceAboveTarget - P.z;
+      r32 NearClipPlane = 0.2f;
 
-  v3 RawXY = ToV3(P.xy, 1.0f); 
+      v3 RawXY = ToV3(P.xy, 1.0f); 
 
-  if(DistanceToPZ > NearClipPlane)
+      if(DistanceToPZ > NearClipPlane)
+	{
+	  v3 ProjectedXY = V3MulS((1.0f / DistanceToPZ),
+				  V3MulS(Transform->FocalLength,
+					 RawXY));
+
+	  Result.Scale = Transform->MetersToPixels * ProjectedXY.z;
+	  Result.P = V2Add(Transform->ScreenCenter,
+			   V2Add(V2MulS(Transform->MetersToPixels,
+					ProjectedXY.xy),
+				 V2(0.0f, Result.Scale * OffsetZ)));
+	  Result.Valid = true;
+	}
+    }
+  else
     {
-      v3 ProjectedXY = V3MulS((1.0f / DistanceToPZ),
-			      V3MulS(Transform->FocalLength,
-				     RawXY));
-
-      Result.Scale = Transform->MetersToPixels * ProjectedXY.z;
-      Result.P = V2Add(
-		       V2Add(Transform->ScreenCenter, V2MulS(Transform->MetersToPixels,
-							     ProjectedXY.xy)),
-		       V2(0.0f, Result.Scale * OffsetZ));
+      Result.P = V2Add(Transform->ScreenCenter,
+		       V2MulS(Transform->MetersToPixels,
+			      P.xy));
+      Result.Scale = Transform->MetersToPixels;
       Result.Valid = true;
     }
   

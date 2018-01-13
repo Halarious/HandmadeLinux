@@ -715,23 +715,24 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 		world_position* ChunkP)
 {
   temporary_memory GroundMemory = BeginTemporaryMemory(&TransState->TransientArena);  
+  GroundBuffer->P = *ChunkP;
 
   loaded_bitmap *Buffer = &GroundBuffer->Bitmap;
   Buffer->AlignPercentage = V2(0.5f, 0.5f);
   Buffer->WidthOverHeight = 1.0f;
   
-  render_group* RenderGroup = AllocateRenderGroup(&TransState->TransientArena, Megabytes(4),
-						  Buffer->Width, Buffer->Height);
-  Clear(RenderGroup, V4(1.0f, 1.0f, 0.0f, 1.0f));
-
-  GroundBuffer->P = *ChunkP;
-
-#if 1
   r32 Width  = State->World->ChunkDimInMeters.x;
   r32 Height = State->World->ChunkDimInMeters.y;  
+  Assert(Width == Height);
   v2 HalfDim = V2MulS(0.5f, V2(Width, Height));
 
-  HalfDim = V2MulS(2.0, HalfDim);
+  render_group* RenderGroup = AllocateRenderGroup(&TransState->TransientArena, Megabytes(4));
+  Orthographic(RenderGroup, Buffer->Width, Buffer->Height,
+	       Buffer->Width / Width);
+
+  Clear(RenderGroup, V4(1.0f, 0.0f, 1.0f, 1.0f));
+
+  //HalfDim = V2MulS(0.5f, HalfDim);
   
   for(s32 ChunkOffsetY = -1;
       ChunkOffsetY <= 1;
@@ -746,14 +747,20 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 	  s32 ChunkZ = ChunkP->ChunkZ;
   
 	  random_series Series = Seed(139*ChunkX + 593*ChunkY + 329*ChunkZ);
-	  
+
+	  v4 Color = V4(1, 0, 0, 1);
+	  if((ChunkX % 2) == (ChunkY % 2))
+	    {
+	      Color = V4(0, 0, 1, 1);
+	    }
+	  	  
 	  v2 Center = V2(ChunkOffsetX*Width, ChunkOffsetY*Height);
+
 	  for(u32 GrassIndex = 0;
 	      GrassIndex < 100;
 	      ++GrassIndex)
 	    {
 	      loaded_bitmap *Stamp;
-
 	      if(RandomChoice(&Series, 2))
 		{
 		  Stamp = State->Grass + RandomChoice(&Series, ArrayCount(State->Grass));
@@ -767,7 +774,7 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 	      v2 P = V2Add(Center, Offset);
       
 	      PushBitmap(RenderGroup, Stamp, ToV3(P, 0.0f),
-			 4.0f, V4(1.0f, 1.0f, 1.0f, 1.0f));
+			 2.0f, Color);
 	    }
 	}
     }
@@ -787,8 +794,9 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 	  random_series Series = Seed(139*ChunkX + 593*ChunkY + 329*ChunkZ);
 	  
 	  v2 Center = V2(ChunkOffsetX*Width, ChunkOffsetY*Height);
+
 	  for(u32 TuftIndex = 0;
-	      TuftIndex < 30;
+	      TuftIndex < 50;
 	      ++TuftIndex)
 	    {
 	      loaded_bitmap *Stamp = State->Tuft + RandomChoice(&Series, ArrayCount(State->Tuft));
@@ -797,11 +805,11 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 	      v2 P = V2Add(Center, Offset);
       
 	      PushBitmap(RenderGroup, Stamp, ToV3(P, 0.0f),
-			 0.4f, V4(1.0f, 1.0f, 1.0f, 1.0f));
+			 0.1f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 	    }
 	}
     }
-#endif
+
     TiledRenderGroupToOutput(TransState->RenderQueue, RenderGroup, Buffer);
     EndTemporaryMemory(GroundMemory);
 }
@@ -1120,8 +1128,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  FamiliarIndex < 1;
 	  ++FamiliarIndex)
 	{
-	  s32 FamiliarOffsetX =  RandomBetweenS32(&Series, -7, 2);
-	  s32 FamiliarOffsetY =  RandomBetweenS32(&Series, -3, 2);
+	  s32 FamiliarOffsetX =  RandomBetweenS32(&Series, -7, 7);
+	  s32 FamiliarOffsetY =  RandomBetweenS32(&Series, -3, -1);
 	  AddFamiliar(State,
 		      CameraTileX + FamiliarOffsetX,
 		      CameraTileY + FamiliarOffsetY, CameraTileZ);
@@ -1276,6 +1284,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	}
     }
 
+  temporary_memory RenderMemory = BeginTemporaryMemory(&TransState->TransientArena);  
+  
   loaded_bitmap DrawBuffer_ = {};
   loaded_bitmap *DrawBuffer = &DrawBuffer_;
   DrawBuffer->Width = Buffer->Width;
@@ -1287,10 +1297,10 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   DrawBuffer->Width = 1279;
   DrawBuffer->Height = 719;
 #endif
-  
-  temporary_memory RenderMemory = BeginTemporaryMemory(&TransState->TransientArena);  
-  render_group* RenderGroup = AllocateRenderGroup(&TransState->TransientArena, Megabytes(4), DrawBuffer->Width, DrawBuffer->Height);
-  
+  render_group* RenderGroup = AllocateRenderGroup(&TransState->TransientArena, Megabytes(4));
+  r32 WidthOfMonitor = 0.635f;
+  r32 MetersToPixels = (r32)DrawBuffer->Width * WidthOfMonitor;
+  Perspective(RenderGroup, DrawBuffer->Width, DrawBuffer->Height, MetersToPixels, 0.6f, 9.0f);
   Clear(RenderGroup, V4(0.25f, 0.25f, 0.25f, 1.0f));
   
   v2 ScreenCenter = V2(0.5f * (r32)DrawBuffer->Width,
@@ -1320,7 +1330,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 			 Delta,
 			 GroundSideInMeters,
 			 V4(1.0f, 1.0f, 1.0f, 1.0f));
-#if 1
+#if 0
 	      PushRectOutline(RenderGroup,
 			      Delta,
 			      V2(GroundSideInMeters, GroundSideInMeters),

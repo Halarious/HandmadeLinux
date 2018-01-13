@@ -496,7 +496,10 @@ DisplayBufferInWindow(DisplayInfo DisplayInfo, linux32_offscreen_buffer* Buffer)
 				+ ((Buffer->Height - 1) - Y) * Buffer->Pitch); 
       memmove(BufferMemoryLine, MemoryLine, Buffer->Pitch);
     }
-  Buffer->BitmapInfo->data = FlipBuffer;
+
+  munmap(Buffer->BitmapMemory, Buffer->BitmapMemorySize);
+  Buffer->BitmapMemory = FlipBuffer;
+  Buffer->BitmapInfo->data = (char*)Buffer->BitmapMemory;
   
   XPutImage(DisplayInfo.Display,
 	    GlobalOffscreenBuffer.BitmapHandle, 
@@ -739,7 +742,7 @@ main(int ArgCount, char** Arguments)
   s32 h = 720;
   //s32 w = 1279;
   //s32 h = 719;
-    DisplayInfo.RootWindow      = RootWindow(DisplayInfo.Display, DisplayInfo.Screen);
+  DisplayInfo.RootWindow      = RootWindow(DisplayInfo.Display, DisplayInfo.Screen);
   DisplayInfo.Visual          = DefaultVisual(DisplayInfo.Display, DisplayInfo.Screen);
   DisplayInfo.ScreenDepth     = DefaultDepth(DisplayInfo.Display, DisplayInfo.Screen); 
   DisplayInfo.GraphicsContext = DefaultGC(DisplayInfo.Display, DisplayInfo.Screen);

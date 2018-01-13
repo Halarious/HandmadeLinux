@@ -43,6 +43,7 @@ typedef struct
 typedef struct
 {
   loaded_bitmap *Bitmap;
+
   v2 P;
   v2 Size;
   v4 Color;
@@ -73,6 +74,8 @@ typedef struct
 
 typedef struct
 {
+  bool32 Orthographic;
+
   r32 MetersToPixels;
   v2 ScreenCenter;
   
