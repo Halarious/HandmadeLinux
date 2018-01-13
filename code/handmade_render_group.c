@@ -1212,8 +1212,10 @@ GetRenderEntityBasisP(render_transform* Transform, v3 OriginalP)
 { 
   entity_basis_p Result = {};
 
-  v3 P = V3Add(OriginalP, Transform->OffsetP);
+  v3 P = V3Add(ToV3(OriginalP.xy, 0.0f), Transform->OffsetP);
 
+  r32 OffsetZ = 0;
+  
   r32 DistanceAboveTarget = Transform->DistanceAboveTarget;
 #if 0
   if(1)
@@ -1232,10 +1234,12 @@ GetRenderEntityBasisP(render_transform* Transform, v3 OriginalP)
       v3 ProjectedXY = V3MulS((1.0f / DistanceToPZ),
 			      V3MulS(Transform->FocalLength,
 				     RawXY));
-  
-      Result.P = V2Add(Transform->ScreenCenter, V2MulS(Transform->MetersToPixels,
-						       ProjectedXY.xy));
+
       Result.Scale = Transform->MetersToPixels * ProjectedXY.z;
+      Result.P = V2Add(
+		       V2Add(Transform->ScreenCenter, V2MulS(Transform->MetersToPixels,
+							     ProjectedXY.xy)),
+		       V2(0.0f, Result.Scale * OffsetZ));
       Result.Valid = true;
     }
   

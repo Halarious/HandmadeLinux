@@ -726,7 +726,7 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 
   GroundBuffer->P = *ChunkP;
 
-#if 0
+#if 1
   r32 Width  = State->World->ChunkDimInMeters.x;
   r32 Height = State->World->ChunkDimInMeters.y;  
   v2 HalfDim = V2MulS(0.5f, V2(Width, Height));
