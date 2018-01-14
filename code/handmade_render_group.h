@@ -86,8 +86,11 @@ typedef struct
   r32 Scale;
 } render_transform;
 
+typedef struct assets assets;
 typedef struct
 {
+  assets* Assets;
+
   r32 GlobalAlpha;
 
   v2  MonitorHalfDimInMeters;

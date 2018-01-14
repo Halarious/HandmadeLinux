@@ -198,6 +198,41 @@ typedef struct
   loaded_bitmap Bitmap;
 } ground_buffer;
 
+typedef enum
+  {
+    GAI_Backdrop,
+    GAI_Shadow,
+    GAI_Tree,
+    GAI_Sword,
+    GAI_Stairwell,
+
+    GAI_Count,
+  } asset_id;
+
+typedef struct transient_state transient_state;
+struct assets
+{
+  transient_state* TransState;
+  
+  memory_arena Arena;
+  debug_platform_read_entire_file *ReadEntireFile;
+  
+  loaded_bitmap* Bitmaps[GAI_Count];
+
+  loaded_bitmap Grass[2];
+  loaded_bitmap Stone[4];
+  loaded_bitmap Tuft[3];
+
+  hero_bitmaps HeroBitmaps[4];
+};
+
+internal inline loaded_bitmap*
+GetBitmap(assets* Assets, asset_id ID)
+{
+  loaded_bitmap* Result = Assets->Bitmaps[ID];
+  return(Result);
+}
+
 typedef struct
 {
   memory_arena WorldArena;
@@ -212,18 +247,6 @@ typedef struct
     
   u32 LowEntityCount;
   low_entity LowEntities[100000];
-
-  loaded_bitmap Grass[2];
-  loaded_bitmap Stone[4];
-  loaded_bitmap Tuft[3];
-  
-  loaded_bitmap Backdrop;
-  loaded_bitmap Shadow;
-  hero_bitmaps HeroBitmaps[4];
-
-  loaded_bitmap Tree;
-  loaded_bitmap Sword;
-  loaded_bitmap Stairwell;
   
   pairwise_collision_rule *CollisionRuleHash[256];
   pairwise_collision_rule *FirstFreeCollisionRule;
@@ -241,7 +264,6 @@ typedef struct
 
   loaded_bitmap TestDiffuse;
   loaded_bitmap TestNormal;
-  
 } state;
 
 typedef struct
@@ -252,7 +274,7 @@ typedef struct
   temporary_memory MemoryFlush;
 } task_with_memory;
   
-typedef struct
+struct transient_state 
 {
   bool32 IsInitialized;
   memory_arena TransientArena;
@@ -268,7 +290,9 @@ typedef struct
   u32 EnvMapWidth;
   u32 EnvMapHeight;
   environment_map EnvMaps[3];
-} transient_state;
+
+  assets Assets;
+};
 
 internal inline low_entity*
 GetLowEntity(state *State, u32 Index)
@@ -290,4 +314,5 @@ internal void
 AddCollisionRule(state *State, u32 StorageIndexA, u32 StorageIndexB, bool32 CanCollide);
 internal void
 ClearCollisionRuleFor(state *State, u32 StorageIndex);
-
+internal void
+LoadAsset(assets* Assets, asset_id ID);
