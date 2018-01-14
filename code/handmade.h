@@ -57,15 +57,49 @@ InitializeArena(memory_arena* Arena, memory_index Size, void* StorageBase)
   Arena->TempCount = 0;
 }
 
-#define PushStruct(Arena, type) (type*)PushSize_(Arena, sizeof(type))
-#define PushArray(Arena, Count, type) (type*)PushSize_(Arena, sizeof(type)*Count)
-#define PushSize(Arena, Size) PushSize_(Arena, Size)
-internal void*
-PushSize_(memory_arena* Arena, memory_index Size)
+internal inline memory_index
+GetAlignmentOffset(memory_arena* Arena, memory_index Alignment)
 {
+  memory_index AlignmentOffset = 0;
+  
+  memory_index ResultPointer  = (memory_index)Arena->Base + Arena->Used;
+  memory_index AlignmentMask = Alignment - 1;
+  if(ResultPointer & AlignmentMask)
+    {
+      AlignmentOffset = Alignment - (ResultPointer & AlignmentMask);
+    }
+
+  return(AlignmentOffset);
+}
+
+internal memory_index
+GetArenaSizeRemaining(memory_arena* Arena, memory_index Alignment)
+{
+  memory_index Result = Arena->Size - (Arena->Used + GetAlignmentOffset(Arena,Alignment));
+  return(Result);
+}
+
+#define PushStruct(Arena, type) (type*)PushSize_(Arena, sizeof(type), 4)
+#define PushArray(Arena, Count, type) (type*)PushSize_(Arena, sizeof(type)*Count, 4)
+#define PushSize(Arena, Size) PushSize_(Arena, Size, 4)
+#define PushStructA(Arena, type, ...) (type*)PushSize_(Arena, sizeof(type), ## __VA_ARGS__)
+#define PushArrayA(Arena, Count, type, ...) (type*)PushSize_(Arena, sizeof(type)*Count, ## __VA_ARGS__)
+#define PushSizeA(Arena, Size, ...) PushSize_(Arena, Size, ## __VA_ARGS__)
+internal void*
+PushSize_(memory_arena* Arena, memory_index SizeInit, memory_index Alignment)
+{
+  memory_index Size = SizeInit;
+  
+  memory_index AlignmentOffset = GetAlignmentOffset(Arena, Alignment);
+  Size += AlignmentOffset;
+ 
   Assert((Arena->Used + Size) <= Arena->Size); 
-  void* Result = Arena->Base + Arena->Used;
+
+  void* Result = Arena->Base + Arena->Used + AlignmentOffset;
   Arena->Used += Size;
+  
+  Assert(Size >= SizeInit);
+  
   return(Result);
 }
 
@@ -97,6 +131,15 @@ internal inline void
 CheckArena(memory_arena* Arena)
 {
   Assert(Arena->TempCount == 0);
+}
+
+internal inline void
+SubArena(memory_arena* Result, memory_arena* Arena, memory_index Size, memory_index Alignment)
+{
+  Result->Size = Size;
+  Result->Base = (u8*) PushSize_(Arena, Size, Alignment);
+  Result->Used = 0;
+  Result->TempCount = 0;
 }
 
 #define ZeroStruct(Instance) ZeroSize(sizeof(Instance), &(Instance))
@@ -203,9 +246,19 @@ typedef struct
 
 typedef struct
 {
+  bool32 BeingUsed;
+  memory_arena Arena;
+  
+  temporary_memory MemoryFlush;
+} task_with_memory;
+  
+typedef struct
+{
   bool32 IsInitialized;
   memory_arena TransientArena;
 
+  task_with_memory Tasks[4];
+  
   u32 GroundBufferCount;
   ground_buffer* GroundBuffers;
 
@@ -215,7 +268,6 @@ typedef struct
   u32 EnvMapWidth;
   u32 EnvMapHeight;
   environment_map EnvMaps[3];
-  
 } transient_state;
 
 internal inline low_entity*

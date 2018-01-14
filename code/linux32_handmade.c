@@ -567,8 +567,8 @@ Linux32AddEntry(platform_work_queue* Queue, platform_work_queue_callback* Callba
   Entry->Callback = Callback;
   Entry->Data = Data;
   ++Queue->CompletionGoal;
-  asm volatile("" ::: "memory");
-  
+  CompletePreviousWritesBeforeFutureWrites;
+    
   Queue->NextEntryToWrite = NewNextEntryToWrite;
   sem_post(&Queue->SemaphoreHandle);
 
@@ -818,7 +818,7 @@ main(int ArgCount, char** Arguments)
 				     -1, 0);
       Memory.PermanentStorage = Linux32State.MemoryBlock;
       Memory.TransientStorage = (u8*)Memory.PermanentStorage + Memory.PermanentStorageSize;
-
+      
       if(Memory.PermanentStorage != MAP_FAILED)
 	{  
 	  InitScreenBuffer(DisplayInfo, &GlobalOffscreenBuffer,

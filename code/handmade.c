@@ -44,7 +44,7 @@ MakeEmptyBitmap(memory_arena* Arena, s32 Width, s32 Height, bool32 ClearToZero)
   Result.Pitch  = Width*BITMAP_BYTES_PER_PIXEL;
 
   s32 TotalBitmapSize = Width*Height*4;
-  Result.Memory      = PushSize(Arena, TotalBitmapSize);
+  Result.Memory      = PushSizeA(Arena, TotalBitmapSize, 16);
   
   if(ClearToZero)
   {
@@ -709,120 +709,169 @@ MakeNullCollision(state *State)
     
   return(Group);  
 }
-/*
-internal
-PLATFORM_WORK_QUEUE_CALLBACK()
-{
-  tile_render_work* Work = (tile_render_work*) Data;
 
-  RenderGroupToOutput(Work->RenderGroup, Work->OutputTarget, Work->ClipRect, false);
-  RenderGroupToOutput(Work->RenderGroup, Work->OutputTarget, Work->ClipRect, true);
+internal task_with_memory*
+BeginTaskWithMemory(transient_state* TransState)
+{
+  task_with_memory* FoundTask = 0;
+
+  for(u32 TaskIndex = 0;
+      TaskIndex < ArrayCount(TransState->Tasks);
+      ++TaskIndex)
+    {
+      task_with_memory* Task = TransState->Tasks + TaskIndex;
+      if(!Task->BeingUsed)
+	{
+	  FoundTask = Task;
+	  Task->BeingUsed = true;
+	  Task->MemoryFlush = BeginTemporaryMemory(&Task->Arena);
+	  break;
+	}
+    }
+
+  return(FoundTask);
 }
-*/
+
+internal inline void
+EndTaskWithMemory(task_with_memory* Task)
+{
+  EndTemporaryMemory(Task->MemoryFlush);
+
+  CompletePreviousWritesBeforeFutureWrites;
+  
+  Task->BeingUsed = false;
+}
+
+typedef struct
+{
+  render_group* RenderGroup;
+  loaded_bitmap* Buffer;
+  task_with_memory* Task;
+  
+} fill_ground_chunk_work;
+
+internal
+PLATFORM_WORK_QUEUE_CALLBACK(FillGroundChunkWork)
+{
+  fill_ground_chunk_work* Work = (fill_ground_chunk_work*) Data;
+
+  RenderGroupToOutput2(Work->RenderGroup, Work->Buffer);
+  
+  EndTaskWithMemory(Work->Task);
+}
+
 internal void
 FillGroundChunk(transient_state *TransState, state *State, ground_buffer *GroundBuffer,
 		world_position* ChunkP)
 {
-  temporary_memory GroundMemory = BeginTemporaryMemory(&TransState->TransientArena);  
-  GroundBuffer->P = *ChunkP;
-
-  loaded_bitmap *Buffer = &GroundBuffer->Bitmap;
-  Buffer->AlignPercentage = V2(0.5f, 0.5f);
-  Buffer->WidthOverHeight = 1.0f;
-  
-  r32 Width  = State->World->ChunkDimInMeters.x;
-  r32 Height = State->World->ChunkDimInMeters.y;  
-  Assert(Width == Height);
-  v2 HalfDim = V2MulS(0.5f, V2(Width, Height));
-
-  render_group* RenderGroup = AllocateRenderGroup(&TransState->TransientArena, Megabytes(4));
-  Orthographic(RenderGroup, Buffer->Width, Buffer->Height,
-	       (Buffer->Width - 2) / Width);
-
-  Clear(RenderGroup, V4(1.0f, 0.0f, 1.0f, 1.0f));
-
-  //HalfDim = V2MulS(0.5f, HalfDim);
-  
-  for(s32 ChunkOffsetY = -1;
-      ChunkOffsetY <= 1;
-      ++ChunkOffsetY)
+  task_with_memory* Task = BeginTaskWithMemory(TransState);
+  if(Task)
     {
-      for(s32 ChunkOffsetX = -1;
-	  ChunkOffsetX <= 1;
-	  ++ChunkOffsetX)
-	{
-	  s32 ChunkX = ChunkP->ChunkX + ChunkOffsetX;
-	  s32 ChunkY = ChunkP->ChunkY + ChunkOffsetY;
-	  s32 ChunkZ = ChunkP->ChunkZ;
+      fill_ground_chunk_work* Work = PushStruct(&Task->Arena, fill_ground_chunk_work); 
+
+      GroundBuffer->P = *ChunkP;
+
+      loaded_bitmap *Buffer = &GroundBuffer->Bitmap;
+      Buffer->AlignPercentage = V2(0.5f, 0.5f);
+      Buffer->WidthOverHeight = 1.0f;
   
-	  random_series Series = Seed(139*ChunkX + 593*ChunkY + 329*ChunkZ);
+      r32 Width  = State->World->ChunkDimInMeters.x;
+      r32 Height = State->World->ChunkDimInMeters.y;  
+      Assert(Width == Height);
+      v2 HalfDim = V2MulS(0.5f, V2(Width, Height));
+
+      render_group* RenderGroup = AllocateRenderGroup(&Task->Arena, 0);
+      Orthographic(RenderGroup, Buffer->Width, Buffer->Height,
+		   (Buffer->Width - 2) / Width);
+
+      Clear(RenderGroup, V4(1.0f, 0.0f, 1.0f, 1.0f));
+
+      //HalfDim = V2MulS(0.5f, HalfDim);
+  
+      for(s32 ChunkOffsetY = -1;
+	  ChunkOffsetY <= 1;
+	  ++ChunkOffsetY)
+	{
+	  for(s32 ChunkOffsetX = -1;
+	      ChunkOffsetX <= 1;
+	      ++ChunkOffsetX)
+	    {
+	      s32 ChunkX = ChunkP->ChunkX + ChunkOffsetX;
+	      s32 ChunkY = ChunkP->ChunkY + ChunkOffsetY;
+	      s32 ChunkZ = ChunkP->ChunkZ;
+  
+	      random_series Series = Seed(139*ChunkX + 593*ChunkY + 329*ChunkZ);
 #if 0
-	  v4 Color = V4(1, 0, 0, 1);
-	  if((ChunkX % 2) == (ChunkY % 2))
-	    {
-	      Color = V4(0, 0, 1, 1);
-	    }
+	      v4 Color = V4(1, 0, 0, 1);
+	      if((ChunkX % 2) == (ChunkY % 2))
+		{
+		  Color = V4(0, 0, 1, 1);
+		}
 #else
-	  v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f);
+	      v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f);
 #endif 	  	  
-	  v2 Center = V2(ChunkOffsetX*Width, ChunkOffsetY*Height);
+	      v2 Center = V2(ChunkOffsetX*Width, ChunkOffsetY*Height);
 
-	  for(u32 GrassIndex = 0;
-	      GrassIndex < 100;
-	      ++GrassIndex)
-	    {
-	      loaded_bitmap *Stamp;
-	      if(RandomChoice(&Series, 2))
+	      for(u32 GrassIndex = 0;
+		  GrassIndex < 100;
+		  ++GrassIndex)
 		{
-		  Stamp = State->Grass + RandomChoice(&Series, ArrayCount(State->Grass));
-		}
-	      else
-		{
-		  Stamp = State->Stone + RandomChoice(&Series, ArrayCount(State->Stone));
-		}
+		  loaded_bitmap *Stamp;
+		  if(RandomChoice(&Series, 2))
+		    {
+		      Stamp = State->Grass + RandomChoice(&Series, ArrayCount(State->Grass));
+		    }
+		  else
+		    {
+		      Stamp = State->Stone + RandomChoice(&Series, ArrayCount(State->Stone));
+		    }
 
-      	      v2 Offset = V2Hadamard(HalfDim, V2(RandomBilateral(&Series), RandomBilateral(&Series)));
-	      v2 P = V2Add(Center, Offset);
+		  v2 Offset = V2Hadamard(HalfDim, V2(RandomBilateral(&Series), RandomBilateral(&Series)));
+		  v2 P = V2Add(Center, Offset);
       
-	      PushBitmap(RenderGroup, Stamp, ToV3(P, 0.0f),
-			 2.0f, Color);
+		  PushBitmap(RenderGroup, Stamp, ToV3(P, 0.0f),
+			     2.0f, Color);
+		}
 	    }
 	}
-    }
   
-    for(s32 ChunkOffsetY = -1;
-      ChunkOffsetY <= 1;
-      ++ChunkOffsetY)
-    {
-      for(s32 ChunkOffsetX = -1;
-	  ChunkOffsetX <= 1;
-	  ++ChunkOffsetX)
+      for(s32 ChunkOffsetY = -1;
+	  ChunkOffsetY <= 1;
+	  ++ChunkOffsetY)
 	{
-	  s32 ChunkX = ChunkP->ChunkX + ChunkOffsetX;
-	  s32 ChunkY = ChunkP->ChunkY + ChunkOffsetY;
-	  s32 ChunkZ = ChunkP->ChunkZ;
-  
-	  random_series Series = Seed(139*ChunkX + 593*ChunkY + 329*ChunkZ);
-	  
-	  v2 Center = V2(ChunkOffsetX*Width, ChunkOffsetY*Height);
-
-	  for(u32 TuftIndex = 0;
-	      TuftIndex < 50;
-	      ++TuftIndex)
+	  for(s32 ChunkOffsetX = -1;
+	      ChunkOffsetX <= 1;
+	      ++ChunkOffsetX)
 	    {
-	      loaded_bitmap *Stamp = State->Tuft + RandomChoice(&Series, ArrayCount(State->Tuft));
+	      s32 ChunkX = ChunkP->ChunkX + ChunkOffsetX;
+	      s32 ChunkY = ChunkP->ChunkY + ChunkOffsetY;
+	      s32 ChunkZ = ChunkP->ChunkZ;
+  
+	      random_series Series = Seed(139*ChunkX + 593*ChunkY + 329*ChunkZ);
+	  
+	      v2 Center = V2(ChunkOffsetX*Width, ChunkOffsetY*Height);
 
-      	      v2 Offset = V2Hadamard(HalfDim, V2(RandomBilateral(&Series), RandomBilateral(&Series)));
-	      v2 P = V2Add(Center, Offset);
+	      for(u32 TuftIndex = 0;
+		  TuftIndex < 50;
+		  ++TuftIndex)
+		{
+		  loaded_bitmap *Stamp = State->Tuft + RandomChoice(&Series, ArrayCount(State->Tuft));
+
+		  v2 Offset = V2Hadamard(HalfDim, V2(RandomBilateral(&Series), RandomBilateral(&Series)));
+		  v2 P = V2Add(Center, Offset);
       
-	      PushBitmap(RenderGroup, Stamp, ToV3(P, 0.0f),
-			 0.1f, V4(1.0f, 1.0f, 1.0f, 1.0f));
+		  PushBitmap(RenderGroup, Stamp, ToV3(P, 0.0f),
+			     0.1f, V4(1.0f, 1.0f, 1.0f, 1.0f));
+		}
 	    }
 	}
-    }
 
-    TiledRenderGroupToOutput(TransState->HighPriorityQueue, RenderGroup, Buffer);
-    EndTemporaryMemory(GroundMemory);
+      Work->RenderGroup = RenderGroup;
+      Work->Buffer = Buffer;
+      Work->Task = Task;
+
+      PlatformAddEntry(TransState->LowPriorityQueue, FillGroundChunkWork, Work);
+    }
 }
 
 internal inline void
@@ -1157,6 +1206,16 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       InitializeArena(&TransState->TransientArena, Memory->TransientStorageSize - sizeof(transient_state),
 		      (u8*)Memory->TransientStorage + sizeof(transient_state));
 
+      for(u32 TaskIndex = 0;
+	  TaskIndex < ArrayCount(TransState->Tasks);
+	  ++TaskIndex)
+	{
+	  task_with_memory* Task = TransState->Tasks + TaskIndex;
+
+	  Task->BeingUsed = false;
+	  SubArena(&Task->Arena, &TransState->TransientArena, Megabytes(1), 16);
+	}
+      
       TransState->HighPriorityQueue = Memory->HighPriorityQueue;
       TransState->LowPriorityQueue = Memory->LowPriorityQueue;
       TransState->GroundBufferCount = 256;

@@ -2,6 +2,16 @@
 //      intrinsics and whatnot
 #include <math.h>
 
+
+#if COMPILER_MSVC
+#define CompletePreviousWritesBeforeFutureWrites _WriteBarrier() 
+#elif COMPILER_LLVM
+#define CompletePreviousWritesBeforeFutureWrites asm volatile("" ::: "memory");
+#else
+#error Intrinsics not defined for this compiler!
+#endif
+
+
 inline internal s32
 SignOf(s32 Value)
 {

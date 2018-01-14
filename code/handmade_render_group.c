@@ -1121,6 +1121,27 @@ PLATFORM_WORK_QUEUE_CALLBACK(DoTiledRenderWork)
   RenderGroupToOutput(Work->RenderGroup, Work->OutputTarget, Work->ClipRect, true);
 }
 
+//TODO: Casey can have multiple functions with the same name but we, alas, cannot. Consider
+//      how we want to name this to not confuse us in future episodes.
+internal void
+RenderGroupToOutput2(render_group* RenderGroup, loaded_bitmap* OutputTarget)
+{
+  Assert(((uintptr)OutputTarget->Memory & 15) == 0);
+  
+  rectangle2i ClipRect;
+  ClipRect.MinX = 0;
+  ClipRect.MaxX = OutputTarget->Width;
+  ClipRect.MinY = 0;
+  ClipRect.MaxY = OutputTarget->Height;
+	  
+  tile_render_work Work;
+  Work.RenderGroup  = RenderGroup;
+  Work.OutputTarget = OutputTarget;
+  Work.ClipRect = ClipRect;
+    
+  DoTiledRenderWork(0, &Work);  
+}
+
 internal void
 TiledRenderGroupToOutput(platform_work_queue* RenderQueue,
 			 render_group* RenderGroup, loaded_bitmap* OutputTarget)
@@ -1181,6 +1202,12 @@ internal render_group*
 AllocateRenderGroup(memory_arena *Arena, u32 MaxPushBufferSize)
 {
   render_group* Result = PushStruct(Arena, render_group);
+
+  if(MaxPushBufferSize == 0)
+    {
+      MaxPushBufferSize = (u32)GetArenaSizeRemaining(Arena, 4);
+    }
+
   Result->PushBufferBase = PushSize(Arena, MaxPushBufferSize);
     
   Result->MaxPushBufferSize = MaxPushBufferSize;
@@ -1247,7 +1274,7 @@ GetRenderEntityBasisP(render_transform* Transform, v3 OriginalP)
       r32 OffsetZ = 0;
   
       r32 DistanceAboveTarget = Transform->DistanceAboveTarget;
-#if 1
+#if 0
       if(1)
 	{
 	  DistanceAboveTarget += 50.0f;
