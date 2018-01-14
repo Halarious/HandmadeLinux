@@ -619,22 +619,16 @@ Linux32CompleteAllWork(platform_work_queue* Queue)
   Queue->CompletionCount = 0;
 }
 
-typedef struct
-{
-  u32 LogicalThreadIndex;
-  platform_work_queue* Queue;
-} linux32_thread_info;
-
 void*
 ThreadProc(void* lpParameter)
 {
-  linux32_thread_info* ThreadInfo = (linux32_thread_info*) lpParameter;
+  platform_work_queue* Queue = (platform_work_queue*) lpParameter;
 
   for(;;)
     {
-      if(Linux32DoNextWorkQueueEntry(ThreadInfo->Queue))
+      if(Linux32DoNextWorkQueueEntry(Queue))
 	{
-	  sem_wait(&ThreadInfo->Queue->SemaphoreHandle);
+	  sem_wait(&Queue->SemaphoreHandle);
 	}
     }
 
@@ -649,33 +643,41 @@ PLATFORM_WORK_QUEUE_CALLBACK(DoWorkerWork)
   puts(Buffer);
 }
 
+internal void
+Linux32MakeQueue(platform_work_queue* Queue, u32 ThreadCount)
+{
+  Queue->CompletionGoal = 0;
+  Queue->CompletionCount = 0;
+  Queue->NextEntryToWrite = 0;
+  Queue->NextEntryToRead = 0;
+
+
+  u32 InitialCount = 0;
+  u32 SemaphoreResult = sem_init (&Queue->SemaphoreHandle, 0, InitialCount);
+  
+  Assert(!SemaphoreResult);
+
+  for(u32 Index = 0;
+      Index < ThreadCount;
+      ++Index)
+    {
+      pthread_t ThreadID;
+      pthread_create(&ThreadID, 0, &ThreadProc, Queue);
+    }
+}
+
 int
 main(int ArgCount, char** Arguments)
 {
   linux32_state Linux32State = {};
 
-  linux32_thread_info ThreadInfo[4];
+  platform_work_queue HighPriorityQueue = {};
+  Linux32MakeQueue(&HighPriorityQueue, 2);
 
-  platform_work_queue Queue = {};
-
-  u32 InitialCount = 0;
-  u32 ThreadCount  = ArrayCount(ThreadInfo); 
-  u32 SemaphoreResult = sem_init (&Queue.SemaphoreHandle, 0, InitialCount);
-  
-  Assert(!SemaphoreResult);
-  
-  for(u32 Index = 0;
-      Index < ArrayCount(ThreadInfo);
-      ++Index)
-    {
-      linux32_thread_info* Info = ThreadInfo + Index;
-      Info->Queue = &Queue;
-      Info->LogicalThreadIndex = Index; 
-
-      pthread_t ThreadID;
-      pthread_create(&ThreadID, 0, &ThreadProc, Info);
-    }
-
+  platform_work_queue LowPriorityQueue = {};
+  Linux32MakeQueue(&LowPriorityQueue, 2);
+    
+#if 0
   Linux32AddEntry(ThreadInfo->Queue, DoWorkerWork, "String A0\n");
   Linux32AddEntry(ThreadInfo->Queue, DoWorkerWork, "String A1\n");
   Linux32AddEntry(ThreadInfo->Queue, DoWorkerWork, "String A2\n");
@@ -701,7 +703,7 @@ main(int ArgCount, char** Arguments)
   Linux32AddEntry(ThreadInfo->Queue, DoWorkerWork, "String B10\n");
 
   Linux32CompleteAllWork(&Queue);
-  
+#endif  
   char ELFFilename[PATH_MAX];
   ssize_t SizeOfFilename = readlink("/proc/self/exe", ELFFilename, sizeof(ELFFilename));  
   char* OnePastLastSlash = ELFFilename;
@@ -802,7 +804,8 @@ main(int ArgCount, char** Arguments)
       memory Memory = {};
       Memory.PermanentStorageSize = Megabytes(256);
       Memory.TransientStorageSize = Gigabytes((u64)1);
-      Memory.HighPriorityQueue = &Queue;
+      Memory.HighPriorityQueue = &HighPriorityQueue;
+      Memory.LowPriorityQueue = &LowPriorityQueue;
       Memory.PlatformAddEntry = Linux32AddEntry;
       Memory.PlatformCompleteAllWork = Linux32CompleteAllWork;
       Memory.DEBUGPlatformReadEntireFile = DEBUGPlatformReadEntireFile;

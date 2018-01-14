@@ -709,7 +709,16 @@ MakeNullCollision(state *State)
     
   return(Group);  
 }
+/*
+internal
+PLATFORM_WORK_QUEUE_CALLBACK()
+{
+  tile_render_work* Work = (tile_render_work*) Data;
 
+  RenderGroupToOutput(Work->RenderGroup, Work->OutputTarget, Work->ClipRect, false);
+  RenderGroupToOutput(Work->RenderGroup, Work->OutputTarget, Work->ClipRect, true);
+}
+*/
 internal void
 FillGroundChunk(transient_state *TransState, state *State, ground_buffer *GroundBuffer,
 		world_position* ChunkP)
@@ -728,7 +737,7 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 
   render_group* RenderGroup = AllocateRenderGroup(&TransState->TransientArena, Megabytes(4));
   Orthographic(RenderGroup, Buffer->Width, Buffer->Height,
-	       Buffer->Width / Width);
+	       (Buffer->Width - 2) / Width);
 
   Clear(RenderGroup, V4(1.0f, 0.0f, 1.0f, 1.0f));
 
@@ -747,13 +756,15 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 	  s32 ChunkZ = ChunkP->ChunkZ;
   
 	  random_series Series = Seed(139*ChunkX + 593*ChunkY + 329*ChunkZ);
-
+#if 0
 	  v4 Color = V4(1, 0, 0, 1);
 	  if((ChunkX % 2) == (ChunkY % 2))
 	    {
 	      Color = V4(0, 0, 1, 1);
 	    }
-	  	  
+#else
+	  v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f);
+#endif 	  	  
 	  v2 Center = V2(ChunkOffsetX*Width, ChunkOffsetY*Height);
 
 	  for(u32 GrassIndex = 0;
@@ -810,7 +821,7 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 	}
     }
 
-    TiledRenderGroupToOutput(TransState->RenderQueue, RenderGroup, Buffer);
+    TiledRenderGroupToOutput(TransState->HighPriorityQueue, RenderGroup, Buffer);
     EndTemporaryMemory(GroundMemory);
 }
 
@@ -1146,7 +1157,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       InitializeArena(&TransState->TransientArena, Memory->TransientStorageSize - sizeof(transient_state),
 		      (u8*)Memory->TransientStorage + sizeof(transient_state));
 
-      TransState->RenderQueue = Memory->HighPriorityQueue;
+      TransState->HighPriorityQueue = Memory->HighPriorityQueue;
+      TransState->LowPriorityQueue = Memory->LowPriorityQueue;
       TransState->GroundBufferCount = 256;
       TransState->GroundBuffers = PushArray(&TransState->TransientArena,
 					    TransState->GroundBufferCount,
@@ -1300,7 +1312,9 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   render_group* RenderGroup = AllocateRenderGroup(&TransState->TransientArena, Megabytes(4));
   r32 WidthOfMonitor = 0.635f;
   r32 MetersToPixels = (r32)DrawBuffer->Width * WidthOfMonitor;
-  Perspective(RenderGroup, DrawBuffer->Width, DrawBuffer->Height, MetersToPixels, 0.6f, 9.0f);
+  r32 FocalLength = 0.6f;
+  r32 DistanceAboveGround = 9.0f;
+  Perspective(RenderGroup, DrawBuffer->Width, DrawBuffer->Height, MetersToPixels, FocalLength, DistanceAboveGround);
   Clear(RenderGroup, V4(0.25f, 0.25f, 0.25f, 1.0f));
   
   v2 ScreenCenter = V2(0.5f * (r32)DrawBuffer->Width,
@@ -1742,7 +1756,7 @@ r32 Angle = 0.1f * State->Time;
 #endif
 
 #endif
-  TiledRenderGroupToOutput(TransState->RenderQueue, RenderGroup, DrawBuffer);
+  TiledRenderGroupToOutput(TransState->HighPriorityQueue, RenderGroup, DrawBuffer);
     
   EndSim(SimRegion, State);
   EndTemporaryMemory(SimMemory);

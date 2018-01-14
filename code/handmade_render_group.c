@@ -694,6 +694,7 @@ DrawRectangleQuickly(loaded_bitmap *Buffer,
   
       __m128 Zero = _mm_set1_ps(0.0f);
       __m128 One  = _mm_set1_ps(1.0f);
+      __m128 Half = _mm_set1_ps(0.5f);
       __m128 Four_4x  = _mm_set1_ps(4.0f);
       __m128 MaskFF = _mm_set1_epi32(0xff);
       __m128 MaskFFFF = _mm_set1_epi32(0xffff);
@@ -770,8 +771,8 @@ DrawRectangleQuickly(loaded_bitmap *Buffer,
 		U = _mm_min_ps(_mm_max_ps(U, Zero), One);
 		V = _mm_min_ps(_mm_max_ps(V, Zero), One);
 	  
-		__m128 tX = _mm_mul_ps(U, WidthM2);
-		__m128 tY = _mm_mul_ps(V, HeightM2);
+		__m128 tX = _mm_add_ps(_mm_mul_ps(U, WidthM2), Half);
+		__m128 tY = _mm_add_ps(_mm_mul_ps(V, HeightM2), Half);
 
 		__m128i FetchX_4x = _mm_cvttps_epi32(tX);
 		__m128i FetchY_4x = _mm_cvttps_epi32(tY);
@@ -1246,7 +1247,7 @@ GetRenderEntityBasisP(render_transform* Transform, v3 OriginalP)
       r32 OffsetZ = 0;
   
       r32 DistanceAboveTarget = Transform->DistanceAboveTarget;
-#if 0
+#if 1
       if(1)
 	{
 	  DistanceAboveTarget += 50.0f;

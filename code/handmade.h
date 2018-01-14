@@ -209,7 +209,8 @@ typedef struct
   u32 GroundBufferCount;
   ground_buffer* GroundBuffers;
 
-  platform_work_queue* RenderQueue;
+  platform_work_queue* HighPriorityQueue;
+  platform_work_queue* LowPriorityQueue;
   
   u32 EnvMapWidth;
   u32 EnvMapHeight;
