@@ -200,6 +200,20 @@ typedef struct
 
 typedef enum
   {
+    AssetState_Unloaded,
+    AssetState_Queued,
+    AssetState_Loaded,
+    AssetState_Locked,
+  } asset_state;
+
+typedef struct
+{
+  asset_state State;  
+  loaded_bitmap* Bitmap;
+} asset_slot;
+
+typedef enum
+  {
     GAI_Backdrop,
     GAI_Shadow,
     GAI_Tree,
@@ -209,6 +223,30 @@ typedef enum
     GAI_Count,
   } asset_id;
 
+
+typedef struct
+{
+  u32 ID;
+  r32 Value;
+} asset_tag;
+
+typedef struct
+{
+  v2 AlignPercentage;
+  r32 WidthOverHeight;
+  int Width;
+  int Height;
+
+  u32 FirstTagIndex;
+  u32 OnePastLastTagIndex;
+} asset_bitmap_info;
+
+typedef struct
+{
+  u32 FirstTagIndex;
+  u32 OnePastLastTagIndex;
+} asset_group;
+
 typedef struct transient_state transient_state;
 struct assets
 {
@@ -217,7 +255,7 @@ struct assets
   memory_arena Arena;
   debug_platform_read_entire_file *ReadEntireFile;
   
-  loaded_bitmap* Bitmaps[GAI_Count];
+  asset_slot Bitmaps[GAI_Count];
 
   loaded_bitmap Grass[2];
   loaded_bitmap Stone[4];
@@ -229,7 +267,7 @@ struct assets
 internal inline loaded_bitmap*
 GetBitmap(assets* Assets, asset_id ID)
 {
-  loaded_bitmap* Result = Assets->Bitmaps[ID];
+  loaded_bitmap* Result = Assets->Bitmaps[ID].Bitmap;
   return(Result);
 }
 

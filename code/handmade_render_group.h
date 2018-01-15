@@ -99,6 +99,8 @@ typedef struct
   u32 PushBufferSize;
   u32 MaxPushBufferSize;
   u8* PushBufferBase;
+
+  u32 MissingResourceCount;
 } render_group;
 
 

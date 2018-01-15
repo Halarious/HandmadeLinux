@@ -760,6 +760,40 @@ PLATFORM_WORK_QUEUE_CALLBACK(FillGroundChunkWork)
   EndTaskWithMemory(Work->Task);
 }
 
+internal u32
+PickBest(u32 InfoCount, asset_bitmap_info* Infos, asset_tag* Tags,
+	 r32* MatchVector, r32* WeightVector)
+{
+  r32 BestDiff = Real32Maximum;
+  u32 BestIndex = 0;
+
+  for(u32 InfoIndex = 0;
+      InfoIndex < InfoCount;
+      ++InfoIndex)
+    {
+      asset_bitmap_info *Info = Infos + InfoIndex;
+
+      r32 TotalWeightedDiff = 0.0f;
+      for(u32 TagIndex = Info->FirstTagIndex;
+	  TagIndex < Info->OnePastLastTagIndex;
+	  ++TagIndex)
+	{
+	  asset_tag* Tag = Tags + TagIndex;
+	  r32 Difference = MatchVector[Tag->ID] - Tag->Value;
+	  r32 Weighted = WeightVector[Tag->ID] * AbsoluteValue(Difference);
+	  TotalWeightedDiff += Weighted;
+	}
+
+      if(BestDiff > TotalWeightedDiff)
+	{
+	  BestDiff = TotalWeightedDiff;
+	  BestIndex = InfoIndex;
+	}
+    }
+  
+  return(BestIndex);
+}
+
 internal void
 FillGroundChunk(transient_state *TransState, state *State, ground_buffer *GroundBuffer,
 		world_position* ChunkP)
@@ -768,8 +802,6 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
   if(Task)
     {
       fill_ground_chunk_work* Work = PushStruct(&Task->Arena, fill_ground_chunk_work); 
-
-      GroundBuffer->P = *ChunkP;
 
       loaded_bitmap *Buffer = &GroundBuffer->Bitmap;
       Buffer->AlignPercentage = V2(0.5f, 0.5f);
@@ -865,12 +897,17 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 		}
 	    }
 	}
+      
+      if(AllResourcesPresent(RenderGroup))
+	{
+	  GroundBuffer->P = *ChunkP;
 
-      Work->RenderGroup = RenderGroup;
-      Work->Buffer = Buffer;
-      Work->Task = Task;
+	  Work->RenderGroup = RenderGroup;
+	  Work->Buffer = Buffer;
+	  Work->Task = Task;
 
-      PlatformAddEntry(TransState->LowPriorityQueue, FillGroundChunkWork, Work);
+	  PlatformAddEntry(TransState->LowPriorityQueue, FillGroundChunkWork, Work);
+	}
     }
 }
 
@@ -891,6 +928,12 @@ typedef struct
   asset_id ID;
   task_with_memory* Task;
   loaded_bitmap* Bitmap;
+
+  bool32 HasAlignment;
+  s32 AlignX;
+  s32 TopDownAlignY;
+
+  asset_state FinalState;
 } load_asset_work;
 
 internal PLATFORM_WORK_QUEUE_CALLBACK(LoadAssetWork)
@@ -898,12 +941,26 @@ internal PLATFORM_WORK_QUEUE_CALLBACK(LoadAssetWork)
   load_asset_work* Work = (load_asset_work*) Data;
 
   thread_context *Thread = 0;
-  *Work->Bitmap
-    = DEBUGLoadBMP(Thread,
-		   Work->Assets->ReadEntireFile,
-		   Work->Filename, 0, 0);
-  
-  Work->Assets->Bitmaps[Work->ID] = Work->Bitmap;
+
+  if(Work->HasAlignment)
+    {
+      *Work->Bitmap
+	= DEBUGLoadBMP(Thread,
+		       Work->Assets->ReadEntireFile,
+		       Work->Filename, Work->AlignX, Work->TopDownAlignY);
+    }
+  else
+    {
+      *Work->Bitmap
+	= DEBUGLoadBMP(Thread,
+		       Work->Assets->ReadEntireFile,
+		       Work->Filename, 0, 0);
+    }
+
+  CompletePreviousWritesBeforeFutureWrites;
+    
+  Work->Assets->Bitmaps[Work->ID].Bitmap = Work->Bitmap;
+  Work->Assets->Bitmaps[Work->ID].State  = Work->FinalState;
   
   EndTaskWithMemory(Work->Task);
 }
@@ -911,47 +968,63 @@ internal PLATFORM_WORK_QUEUE_CALLBACK(LoadAssetWork)
 internal void
 LoadAsset(assets* Assets, asset_id ID)
 {
-  task_with_memory* Task = BeginTaskWithMemory(Assets->TransState);
-  if(Task)
+  if(AtomicCompareExchangeUInt32(&Assets->Bitmaps[ID].State, AssetState_Loaded, AssetState_Queued) ==
+     AssetState_Unloaded)
     {
-      debug_platform_read_entire_file *ReadEntireFile = Assets->ReadEntireFile;
-  
-      thread_context *Thread = 0;
-
-      load_asset_work* Work = PushStruct(&Task->Arena, load_asset_work);
-  
-      Work->Assets = Assets;
-      Work->ID = ID;
-      Work->Filename = "";
-      Work->Task = Task;
-      Work->Bitmap = PushStruct(&Assets->Arena, loaded_bitmap);
-      switch(ID)
+      task_with_memory* Task = BeginTaskWithMemory(Assets->TransState);
+      if(Task)
 	{
-	case(GAI_Backdrop):
-	  {
-	    Work->Filename = "../data/test/test_background.bmp";//, 0, 0);
-	  } break;
-	case(GAI_Shadow):
-	  {
-	    Work->Filename = "../data/test/test_hero_shadow.bmp";//, 72, 182);
-	  } break;
-	case(GAI_Tree):
-	  {
-	    Work->Filename = "../data/test2/tree00.bmp";//, 40, 80);
-	  } break;
-	case(GAI_Stairwell):
-	  {
-	    Work->Filename = "../data/test2/rock02.bmp";//, 0, 0);
-	  } break;
-	case(GAI_Sword):
-	  {
-	    Work->Filename = "../data/test2/rock03.bmp";//, 29, 10);
-	  } break;
+	  debug_platform_read_entire_file *ReadEntireFile = Assets->ReadEntireFile;
+  
+	  thread_context *Thread = 0;
 
-	  InvalidDefaultCase;
-	}
+	  load_asset_work* Work = PushStruct(&Task->Arena, load_asset_work);
+  
+	  Work->Assets = Assets;
+	  Work->ID = ID;
+	  Work->Filename = "";
+	  Work->Task = Task;
+	  Work->Bitmap = PushStruct(&Assets->Arena, loaded_bitmap);
+	  Work->HasAlignment = false;
+	  Work->FinalState = AssetState_Loaded;
+	  
+	  switch(ID)
+	    {
+	    case(GAI_Backdrop):
+	      {
+		Work->Filename = "../data/test/test_background.bmp";
+	      } break;
+	    case(GAI_Shadow):
+	      {
+		Work->Filename = "../data/test/test_hero_shadow.bmp";
+		Work->HasAlignment = true;
+		Work->AlignX = 72;
+		Work->TopDownAlignY = 182;
+	      } break;
+	    case(GAI_Tree):
+	      {
+		Work->Filename = "../data/test2/tree00.bmp";
+		Work->HasAlignment = true;
+		Work->AlignX = 40;
+		Work->TopDownAlignY = 80;
+	      } break;
+	    case(GAI_Stairwell):
+	      {
+		Work->Filename = "../data/test2/rock02.bmp";
+	      } break;
+	    case(GAI_Sword):
+	      {
+		Work->Filename = "../data/test2/rock03.bmp";//, 29, 10);
+		Work->HasAlignment = true;
+		Work->AlignX = 29;
+		Work->TopDownAlignY = 10;
+	      } break;
+
+	      InvalidDefaultCase;
+	    }
       
-      PlatformAddEntry(Assets->TransState->LowPriorityQueue, LoadAssetWork, Work);
+	  PlatformAddEntry(Assets->TransState->LowPriorityQueue, LoadAssetWork, Work);
+	}
     }
 }
 

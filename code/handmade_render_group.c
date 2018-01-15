@@ -1218,6 +1218,8 @@ AllocateRenderGroup(assets* Assets, memory_arena *Arena, u32 MaxPushBufferSize)
   
   Result->Transform.OffsetP = V3(0.0f, 0.0f, 0.0f);
   Result->Transform.Scale = 1.0f;
+
+  Result->MissingResourceCount = 0;
   
   return(Result);
 }
@@ -1369,6 +1371,7 @@ PushBitmapByID(render_group *Group, asset_id ID, v3 Offset, r32 Height, v4 Color
   else
     {
       LoadAsset(Group->Assets, ID);
+      ++Group->MissingResourceCount;
     }
 }
 
@@ -1486,3 +1489,9 @@ GetCameraRectangleAtTarget(render_group* Group)
   return(Result);
 }
 
+internal inline bool32
+AllResourcesPresent(render_group* Group)
+{
+  bool32 Result = (Group->MissingResourceCount == 0);
+  return(Result);
+}
