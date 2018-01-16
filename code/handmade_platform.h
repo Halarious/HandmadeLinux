@@ -83,11 +83,6 @@ typedef double r64;
 
 #define Align16(Value) ((Value + 15) & ~15)
 
-typedef struct
-{
-} thread_context;
-
-
 #if HANDMADE_INTERNAL
 
 typedef struct
@@ -96,13 +91,13 @@ typedef struct
   s64   ContentsSize;
 } loaded_file;
 
-#define DEBUG_PLATFORM_READ_ENTIRE_FILE(name) loaded_file name(thread_context* Thread, char* Filename)
+#define DEBUG_PLATFORM_READ_ENTIRE_FILE(name) loaded_file name(char* Filename)
 typedef DEBUG_PLATFORM_READ_ENTIRE_FILE(debug_platform_read_entire_file);
 
-#define DEBUG_PLATFORM_FREE_FILE_MEMORY(name) void name(thread_context* Thread, loaded_file* LoadedFile)
+#define DEBUG_PLATFORM_FREE_FILE_MEMORY(name) void name(loaded_file* LoadedFile)
 typedef DEBUG_PLATFORM_FREE_FILE_MEMORY(debug_platform_free_file_memory);
 
-#define DEBUG_PLATFORM_WRITE_ENTIRE_FILE(name) bool32 name(thread_context* Thread, char* Filename, u32 MemorySize, void* Memory)
+#define DEBUG_PLATFORM_WRITE_ENTIRE_FILE(name) bool32 name(char* Filename, u32 MemorySize, void* Memory)
 typedef DEBUG_PLATFORM_WRITE_ENTIRE_FILE(debug_platform_write_entire_file);
 
 enum
@@ -216,8 +211,6 @@ typedef void platform_complete_all_work(platform_work_queue* Queue);
 typedef struct memory memory;
 struct memory
 {
-  bool32 IsInitialized;
-  
   u64   PermanentStorageSize;
   u64   TransientStorageSize;
 
@@ -239,7 +232,7 @@ struct memory
 #endif
 };
 
-#define UPDATE_AND_RENDER(name) void name(thread_context* Thread, memory* Memory, input* Input, offscreen_buffer* Buffer)
+#define UPDATE_AND_RENDER(name) void name(memory* Memory, input* Input, offscreen_buffer* Buffer)
 typedef UPDATE_AND_RENDER(update_and_render);
 UPDATE_AND_RENDER(UpdateAndRenderStub)
 {

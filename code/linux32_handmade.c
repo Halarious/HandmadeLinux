@@ -303,7 +303,7 @@ DEBUG_PLATFORM_READ_ENTIRE_FILE(DEBUGPlatformReadEntireFile)
 		}
 	      else
 		{
-		  DEBUGPlatformFreeFileMemory(Thread, &LoadedFile);
+		  DEBUGPlatformFreeFileMemory(&LoadedFile);
 		}
 	    }
 	  close(FileDescriptor);
@@ -903,8 +903,6 @@ main(int ArgCount, char** Arguments)
 
 		  }
 		  
-		  thread_context Thread = {};
-
 		  offscreen_buffer Buffer = {};
 		  Buffer.Memory = GlobalOffscreenBuffer.BitmapMemory;
 		  Buffer.Width  = GlobalOffscreenBuffer.Width;
@@ -921,7 +919,7 @@ main(int ArgCount, char** Arguments)
 		    }
 		  if(Code.UpdateAndRender)
 		    {
-		      Code.UpdateAndRender(&Thread, &Memory, NewInputState, &Buffer);
+		      Code.UpdateAndRender(&Memory, NewInputState, &Buffer);
 		      HandleDebugCycleCounters(&Memory);
 		    }
 		  

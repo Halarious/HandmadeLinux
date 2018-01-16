@@ -159,13 +159,7 @@ ZeroSize(memory_index Size, void *Ptr)
 #include "handmade_sim_region.h"
 #include "handmade_entity.h"
 #include "handmade_render_group.h"
-
-typedef struct
-{
-  loaded_bitmap Head;
-  loaded_bitmap Cape;
-  loaded_bitmap Torso;
-} hero_bitmaps;
+#include "handmade_asset.h"
 
 typedef struct
 {
@@ -198,81 +192,10 @@ typedef struct
   loaded_bitmap Bitmap;
 } ground_buffer;
 
-typedef enum
-  {
-    AssetState_Unloaded,
-    AssetState_Queued,
-    AssetState_Loaded,
-    AssetState_Locked,
-  } asset_state;
-
 typedef struct
 {
-  asset_state State;  
-  loaded_bitmap* Bitmap;
-} asset_slot;
-
-typedef enum
-  {
-    GAI_Backdrop,
-    GAI_Shadow,
-    GAI_Tree,
-    GAI_Sword,
-    GAI_Stairwell,
-
-    GAI_Count,
-  } asset_id;
-
-
-typedef struct
-{
-  u32 ID;
-  r32 Value;
-} asset_tag;
-
-typedef struct
-{
-  v2 AlignPercentage;
-  r32 WidthOverHeight;
-  int Width;
-  int Height;
-
-  u32 FirstTagIndex;
-  u32 OnePastLastTagIndex;
-} asset_bitmap_info;
-
-typedef struct
-{
-  u32 FirstTagIndex;
-  u32 OnePastLastTagIndex;
-} asset_group;
-
-typedef struct transient_state transient_state;
-struct assets
-{
-  transient_state* TransState;
+  bool32 IsInitialized;
   
-  memory_arena Arena;
-  debug_platform_read_entire_file *ReadEntireFile;
-  
-  asset_slot Bitmaps[GAI_Count];
-
-  loaded_bitmap Grass[2];
-  loaded_bitmap Stone[4];
-  loaded_bitmap Tuft[3];
-
-  hero_bitmaps HeroBitmaps[4];
-};
-
-internal inline loaded_bitmap*
-GetBitmap(assets* Assets, asset_id ID)
-{
-  loaded_bitmap* Result = Assets->Bitmaps[ID].Bitmap;
-  return(Result);
-}
-
-typedef struct
-{
   memory_arena WorldArena;
   world *World;
 
@@ -318,6 +241,8 @@ struct transient_state
   memory_arena TransientArena;
 
   task_with_memory Tasks[4];
+
+  assets* Assets;
   
   u32 GroundBufferCount;
   ground_buffer* GroundBuffers;
@@ -328,8 +253,6 @@ struct transient_state
   u32 EnvMapWidth;
   u32 EnvMapHeight;
   environment_map EnvMaps[3];
-
-  assets Assets;
 };
 
 internal inline low_entity*
@@ -347,10 +270,15 @@ GetLowEntity(state *State, u32 Index)
 
 global_variable platform_add_entry* PlatformAddEntry;
 global_variable platform_complete_all_work* PlatformCompleteAllWork;
+global_variable debug_platform_read_entire_file* DEBUGPlatformReadEntireFile;
+
+internal task_with_memory*
+BeginTaskWithMemory(transient_state* TransState);
+internal void
+EndTaskWithMemory(task_with_memory* Task);
 
 internal void
 AddCollisionRule(state *State, u32 StorageIndexA, u32 StorageIndexB, bool32 CanCollide);
 internal void
 ClearCollisionRuleFor(state *State, u32 StorageIndex);
-internal void
-LoadAsset(assets* Assets, asset_id ID);
+

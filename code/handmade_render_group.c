@@ -1361,7 +1361,7 @@ PushBitmap(render_group *Group, loaded_bitmap* Bitmap, v3 Offset, r32 Height, v4
 }
 
 internal inline void
-PushBitmapByID(render_group *Group, asset_id ID, v3 Offset, r32 Height, v4 Color)
+PushBitmapByID(render_group *Group, bitmap_id ID, v3 Offset, r32 Height, v4 Color)
 {
   loaded_bitmap* Bitmap = GetBitmap(Group->Assets, ID);
   if(Bitmap)
@@ -1370,7 +1370,7 @@ PushBitmapByID(render_group *Group, asset_id ID, v3 Offset, r32 Height, v4 Color
     }
   else
     {
-      LoadAsset(Group->Assets, ID);
+      LoadBitmap(Group->Assets, ID);
       ++Group->MissingResourceCount;
     }
 }
