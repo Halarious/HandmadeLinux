@@ -36,16 +36,6 @@ TopDownAlign(loaded_bitmap* Bitmap, v2 Align)
   return(Align);
 }
 
-internal inline void
-SetTopDownAlignHero(hero_bitmaps* Bitmaps, v2 Align)
-{  
-  Align = TopDownAlign(&Bitmaps->Head, Align);
-  
-  Bitmaps->Head.AlignPercentage  = Align;
-  Bitmaps->Cape.AlignPercentage  = Align;
-  Bitmaps->Torso.AlignPercentage = Align;
-}
-
 internal loaded_bitmap
 DEBUGLoadBMP(char* Filename, v2 AlignPercentage)
 {
@@ -182,6 +172,43 @@ LoadSound(assets* Assets, sound_id ID)
 }
 
 internal bitmap_id
+BestMatchAsset(assets* Assets, asset_type_id TypeID,
+	       asset_vector* MatchVector, asset_vector* WeightVector)
+{
+  bitmap_id Result = {};
+
+  r32 BestDiff = Real32Maximum;
+
+  asset_type* Type = Assets->AssetTypes + TypeID;
+    for(u32 AssetIndex = Type->FirstAssetIndex;
+      AssetIndex < Type->OnePastLastAssetIndex;
+      ++AssetIndex)
+    {
+      asset* Asset = Assets->Assets + AssetIndex;
+
+      r32 TotalWeightedDiff = 0.0f;
+      for(u32 TagIndex = Asset->FirstTagIndex;
+	  TagIndex < Asset->OnePastLastTagIndex;
+	  ++TagIndex)
+	{
+	  asset_tag* Tag = Assets->Tags + TagIndex;
+	      
+	  r32 Difference = MatchVector->E[Tag->ID] - Tag->Value;
+	  r32 Weighted = WeightVector->E[Tag->ID] * AbsoluteValue(Difference);
+	  TotalWeightedDiff += Weighted;
+	}
+      
+      if(BestDiff > TotalWeightedDiff)
+	{
+	  BestDiff = TotalWeightedDiff;
+	  Result.Value = Asset->SlotID;
+	}
+    }
+  
+  return(Result);
+}
+
+internal bitmap_id
 RandomAssetFrom(assets* Assets, asset_type_id TypeID, random_series* Series)
 {
   bitmap_id Result = {};
@@ -242,10 +269,26 @@ internal void
 AddBitmapAsset(assets* Assets, char* Filename, v2 AlignPercentage)
 {
   Assert(Assets->DEBUGAssetType);
+  Assert(Assets->DEBUGAssetType->OnePastLastAssetIndex < Assets->AssetCount);
+
   asset* Asset = Assets->Assets + Assets->DEBUGAssetType->OnePastLastAssetIndex++;
-  Asset->FirstTagIndex = 0;
-  Asset->OnePastLastTagIndex = 0;
+  Asset->FirstTagIndex = Assets->DEBUGUsedTagCount;
+  Asset->OnePastLastTagIndex = Asset->FirstTagIndex;
   Asset->SlotID = DEBUGAddBitmapInfo(Assets, Filename, AlignPercentage).Value;
+
+  Assets->DEBUGAsset = Asset;
+}
+
+internal void
+AddTag(assets* Assets, asset_tag_id ID, r32 Value)
+{
+  Assert(Assets->DEBUGAsset);
+  
+  ++Assets->DEBUGAsset->OnePastLastTagIndex;
+  asset_tag* Tag = Assets->Tags + Assets->DEBUGUsedTagCount++;
+
+  Tag->ID = ID;
+  Tag->Value = Value;
 }
 
 internal void
@@ -254,6 +297,7 @@ EndAssetType(assets* Assets)
   Assert(Assets->DEBUGAssetType);
   Assets->DEBUGUsedAssetCount = Assets->DEBUGAssetType->OnePastLastAssetIndex;
   Assets->DEBUGAssetType = 0;
+  Assets->DEBUGAsset = 0;
 }
 
 internal assets*
@@ -275,6 +319,9 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
   Assets->AssetCount = Assets->SoundCount + Assets->BitmapCount;
   Assets->Assets = PushArray(Arena, Assets->AssetCount, asset);
 
+  Assets->TagCount = 1024*Asset_Count;
+  Assets->Tags = PushArray(Arena, Assets->TagCount, asset_tag);
+  
   Assets->DEBUGUsedBitmapCount = 1;
   Assets->DEBUGUsedAssetCount = 1;
 
@@ -307,18 +354,58 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
   AddBitmapAsset(Assets, "../data/test2/ground03.bmp", V2(0.5f, 0.5f));
   EndAssetType(Assets);
 
-  BeginAssetType(Assets, Asset_Stone);
+  BeginAssetType(Assets, Asset_Tuft);
   AddBitmapAsset(Assets, "../data/test2/tuft00.bmp", V2(0.5f, 0.5f));
   AddBitmapAsset(Assets, "../data/test2/tuft01.bmp", V2(0.5f, 0.5f));
   AddBitmapAsset(Assets, "../data/test2/tuft02.bmp", V2(0.5f, 0.5f));
   EndAssetType(Assets);
- 
-  hero_bitmaps *Bitmap = Assets->HeroBitmaps;
-      
+
+  r32 Angle_Right = 0.0f*Pi32;
+  r32 Angle_Back = 0.5f*Pi32;
+  r32 Angle_Left = 1.0f*Pi32;
+  r32 Angle_Front = 1.5f*Pi32;
+  
+  BeginAssetType(Assets, Asset_Head);
+  AddBitmapAsset(Assets, "../data/test/test_hero_right_head.bmp", V2(0.5f, 0.5f));
+  AddTag(Assets, Tag_FacingDirection, Angle_Right);
+  AddBitmapAsset(Assets, "../data/test/test_hero_back_head.bmp", V2(0.5f, 0.5f));
+  AddTag(Assets, Tag_FacingDirection, Angle_Back);
+  AddBitmapAsset(Assets, "../data/test/test_hero_left_head.bmp", V2(0.5f, 0.5f));
+  AddTag(Assets, Tag_FacingDirection, Angle_Left);
+  AddBitmapAsset(Assets, "../data/test/test_hero_front_head.bmp", V2(0.5f, 0.5f));
+  AddTag(Assets, Tag_FacingDirection, Angle_Front);
+  EndAssetType(Assets);
+
+  BeginAssetType(Assets, Asset_Cape);
+  AddBitmapAsset(Assets, "../data/test/test_hero_right_cape.bmp", V2(0.5f, 0.5f));
+  AddTag(Assets, Tag_FacingDirection, 0.0f);
+  AddBitmapAsset(Assets, "../data/test/test_hero_back_cape.bmp", V2(0.5f, 0.5f));
+  AddTag(Assets, Tag_FacingDirection, Angle_Back);
+  AddBitmapAsset(Assets, "../data/test/test_hero_left_cape.bmp", V2(0.5f, 0.5f));
+  AddTag(Assets, Tag_FacingDirection, Angle_Left);
+  AddBitmapAsset(Assets, "../data/test/test_hero_front_cape.bmp", V2(0.5f, 0.5f));
+  AddTag(Assets, Tag_FacingDirection, Angle_Front);
+  EndAssetType(Assets);
+
+  BeginAssetType(Assets, Asset_Torso);
+  AddBitmapAsset(Assets, "../data/test/test_hero_right_torso.bmp", V2(0.5f, 0.5f));
+  AddTag(Assets, Tag_FacingDirection, 0.0f);
+  AddBitmapAsset(Assets, "../data/test/test_hero_back_torso.bmp", V2(0.5f, 0.5f));
+  AddTag(Assets, Tag_FacingDirection, Angle_Back);
+  AddBitmapAsset(Assets, "../data/test/test_hero_left_torso.bmp", V2(0.5f, 0.5f));
+  AddTag(Assets, Tag_FacingDirection, Angle_Left);
+  AddBitmapAsset(Assets, "../data/test/test_hero_front_torso.bmp", V2(0.5f, 0.5f));
+  AddTag(Assets, Tag_FacingDirection, Angle_Front);
+  EndAssetType(Assets);
+
+#if 0
+  hero_bitmaps *Bitmap;
+
+  Bitmap = Assets->HeroBitmaps;
   Bitmap->Head
     = DEBUGLoadBMP("../data/test/test_hero_right_head.bmp", V2(0, 0));
   Bitmap->Cape
-    = DEBUGLoadBMP("../data/test/test_hero_right_cape.bmp", V2(0, 0));
+    = DEBUGLoadBMP("", V2(0, 0));
   Bitmap->Torso
     = DEBUGLoadBMP("../data/test/test_hero_right_torso.bmp", V2(0, 0));
   SetTopDownAlignHero(Bitmap, V2(72, 182));
@@ -349,6 +436,7 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
   Bitmap->Torso
     = DEBUGLoadBMP("../data/test/test_hero_front_torso.bmp", V2(0, 0));
   SetTopDownAlignHero(Bitmap, V2(72, 182));
+#endif
   
   return(Assets);
 }

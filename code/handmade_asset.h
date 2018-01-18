@@ -1,11 +1,4 @@
 
-typedef struct
-{
-  loaded_bitmap Head;
-  loaded_bitmap Cape;
-  loaded_bitmap Torso;
-} hero_bitmaps;
-
 typedef enum
   {
     AssetState_Unloaded,
@@ -24,6 +17,7 @@ typedef enum
   {
     Tag_Smoothness,
     Tag_Flatness,
+    Tag_FacingDirection,
     
     Tag_Count,
   } asset_tag_id;
@@ -40,6 +34,10 @@ typedef enum
     Asset_Grass,
     Asset_Tuft,
     Asset_Stone,
+
+    Asset_Head,
+    Asset_Cape,
+    Asset_Torso,
     
     Asset_Count,
   } asset_type_id;
@@ -57,6 +55,11 @@ typedef struct
   u32 OnePastLastTagIndex;
   u32 SlotID;
 } asset;
+
+typedef struct
+{
+  r32 E[Tag_Count];
+} asset_vector;
 
 typedef struct
 {
@@ -98,11 +101,13 @@ struct assets
   
   asset_type AssetTypes[Asset_Count];
 
-  hero_bitmaps HeroBitmaps[4];
+  //hero_bitmaps HeroBitmaps[4];
 
   u32 DEBUGUsedBitmapCount;
   u32 DEBUGUsedAssetCount;
+  u32 DEBUGUsedTagCount;
   asset_type* DEBUGAssetType;
+  asset* DEBUGAsset;
 };
 
 typedef struct

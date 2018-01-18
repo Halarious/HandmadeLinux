@@ -65,7 +65,7 @@ struct sim_entity
 
   sim_entity_collision_volume_group *Collision;
     
-  u32 FacingDirection;
+  r32 FacingDirection;
   r32 tBob;   
 
   u32 HitPointMax;

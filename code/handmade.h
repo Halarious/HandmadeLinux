@@ -194,6 +194,13 @@ typedef struct
 
 typedef struct
 {
+  bitmap_id Head;
+  bitmap_id Cape;
+  bitmap_id Torso;
+} hero_bitmaps_ids;
+
+typedef struct
+{
   bool32 IsInitialized;
   
   memory_arena WorldArena;

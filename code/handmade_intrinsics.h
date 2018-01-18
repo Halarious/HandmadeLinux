@@ -126,7 +126,7 @@ Cos(r32 Angle)
 }
 
 inline internal r32
-Atan2(r32 Y, r32 X)
+ATan2(r32 Y, r32 X)
 {
   r32 Result = atan2f(Y, X);
   return(Result);

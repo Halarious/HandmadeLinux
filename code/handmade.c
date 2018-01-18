@@ -632,42 +632,6 @@ PLATFORM_WORK_QUEUE_CALLBACK(FillGroundChunkWork)
   EndTaskWithMemory(Work->Task);
 }
 
-#if 0
-internal u32
-PickBest(u32 InfoCount, asset_bitmap_info* Infos, asset_tag* Tags,
-	 r32* MatchVector, r32* WeightVector)
-{
-  r32 BestDiff = Real32Maximum;
-  u32 BestIndex = 0;
-
-  for(u32 InfoIndex = 0;
-      InfoIndex < InfoCount;
-      ++InfoIndex)
-    {
-      asset_bitmap_info *Info = Infos + InfoIndex;
-
-      r32 TotalWeightedDiff = 0.0f;
-      for(u32 TagIndex = Info->FirstTagIndex;
-	  TagIndex < Info->OnePastLastTagIndex;
-	  ++TagIndex)
-	{
-	  asset_tag* Tag = Tags + TagIndex;
-	  r32 Difference = MatchVector[Tag->ID] - Tag->Value;
-	  r32 Weighted = WeightVector[Tag->ID] * AbsoluteValue(Difference);
-	  TotalWeightedDiff += Weighted;
-	}
-
-      if(BestDiff > TotalWeightedDiff)
-	{
-	  BestDiff = TotalWeightedDiff;
-	  BestIndex = InfoIndex;
-	}
-    }
-  
-  return(BestIndex);
-}
-#endif
-
 internal void
 FillGroundChunk(transient_state *TransState, state *State, ground_buffer *GroundBuffer,
 		world_position* ChunkP)
@@ -1357,7 +1321,20 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	      RenderGroup->GlobalAlpha = Clamp01MapToRange(FadeBottomEndZ, CameraRelativeGroundP.z, FadeBottomStartZ);
 	    }
 
-	  hero_bitmaps *Hero = &TransState->Assets->HeroBitmaps[Entity->FacingDirection];
+	  hero_bitmaps_ids HeroBitmaps = {};
+	  asset_vector MatchVector  = {};
+	  MatchVector.E[Tag_FacingDirection] = Entity->FacingDirection;
+	  asset_vector WeightVector = {};
+	  WeightVector.E[Tag_FacingDirection] = 1.0f;
+	  HeroBitmaps.Head = BestMatchAsset(TransState->Assets, Asset_Head,
+					    &MatchVector,
+					    &WeightVector);
+	  HeroBitmaps.Cape = BestMatchAsset(TransState->Assets, Asset_Cape,
+					    &MatchVector,
+					    &WeightVector);
+	  HeroBitmaps.Torso = BestMatchAsset(TransState->Assets, Asset_Torso,
+					    &MatchVector,
+					    &WeightVector);
 	  switch(Entity->Type)
 	    {
 
@@ -1477,9 +1454,9 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	      {
 		r32 HeroSizeC = 2.5f;
 		PushBitmapByID(RenderGroup, GetFirstBitmapID(TransState->Assets, Asset_Shadow), V3(0, 0, 0), HeroSizeC*1.0f, V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
-		PushBitmap(RenderGroup, &Hero->Torso, V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));
-		PushBitmap(RenderGroup, &Hero->Cape,  V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));
-		PushBitmap(RenderGroup, &Hero->Head,  V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));	
+		PushBitmapByID(RenderGroup, HeroBitmaps.Torso, V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));
+		PushBitmapByID(RenderGroup, HeroBitmaps.Cape,  V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));
+		PushBitmapByID(RenderGroup, HeroBitmaps.Head,  V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));	
 		DrawHitpoints(Entity, RenderGroup);
 	    	    
 	      } break;
@@ -1505,14 +1482,14 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	      {
 		r32 BobSin = Sin(2.0f * Entity->tBob);
 		PushBitmapByID(RenderGroup, GetFirstBitmapID(TransState->Assets, Asset_Shadow), V3(0, 0, 0), 2.5f, V4(1.0f, 1.0f, 1.0f, 0.5f*ShadowAlpha + 0.2f*BobSin));
-		PushBitmap(RenderGroup, &Hero->Head, V3(0, 0, 0.25f*BobSin), 2.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
+		PushBitmapByID(RenderGroup, HeroBitmaps.Head, V3(0, 0, 0.25f*BobSin), 2.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 	      } break;
 
 	    case EntityType_Monstar:
 	      {
 		DrawHitpoints(Entity, RenderGroup);
 		PushBitmapByID(RenderGroup, GetFirstBitmapID(TransState->Assets, Asset_Shadow), V3(0, 0, 0), 4.5f, V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
-		PushBitmap(RenderGroup, &Hero->Torso, V3(0, 0, 0), 4.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
+		PushBitmapByID(RenderGroup, HeroBitmaps.Torso, V3(0, 0, 0), 4.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 	      } break;
 	      
 	    case EntityType_Space:
