@@ -284,15 +284,6 @@ InitFont(thread_context* Thread, font* FontState, memory_arena* BitmapArena, mem
 }
 */
 
-internal loaded_bitmap
-DEBUGLoadBMPDef(char* Filename, s32 AlignX, s32 TopDownAlignY)
-{
-  loaded_bitmap Result = DEBUGLoadBMP(Filename,
-				      0, 0);
-  Result.AlignPercentage = V2(0.5f, 0.5f);
-  return(Result);
-}
-
 typedef struct
 {
   low_entity *Low;
@@ -701,6 +692,10 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 
       Clear(RenderGroup, V4(1.0f, 0.0f, 1.0f, 1.0f));
 
+      Work->RenderGroup = RenderGroup;
+      Work->Buffer = Buffer;
+      Work->Task = Task;
+
       //HalfDim = V2MulS(0.5f, HalfDim);
   
       for(s32 ChunkOffsetY = -1;
@@ -731,21 +726,15 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 		  GrassIndex < 100;
 		  ++GrassIndex)
 		{
-		  loaded_bitmap *Stamp;
-		  if(RandomChoice(&Series, 2))
-		    {
-		      Stamp = TransState->Assets->Grass + RandomChoice(&Series, ArrayCount(TransState->Assets->Grass));
-		    }
-		  else
-		    {
-		      Stamp = TransState->Assets->Stone + RandomChoice(&Series, ArrayCount(TransState->Assets->Stone));
-		    }
-
+		  bitmap_id Stamp = RandomAssetFrom(TransState->Assets,
+						    RandomChoice(&Series, 2) ? Asset_Grass : Asset_Stone,
+						    &Series);
+		    
 		  v2 Offset = V2Hadamard(HalfDim, V2(RandomBilateral(&Series), RandomBilateral(&Series)));
 		  v2 P = V2Add(Center, Offset);
       
-		  PushBitmap(RenderGroup, Stamp, ToV3(P, 0.0f),
-			     2.0f, Color);
+		  PushBitmapByID(RenderGroup, Stamp, ToV3(P, 0.0f),
+		  		 2.0f, Color);
 		}
 	    }
 	}
@@ -770,26 +759,26 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 		  TuftIndex < 50;
 		  ++TuftIndex)
 		{
-		  loaded_bitmap *Stamp = TransState->Assets->Tuft + RandomChoice(&Series, ArrayCount(TransState->Assets->Tuft));
+		  bitmap_id Stamp = RandomAssetFrom(TransState->Assets, Asset_Tuft, &Series);
 
 		  v2 Offset = V2Hadamard(HalfDim, V2(RandomBilateral(&Series), RandomBilateral(&Series)));
 		  v2 P = V2Add(Center, Offset);
       
-		  PushBitmap(RenderGroup, Stamp, ToV3(P, 0.0f),
-			     0.1f, V4(1.0f, 1.0f, 1.0f, 1.0f));
+		  PushBitmapByID(RenderGroup, Stamp, ToV3(P, 0.0f),
+				 0.1f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 		}
 	    }
 	}
-      
+
       if(AllResourcesPresent(RenderGroup))
 	{
 	  GroundBuffer->P = *ChunkP;
 
-	  Work->RenderGroup = RenderGroup;
-	  Work->Buffer = Buffer;
-	  Work->Task = Task;
-
 	  PlatformAddEntry(TransState->LowPriorityQueue, FillGroundChunkWork, Work);
+	}
+      else
+	{
+	  EndTaskWithMemory(Work->Task);
 	}
     }
 }

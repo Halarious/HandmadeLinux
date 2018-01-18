@@ -32,13 +32,15 @@ typedef enum
   {
     Asset_None,
     
-    Asset_Backdrop,
     Asset_Shadow,
     Asset_Tree,
     Asset_Sword,
-    Asset_Stairwell,
     Asset_Rock,
 
+    Asset_Grass,
+    Asset_Tuft,
+    Asset_Stone,
+    
     Asset_Count,
   } asset_type_id;
 
@@ -64,10 +66,8 @@ typedef struct
 
 typedef struct
 {
+  char* Filename;
   v2 AlignPercentage;
-  r32 WidthOverHeight;
-  int Width;
-  int Height;
 } asset_bitmap_info;
 
 typedef struct
@@ -82,8 +82,9 @@ struct assets
   transient_state* TransState;
   
   memory_arena Arena;
-
+  
   u32 BitmapCount;
+  asset_bitmap_info* BitmapInfos ;
   asset_slot* Bitmaps;
 
   u32 SoundCount;
@@ -97,11 +98,11 @@ struct assets
   
   asset_type AssetTypes[Asset_Count];
 
-  loaded_bitmap Grass[2];
-  loaded_bitmap Stone[4];
-  loaded_bitmap Tuft[3];
-
   hero_bitmaps HeroBitmaps[4];
+
+  u32 DEBUGUsedBitmapCount;
+  u32 DEBUGUsedAssetCount;
+  asset_type* DEBUGAssetType;
 };
 
 typedef struct
