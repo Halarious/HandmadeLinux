@@ -63,7 +63,8 @@ typedef double r64;
 #define local_persist   static
 #define global_variable static
 
-#define Pi32 3.14159265359f
+#define Pi32  3.14159265359f
+#define Tau32 6.28318530717f
 
 #if COMPILER_LLVM
 #define Assert(Expresion) if(!(Expresion)){ __builtin_trap();}

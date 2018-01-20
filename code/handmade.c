@@ -1425,9 +1425,9 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		MoveSpec.Drag = 8.0f;
 
 		Entity->tBob += dt;
-		if(Entity->tBob > (2.0f * Pi32))
+		if(Entity->tBob > (Tau32))
 		  {
-		    Entity->tBob -= 2.0f * Pi32;
+		    Entity->tBob -= Tau32;
 		  }
 		r32 BobSin = Sin(2.0f*Entity->tBob);
 		

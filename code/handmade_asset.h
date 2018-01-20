@@ -1,4 +1,10 @@
 
+typedef struct
+{
+  s32 SampleCount;
+  void* Memory;
+} loaded_sound;
+
 typedef enum
   {
     AssetState_Unloaded,
@@ -10,7 +16,11 @@ typedef enum
 typedef struct
 {
   asset_state State;  
-  loaded_bitmap* Bitmap;
+  union
+  {
+    loaded_bitmap* Bitmap;
+    loaded_sound* Sound;
+  };
 } asset_slot;
 
 typedef enum
@@ -75,6 +85,11 @@ typedef struct
 
 typedef struct
 {
+  char* Filename;
+} asset_sound_info;
+
+typedef struct
+{
   u32 FirstTagIndex;
   u32 OnePastLastTagIndex;
 } asset_group;
@@ -85,13 +100,16 @@ struct assets
   transient_state* TransState;
   
   memory_arena Arena;
+
+  r32 TagRange[Tag_Count];
   
   u32 BitmapCount;
   asset_bitmap_info* BitmapInfos ;
   asset_slot* Bitmaps;
 
   u32 SoundCount;
-  asset_slot* Sound;
+  asset_sound_info* SoundInfos;
+  asset_slot* Sounds;
 
   u32 TagCount;
   asset_tag* Tags;

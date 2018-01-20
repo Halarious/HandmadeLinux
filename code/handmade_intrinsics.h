@@ -28,6 +28,14 @@ AtomicCompareExchangeUInt32(u32 volatile* Value, u32 Expected, u32 New)
 #error Intrinsics not defined for this compiler!
 #endif
 
+inline internal r32
+SignOfR32(r32 Value)
+{
+  r32 Result = (Value >= 0) ? 1.0f : -1.0f;
+  //NOTE: This one returns a zero value for positive 
+  //signbit(Value);
+  return(Result);
+}
 
 inline internal s32
 SignOf(s32 Value)
