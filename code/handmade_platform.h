@@ -148,6 +148,12 @@ typedef struct
   int Pitch;
 } offscreen_buffer;
 
+typedef struct
+{
+  s32 SamplesPerSecond;
+  s32 SampleCount;
+  s16* Samples;
+} sound_output_buffer;
 
 typedef struct
 {
@@ -238,6 +244,9 @@ typedef UPDATE_AND_RENDER(update_and_render);
 UPDATE_AND_RENDER(UpdateAndRenderStub)
 {
 }
+
+#define GET_SOUND_SAMPLES(name) void name(memory* Memory, sound_output_buffer* SoundBuffer)
+typedef UPDATE_AND_RENDER(get_sound_samples);
 
 controller_input*
 GetController(input *Input, u32 ControllerIndex)

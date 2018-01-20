@@ -13,6 +13,12 @@
   which is not applied here. It was supposedly microcoded and not 
   a big deal anyway (especially since it is a debug thing we use it
   for), and finding ones for llvm/clang is a bit of a pain 
+- We have come to the point where we are continuing the sound code 
+  (just a little bit) but I still haven't implemented something which
+  would be an okay Linux equivalent. Basically we have no sound in the
+  game still. NOTES (days where we are missing some code and would 
+                     maybe like to revisit once we get sound):
+    - Day 138; from 50:47 
  */
 
 #include "handmade.h"
@@ -755,7 +761,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   PlatformAddEntry = Memory->PlatformAddEntry;
   PlatformCompleteAllWork = Memory->PlatformCompleteAllWork;
   DEBUGPlatformReadEntireFile = Memory->DEBUGPlatformReadEntireFile;
-
+  
 #if HANDMADE_INTERNAL
   DebugGlobalMemory = Memory;
 #endif
@@ -781,6 +787,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       u32 TilesPerHeight = 9;
 
       State->TypicalFloorHeight = 3.0f;
+
+      State->TestSound = DEBUGLoadWAV("../data/test3/music_test.wav");
       
       r32 PixelsToMeters = 1.0f / 42.0f;
       v3 WorldChunkDimInMeters = V3(PixelsToMeters*(r32)GroundBufferWidth,
@@ -1636,88 +1644,22 @@ r32 Angle = 0.1f * State->Time;
 
   END_TIMED_BLOCK(UpdateAndRender);
 }
-/*
 
-internal void
-RenderWeirdGradient(offscreen_buffer* Buffer, memory_arena* Arena,
-		    u32 BlueOffset, u32 GreenOffset)
+GET_SOUND_SAMPLES(GetSoundSamples)
 {
-  u8* Row = (u8*)Buffer->BitmapMemory;
-  for(int Y = 0;
-      Y < Buffer->Height;
-      ++Y)
-    {
-      u32 *Pixel = (u32*)Row;
-      for (int X = 0; 
-	   X < Buffer->Width;
-	   ++X)
-	{
-	  u8 Blue  = X + BlueOffset;
-	  u8 Green = Y + GreenOffset;
-	  *Pixel++ = ((Green << 8) | Blue);
-	}
-      Row += Buffer->Pitch;
-    }
-}
+  state* State = (state*)(Memory->PermanentStorage);
 
-internal void
-DrawGlyph(offscreen_buffer* Buffer, glyph_bitmap* Glyph,
-	   s32 X, s32 Y)
-{
-  DrawBitmap(Buffer, Glyph->Bitmap,
-	     X + Glyph->XOffset,
-	     Y + Glyph->YOffset);
-}
-
-internal void
-DebugRenderTextLine()
-{
-  
-}
-
-#if 0
-internal bool32
-Button(s32 ID, char* Label, v2 Position, guiContext* GUIContext)
-{
-  if(GUIContext->ActiveItem == ID)
+  s16* SampleOut = SoundBuffer->Samples;
+  for(u32 SampleIndex = 0;
+      SampleIndex < SoundBuffer->SampleCount;
+      ++SampleIndex)
     {
-      inputState currentInputState = GUIContext->InputState;
-      if(MouseWentUp)
-	{
-	  if(GUIContext->HotItem == ID)
-	    {
-	      return true;
-	    }
-	  GUIContext->ActiveItem = 0;
-	}
+      u32 TestSoundSampleIndex = ((State->TestSampleIndex + SampleIndex) %
+				  State->TestSound.SampleCount);
+      s16 SampleValue = State->TestSound.Samples[0][TestSoundSampleIndex];
+      *SampleOut++ = SampleValue;
+      *SampleOut++ = SampleValue;
     }
-  else
-    {
-      if(MouseWentDown)
-	{
-	  GUIContext->ActiveItem = ID;
-	}
-    }
-  
-  if(Inside)
-    {
-      GUIContext->HotItem = ID;
-    }
-  
-}
 
-internal void
-prepareUIFrame()
-{
-  guiContext GUIContext;
-  InitGui(&GUIContext);
-  
-  if(Button(ID, Label, Position, &GUIContext))
-    {
-      //TODO
-    }
-  OutputList(Position, char** Strings, s32 numStrings);
+  State->TestSampleIndex += SoundBuffer->SampleCount;
 }
-#endif
-
-*/

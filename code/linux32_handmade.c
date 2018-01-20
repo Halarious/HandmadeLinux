@@ -777,7 +777,7 @@ main(int ArgCount, char** Arguments)
     {
       MonitorRefreshHz = Linux32RefreshRate;
     }
-  r32 GameUpdateHz     = MonitorRefreshHz / 2.0f; 
+  r32 GameUpdateHz     = (r32)MonitorRefreshHz / 2.0f; 
   r32 TargetSecondsPerFrame = 1.0f / (r32)GameUpdateHz;
   //TODO Apparently Windows is a unsigned value, so we need to
   //     check for any errors in the XCreateWindow call differently

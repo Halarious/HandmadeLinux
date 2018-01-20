@@ -232,6 +232,10 @@ typedef struct
 
   loaded_bitmap TestDiffuse;
   loaded_bitmap TestNormal;
+
+  loaded_sound TestSound;
+  r32 tSine;
+  u32 TestSampleIndex;
 } state;
 
 typedef struct

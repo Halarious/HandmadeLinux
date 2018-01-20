@@ -1,8 +1,9 @@
 
 typedef struct
 {
-  s32 SampleCount;
-  void* Memory;
+  u32 SampleCount;
+  u32 ChannelCount;
+  s16* Samples[2];
 } loaded_sound;
 
 typedef enum
