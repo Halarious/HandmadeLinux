@@ -19,6 +19,7 @@
   game still. NOTES (days where we are missing some code and would 
                      maybe like to revisit once we get sound):
     - Day 138; from 50:47 
+    - Day 139; sound day but blackboard only. Informative mostly
  */
 
 #include "handmade.h"
