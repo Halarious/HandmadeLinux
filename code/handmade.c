@@ -697,9 +697,9 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 		  GrassIndex < 100;
 		  ++GrassIndex)
 		{
-		  bitmap_id Stamp = RandomAssetFrom(TransState->Assets,
-						    RandomChoice(&Series, 2) ? Asset_Grass : Asset_Stone,
-						    &Series);
+		  bitmap_id Stamp = GetRandomBitmapFrom(TransState->Assets,
+							RandomChoice(&Series, 2) ? Asset_Grass : Asset_Stone,
+							&Series);
 		    
 		  v2 Offset = V2Hadamard(HalfDim, V2(RandomBilateral(&Series), RandomBilateral(&Series)));
 		  v2 P = V2Add(Center, Offset);
@@ -730,8 +730,8 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 		  TuftIndex < 50;
 		  ++TuftIndex)
 		{
-		  bitmap_id Stamp = RandomAssetFrom(TransState->Assets, Asset_Tuft, &Series);
-
+		  bitmap_id Stamp = GetRandomBitmapFrom(TransState->Assets, Asset_Tuft, &Series);
+		  
 		  v2 Offset = V2Hadamard(HalfDim, V2(RandomBilateral(&Series), RandomBilateral(&Series)));
 		  v2 P = V2Add(Center, Offset);
       
@@ -788,8 +788,6 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       u32 TilesPerHeight = 9;
 
       State->TypicalFloorHeight = 3.0f;
-
-      State->TestSound = DEBUGLoadWAV("../data/test3/music_test.wav");
       
       r32 PixelsToMeters = 1.0f / 42.0f;
       v3 WorldChunkDimInMeters = V3(PixelsToMeters*(r32)GroundBufferWidth,
@@ -798,7 +796,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       
       InitializeArena(&State->WorldArena, Memory->PermanentStorageSize - sizeof(state),
 		      (u8*)Memory->PermanentStorage + sizeof(state));
-      
+
       AddLowEntity(State, EntityType_Null, NullPosition());
            
       State->World   = PushStruct(&State->WorldArena, world);
@@ -1024,6 +1022,12 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	}
 
       TransState->Assets = AllocateGameAssets(&TransState->TransientArena, Megabytes(64), TransState);
+      
+      State->FirstPlayingSound = PushStruct(&State->WorldArena, playing_sound);
+      State->FirstPlayingSound->Volume[0] = 0.0f;
+      State->FirstPlayingSound->Volume[1] = 0.0f;
+      State->FirstPlayingSound->ID = GetFirstSoundFrom(TransState->Assets, Asset_Music);
+      
       TransState->GroundBufferCount = 256;
       TransState->GroundBuffers = PushArray(&TransState->TransientArena,
 					    TransState->GroundBufferCount,
@@ -1335,15 +1339,15 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  MatchVector.E[Tag_FacingDirection] = Entity->FacingDirection;
 	  asset_vector WeightVector = {};
 	  WeightVector.E[Tag_FacingDirection] = 1.0f;
-	  HeroBitmaps.Head = BestMatchAsset(TransState->Assets, Asset_Head,
-					    &MatchVector,
-					    &WeightVector);
-	  HeroBitmaps.Cape = BestMatchAsset(TransState->Assets, Asset_Cape,
-					    &MatchVector,
-					    &WeightVector);
-	  HeroBitmaps.Torso = BestMatchAsset(TransState->Assets, Asset_Torso,
-					    &MatchVector,
-					    &WeightVector);
+	  HeroBitmaps.Head = GetBestMatchBitmapFrom(TransState->Assets, Asset_Head,
+						    &MatchVector,
+						    &WeightVector);
+	  HeroBitmaps.Cape = GetBestMatchBitmapFrom(TransState->Assets, Asset_Cape,
+						    &MatchVector,
+						    &WeightVector);
+	  HeroBitmaps.Torso = GetBestMatchBitmapFrom(TransState->Assets, Asset_Torso,
+						     &MatchVector,
+						     &WeightVector);
 	  switch(Entity->Type)
 	    {
 
@@ -1462,7 +1466,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	    case EntityType_Hero:
 	      {
 		r32 HeroSizeC = 2.5f;
-		PushBitmapByID(RenderGroup, GetFirstBitmapID(TransState->Assets, Asset_Shadow), V3(0, 0, 0), HeroSizeC*1.0f, V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
+		PushBitmapByID(RenderGroup, GetFirstBitmapFrom(TransState->Assets, Asset_Shadow), V3(0, 0, 0), HeroSizeC*1.0f, V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
 		PushBitmapByID(RenderGroup, HeroBitmaps.Torso, V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 		PushBitmapByID(RenderGroup, HeroBitmaps.Cape,  V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 		PushBitmapByID(RenderGroup, HeroBitmaps.Head,  V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));	
@@ -1472,7 +1476,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
 	    case EntityType_Wall:
 	      {
-		PushBitmapByID(RenderGroup, GetFirstBitmapID(TransState->Assets, Asset_Tree), V3(0, 0, 0), 2.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
+		PushBitmapByID(RenderGroup, GetFirstBitmapFrom(TransState->Assets, Asset_Tree), V3(0, 0, 0), 2.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 	      } break;
 
 	    case EntityType_Stairwell:
@@ -1483,21 +1487,21 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
 	    case EntityType_Sword:
 	      {
-		PushBitmapByID(RenderGroup, GetFirstBitmapID(TransState->Assets, Asset_Shadow), V3(0, 0, 0), 0.5f, V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
-		PushBitmapByID(RenderGroup, GetFirstBitmapID(TransState->Assets, Asset_Sword), V3(0, 0, 0), 0.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
+		PushBitmapByID(RenderGroup, GetFirstBitmapFrom(TransState->Assets, Asset_Shadow), V3(0, 0, 0), 0.5f, V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
+		PushBitmapByID(RenderGroup, GetFirstBitmapFrom(TransState->Assets, Asset_Sword), V3(0, 0, 0), 0.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 	      } break;
 
 	    case EntityType_Familiar:
 	      {
 		r32 BobSin = Sin(2.0f * Entity->tBob);
-		PushBitmapByID(RenderGroup, GetFirstBitmapID(TransState->Assets, Asset_Shadow), V3(0, 0, 0), 2.5f, V4(1.0f, 1.0f, 1.0f, 0.5f*ShadowAlpha + 0.2f*BobSin));
+		PushBitmapByID(RenderGroup, GetFirstBitmapFrom(TransState->Assets, Asset_Shadow), V3(0, 0, 0), 2.5f, V4(1.0f, 1.0f, 1.0f, 0.5f*ShadowAlpha + 0.2f*BobSin));
 		PushBitmapByID(RenderGroup, HeroBitmaps.Head, V3(0, 0, 0.25f*BobSin), 2.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 	      } break;
 
 	    case EntityType_Monstar:
 	      {
 		DrawHitpoints(Entity, RenderGroup);
-		PushBitmapByID(RenderGroup, GetFirstBitmapID(TransState->Assets, Asset_Shadow), V3(0, 0, 0), 4.5f, V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
+		PushBitmapByID(RenderGroup, GetFirstBitmapFrom(TransState->Assets, Asset_Shadow), V3(0, 0, 0), 4.5f, V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
 		PushBitmapByID(RenderGroup, HeroBitmaps.Torso, V3(0, 0, 0), 4.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 	      } break;
 	      
@@ -1649,18 +1653,83 @@ r32 Angle = 0.1f * State->Time;
 GET_SOUND_SAMPLES(GetSoundSamples)
 {
   state* State = (state*)(Memory->PermanentStorage);
+  transient_state* TranState = (transient_state*) Memory->TransientStorage;
 
-  s16* SampleOut = SoundBuffer->Samples;
-  for(u32 SampleIndex = 0;
-      SampleIndex < SoundBuffer->SampleCount;
-      ++SampleIndex)
+  temporary_memory MixerMemory = BeginTemporaryMemory(&TranState->TransientArena);
+  
+  r32* RealChannel0 = PushArray(&TranState->TransientArena, SoundBuffer->SampleCount, r32);
+  r32* RealChannel1 = PushArray(&TranState->TransientArena, SoundBuffer->SampleCount, r32);
+
+  {
+    r32* Dest0 = RealChannel0;
+    r32* Dest1 = RealChannel1;
+    for(u32 SampleIndex = 0;
+	SampleIndex < SoundBuffer->SampleCount;
+	++SampleIndex)
+      {
+	*Dest0++ = 0.0f;
+	*Dest1++ = 0.0f;
+      }
+  }
+  
+  for(playing_sound* PlayingSound = State->FirstPlayingSound;
+      PlayingSound;
+      )
     {
-      u32 TestSoundSampleIndex = ((State->TestSampleIndex + SampleIndex) %
-				  State->TestSound.SampleCount);
-      s16 SampleValue = State->TestSound.Samples[0][TestSoundSampleIndex];
-      *SampleOut++ = SampleValue;
-      *SampleOut++ = SampleValue;
+      playing_sound* NextPlayingSound = PlayingSound->Next;
+	
+      loaded_sound* LoadedSound = GetSound(TranState->Assets, PlayingSound->ID);
+      if(LoadedSound)
+	{
+	  r32 Volume0 = PlayingSound->Volume[0];
+	  r32 Volume1 = PlayingSound->Volume[1];
+	  r32* Dest0 = RealChannel0;
+	  r32* Dest1 = RealChannel1;
+
+	  Assert(PlayingSound->SamplesPlayed >= 0);
+	  
+	  u32 SamplesToMix = SoundBuffer->SampleCount;
+	  u32 SamplesRemainingInSound = LoadedSound->SampleCount - PlayingSound->SamplesPlayed;
+	  if(SamplesToMix > SamplesRemainingInSound)
+	    {
+	      SamplesToMix = SamplesRemainingInSound;
+	    }
+	  
+	  for(u32 SampleIndex = PlayingSound->SamplesPlayed;
+	      SampleIndex < (PlayingSound->SamplesPlayed + SamplesRemainingInSound);
+	      ++SampleIndex)
+	    {
+	      r32 SampleValue = LoadedSound->Samples[0][SampleIndex];
+	      *Dest0++ = Volume0*SampleValue;
+	      *Dest1++ = Volume1*SampleValue;
+	    }
+
+	  PlayingSound->SamplesPlayed += SamplesToMix;
+	  if((u32)PlayingSound->SamplesPlayed == LoadedSound->SampleCount)
+	    {
+	      PlayingSound->Next = State->FirstFreePlayingSound;
+	      State->FirstFreePlayingSound = PlayingSound;
+	    }
+	}
+      else
+	{
+	  LoadSound(TranState->Assets, PlayingSound->ID);
+	}
+      PlayingSound = NextPlayingSound;
     }
 
-  State->TestSampleIndex += SoundBuffer->SampleCount;
+  {
+    r32* Source0 = RealChannel0;
+    r32* Source1 = RealChannel1;
+	  
+    s16* SampleOut = SoundBuffer->Samples;
+    for(u32 SampleIndex = 0;
+	SampleIndex < SoundBuffer->SampleCount;
+	++SampleIndex)
+      {
+	*SampleOut++ = (s16)(*Source0++ + 0.5f);
+	*SampleOut++ = (s16)(*Source1++ + 0.5f);
+      }
+  }
+  EndTemporaryMemory(MixerMemory);
 }

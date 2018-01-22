@@ -199,10 +199,20 @@ typedef struct
   bitmap_id Torso;
 } hero_bitmaps_ids;
 
+typedef struct playing_sound playing_sound;
+struct playing_sound
+{
+  r32 Volume[2];
+  sound_id ID;
+  s32 SamplesPlayed;
+  playing_sound* Next;
+};
+
 typedef struct
 {
   bool32 IsInitialized;
   
+  memory_arena MetaArena;
   memory_arena WorldArena;
   world *World;
 
@@ -229,13 +239,14 @@ typedef struct
   sim_entity_collision_volume_group *StandardRoomCollision;
   
   r32 Time;
-
+  
   loaded_bitmap TestDiffuse;
   loaded_bitmap TestNormal;
 
-  loaded_sound TestSound;
   r32 tSine;
-  u32 TestSampleIndex;
+
+  playing_sound *FirstPlayingSound;
+  playing_sound *FirstFreePlayingSound;
 } state;
 
 typedef struct

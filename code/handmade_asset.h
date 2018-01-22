@@ -49,7 +49,15 @@ typedef enum
     Asset_Head,
     Asset_Cape,
     Asset_Torso,
+
     
+    Asset_Bloop,
+    Asset_Crack,
+    Asset_Drop,
+    Asset_Glide,
+    Asset_Music,
+    Asset_Puhp,
+        
     Asset_Count,
   } asset_type_id;
 
@@ -123,6 +131,7 @@ struct assets
   //hero_bitmaps HeroBitmaps[4];
 
   u32 DEBUGUsedBitmapCount;
+  u32 DEBUGUsedSoundCount;
   u32 DEBUGUsedAssetCount;
   u32 DEBUGUsedTagCount;
   asset_type* DEBUGAssetType;
@@ -143,6 +152,13 @@ internal inline loaded_bitmap*
 GetBitmap(assets* Assets, bitmap_id ID)
 {
   loaded_bitmap* Result = Assets->Bitmaps[ID.Value].Bitmap;
+  return(Result);
+}
+
+internal inline loaded_sound*
+GetSound(assets* Assets, sound_id ID)
+{
+  loaded_sound* Result = Assets->Sounds[ID.Value].Sound;
   return(Result);
 }
 
