@@ -25,7 +25,6 @@
 #include "handmade.h"
 #include "handmade_render_group.c"
 #include "handmade_world.c"
-#include "handmade_random.h"
 #include "handmade_sim_region.c"
 #include "handmade_entity.c"
 #include "handmade_asset.c"
@@ -754,6 +753,29 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
     }
 }
 
+internal playing_sound*
+PlaySound(state* State, sound_id SoundID)
+{
+  if(!State->FirstFreePlayingSound)
+    {
+      State->FirstPlayingSound = PushStruct(&State->WorldArena, playing_sound);   
+      State->FirstPlayingSound->Next = 0;
+    }
+  
+  playing_sound* PlayingSound = State->FirstFreePlayingSound;
+  State->FirstFreePlayingSound = PlayingSound->Next;
+
+  PlayingSound->SamplesPlayed = 0;
+  PlayingSound->Volume[0] = 1.0f;
+  PlayingSound->Volume[1] = 1.0f;
+  PlayingSound->ID = SoundID;
+
+  PlayingSound->Next = State->FirstPlayingSound;
+  State->FirstPlayingSound = PlayingSound;
+
+  return(PlayingSound);
+}
+
 #if HANDMADE_INTERNAL
 memory* DebugGlobalMemory;
 #endif
@@ -787,6 +809,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       u32 TilesPerWidth = 17;
       u32 TilesPerHeight = 9;
 
+      State->GeneralEntropy = Seed(1234);
       State->TypicalFloorHeight = 3.0f;
       
       r32 PixelsToMeters = 1.0f / 42.0f;
@@ -1022,11 +1045,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	}
 
       TransState->Assets = AllocateGameAssets(&TransState->TransientArena, Megabytes(64), TransState);
-      
-      State->FirstPlayingSound = PushStruct(&State->WorldArena, playing_sound);
-      State->FirstPlayingSound->Volume[0] = 0.0f;
-      State->FirstPlayingSound->Volume[1] = 0.0f;
-      State->FirstPlayingSound->ID = GetFirstSoundFrom(TransState->Assets, Asset_Music);
+
+      PlaySound(State, GetFirstSoundFrom(TransState->Assets, Asset_Music));
       
       TransState->GroundBufferCount = 256;
       TransState->GroundBuffers = PushArray(&TransState->TransientArena,
@@ -1381,6 +1401,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 				MakeEntitySpatial(Sword, Entity->P,
 						  V3MulS(5.0f, ToV3(ConHero->dSword, 0)));
 				AddCollisionRule(State, Sword->StorageIndex, Entity->StorageIndex, false);
+
+				PlaySound(State, GetRandomSoundFrom(TransState->Assets, Asset_Bloop, &State->GeneralEntropy));
 			      }
 			  }
 		      }
@@ -1671,13 +1693,14 @@ GET_SOUND_SAMPLES(GetSoundSamples)
 	*Dest1++ = 0.0f;
       }
   }
-  
-  for(playing_sound* PlayingSound = State->FirstPlayingSound;
-      PlayingSound;
+
+  for(playing_sound** PlayingSoundPtr = &State->FirstPlayingSound;
+      *PlayingSoundPtr;
       )
     {
-      playing_sound* NextPlayingSound = PlayingSound->Next;
-	
+      playing_sound* PlayingSound = *PlayingSoundPtr;
+      bool32 SoundFinished = false;
+
       loaded_sound* LoadedSound = GetSound(TranState->Assets, PlayingSound->ID);
       if(LoadedSound)
 	{
@@ -1704,18 +1727,25 @@ GET_SOUND_SAMPLES(GetSoundSamples)
 	      *Dest1++ = Volume1*SampleValue;
 	    }
 
+	  SoundFinished = ((u32)PlayingSound->SamplesPlayed == LoadedSound->SampleCount);
 	  PlayingSound->SamplesPlayed += SamplesToMix;
-	  if((u32)PlayingSound->SamplesPlayed == LoadedSound->SampleCount)
-	    {
-	      PlayingSound->Next = State->FirstFreePlayingSound;
-	      State->FirstFreePlayingSound = PlayingSound;
-	    }
+	  
 	}
       else
 	{
 	  LoadSound(TranState->Assets, PlayingSound->ID);
 	}
-      PlayingSound = NextPlayingSound;
+
+      if(SoundFinished)
+	{
+	  *PlayingSoundPtr = PlayingSound->Next;
+	  PlayingSound->Next = State->FirstFreePlayingSound;
+	  State->FirstFreePlayingSound = PlayingSound;
+	}
+      else
+	{
+	  PlayingSoundPtr = &PlayingSound->Next;
+	}
     }
 
   {

@@ -160,6 +160,7 @@ ZeroSize(memory_index Size, void *Ptr)
 #include "handmade_entity.h"
 #include "handmade_render_group.h"
 #include "handmade_asset.h"
+#include "handmade_random.h"
 
 typedef struct
 {
@@ -243,6 +244,7 @@ typedef struct
   loaded_bitmap TestDiffuse;
   loaded_bitmap TestNormal;
 
+  random_series GeneralEntropy;
   r32 tSine;
 
   playing_sound *FirstPlayingSound;
