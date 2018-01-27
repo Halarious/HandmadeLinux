@@ -1,0 +1,117 @@
+
+internal void
+OutputPlayingSounds()
+{  
+  temporary_memory MixerMemory = BeginTemporaryMemory(&TranState->TransientArena);
+  
+  r32* RealChannel0 = PushArray(&TranState->TransientArena, SoundBuffer->SampleCount, r32);
+  r32* RealChannel1 = PushArray(&TranState->TransientArena, SoundBuffer->SampleCount, r32);
+
+  {
+    r32* Dest0 = RealChannel0;
+    r32* Dest1 = RealChannel1;
+    for(u32 SampleIndex = 0;
+	SampleIndex < SoundBuffer->SampleCount;
+	++SampleIndex)
+      {
+	*Dest0++ = 0.0f;
+	*Dest1++ = 0.0f;
+      }
+  }
+
+  for(playing_sound** PlayingSoundPtr = &State->FirstPlayingSound;
+      *PlayingSoundPtr;
+      )
+    {
+      playing_sound* PlayingSound = *PlayingSoundPtr;
+      bool32 SoundFinished = false;
+
+      u32 TotalSamplesToMix = SoundBuffer->SampleCount;
+      r32* Dest0 = RealChannel0;
+      r32* Dest1 = RealChannel1;
+
+      while(TotalSamplesToMix && !SoundFinished)
+	{
+	  loaded_sound* LoadedSound = GetSound(TranState->Assets, PlayingSound->ID);
+	  if(LoadedSound)
+	    {
+	      asset_sound_info* Info = GetSoundInfo(TranState->Assets, PlayingSound->ID);
+	      PrefetchSound(TranState->Assets, Info->NextIDToPlay);
+	  
+	      r32 Volume0 = PlayingSound->Volume[0];
+	      r32 Volume1 = PlayingSound->Volume[1];
+
+	      Assert(PlayingSound->SamplesPlayed >= 0);
+
+	      u32 SamplesToMix = TotalSamplesToMix;
+	      u32 SamplesRemainingInSound = LoadedSound->SampleCount - PlayingSound->SamplesPlayed;
+	      if(SamplesToMix > SamplesRemainingInSound)
+		{
+		  SamplesToMix = SamplesRemainingInSound;
+		}
+	      
+	      for(u32 SampleIndex = PlayingSound->SamplesPlayed;
+		  SampleIndex < (PlayingSound->SamplesPlayed + SamplesRemainingInSound);
+		  ++SampleIndex)
+		{
+		  r32 SampleValue = LoadedSound->Samples[0][SampleIndex];
+		  *Dest0++ = Volume0*SampleValue;
+		  *Dest1++ = Volume1*SampleValue;
+		}
+
+	      Assert(TotalSamplesToMix >= SamplesToMix);
+	      PlayingSound->SamplesPlayed += SamplesToMix;	      
+	      TotalSamplesToMix -= SamplesToMix;
+	      
+	      if(((u32)PlayingSound->SamplesPlayed == LoadedSound->SampleCount))
+		{
+		  if(IsSoundIDValid(Info->NextIDToPlay))
+		    {
+		      PlayingSound->ID = Info->NextIDToPlay;
+		      PlayingSound->SamplesPlayed = 0;
+		    }
+		  else
+		    {
+		      SoundFinished = true;
+		    }
+		}
+	      else
+		{
+		  Assert(TotalSamplesToMix == 0);
+		}
+	    }
+	  else
+	    {
+	      LoadSound(TranState->Assets, PlayingSound->ID);
+	      break;
+	    }
+	}
+       
+      if(SoundFinished)
+	{
+	  *PlayingSoundPtr = PlayingSound->Next;
+	  PlayingSound->Next = State->FirstFreePlayingSound;
+	  State->FirstFreePlayingSound = PlayingSound;
+	}
+      else
+	{
+	  PlayingSoundPtr = &PlayingSound->Next;
+	}
+    }
+
+  {
+    r32* Source0 = RealChannel0;
+    r32* Source1 = RealChannel1;
+	  
+    s16* SampleOut = SoundBuffer->Samples;
+    for(u32 SampleIndex = 0;
+	SampleIndex < SoundBuffer->SampleCount;
+	++SampleIndex)
+      {
+	*SampleOut++ = (s16)(*Source0++ + 0.5f);
+	*SampleOut++ = (s16)(*Source1++ + 0.5f);
+      }
+  }
+  
+  EndTemporaryMemory(MixerMemory);
+}

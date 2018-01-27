@@ -1,6 +1,16 @@
 
 typedef struct
 {
+  u32 Value;
+} bitmap_id;
+
+typedef struct
+{
+  u32 Value;
+} sound_id;
+
+typedef struct
+{
   u32 SampleCount;
   u32 ChannelCount;
   s16* Samples[2];
@@ -95,6 +105,9 @@ typedef struct
 typedef struct
 {
   char* Filename;
+  u32 FirstSampleIndex;
+  u32 SampleCount;
+  sound_id NextIDToPlay;
 } asset_sound_info;
 
 typedef struct
@@ -138,19 +151,11 @@ struct assets
   asset* DEBUGAsset;
 };
 
-typedef struct
-{
-  u32 Value;
-} bitmap_id;
-
-typedef struct
-{
-  u32 Value;
-} sound_id;
-
 internal inline loaded_bitmap*
 GetBitmap(assets* Assets, bitmap_id ID)
 {
+  Assert(ID.Value <= Assets->BitmapCount);
+    
   loaded_bitmap* Result = Assets->Bitmaps[ID.Value].Bitmap;
   return(Result);
 }
@@ -158,12 +163,37 @@ GetBitmap(assets* Assets, bitmap_id ID)
 internal inline loaded_sound*
 GetSound(assets* Assets, sound_id ID)
 {
+  Assert(ID.Value <= Assets->SoundCount);
+  
   loaded_sound* Result = Assets->Sounds[ID.Value].Sound;
   return(Result);
 }
 
-internal void
-LoadBitmap(assets* Assets, bitmap_id ID);
-internal void
-LoadSound(assets* Assets, sound_id ID);
+internal inline asset_sound_info*
+GetSoundInfo(assets* Assets, sound_id ID)
+{
+  Assert(ID.Value <= Assets->SoundCount);
+  
+  asset_sound_info* Result = Assets->SoundInfos + ID.Value;
+  return(Result);
+}
+
+internal inline bool32
+IsBitmapIDValid(bitmap_id ID)
+{
+  bool32 Result = (ID.Value != 0);
+  return(Result);
+}
+
+internal inline bool32
+IsSoundIDValid(sound_id ID)
+{
+  bool32 Result = (ID.Value != 0);
+  return(Result);  
+}
+
+internal void LoadBitmap(assets* Assets, bitmap_id ID);
+internal void LoadSound(assets* Assets, sound_id ID);
+internal inline void PrefetchBitmap(assets* Assets, bitmap_id ID) {LoadBitmap(Assets, ID);}
+internal inline void PrefetchSound(assets* Assets, sound_id ID)   {LoadSound(Assets, ID);}
 

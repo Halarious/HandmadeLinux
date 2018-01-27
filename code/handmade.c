@@ -28,6 +28,7 @@
 #include "handmade_sim_region.c"
 #include "handmade_entity.c"
 #include "handmade_asset.c"
+#include "handmade_audio.c"
 
 #define STB_TRUETYPE_IMPLEMENTATION 
 #include "stb_truetype.h"
@@ -54,9 +55,9 @@ MakeEmptyBitmap(memory_arena* Arena, s32 Width, s32 Height, bool32 ClearToZero)
   Result.Memory      = PushSizeA(Arena, TotalBitmapSize, 16);
   
   if(ClearToZero)
-  {
-    ClearBitmap(&Result);
-  }
+    {
+      ClearBitmap(&Result);
+    }
 
   return(Result); 
 }
@@ -107,7 +108,7 @@ MakeSphereNormalMap(loaded_bitmap* Bitmap, r32 Roughness,
 
 internal void
 MakeSphereDiffuseMap(loaded_bitmap* Bitmap,
-		    r32 Cx, r32 Cy)
+		     r32 Cx, r32 Cy)
 {
   r32 InvWidth  = 1.0f / (r32)(Bitmap->Width - 1.0f);
   r32 InvHeight = 1.0f / (r32)(Bitmap->Height - 1.0f);
@@ -209,11 +210,11 @@ MakePyramidNormalMap(loaded_bitmap* Bitmap, r32 Roughness)
 }
 
 /*
-internal glyph_bitmap*
-MakeEmptyGlyphBitmap(memory_arena* GlyphArena, memory_arena* BitmapArena,
-		     s32 Width, s32 Height, s32 XOffset, s32 YOffset,
-		     bool32 ClearToZero)
-{
+  internal glyph_bitmap*
+  MakeEmptyGlyphBitmap(memory_arena* GlyphArena, memory_arena* BitmapArena,
+  s32 Width, s32 Height, s32 XOffset, s32 YOffset,
+  bool32 ClearToZero)
+  {
   glyph_bitmap* Result = PushStruct(GlyphArena, glyph_bitmap);
   Result->XOffset = XOffset;
   Result->YOffset = YOffset;    
@@ -228,15 +229,15 @@ MakeEmptyGlyphBitmap(memory_arena* GlyphArena, memory_arena* BitmapArena,
 
   if(ClearToZero)
   {
-    ClearBitmap(Result->Bitmap);
+  ClearBitmap(Result->Bitmap);
   }
   
   return(Result); 
-}
+  }
 
-internal void
-InitFont(thread_context* Thread, font* FontState, memory_arena* BitmapArena, memory *Memory)
-{
+  internal void
+  InitFont(thread_context* Thread, font* FontState, memory_arena* BitmapArena, memory *Memory)
+  {
   loaded_file FontTTF = Memory->DEBUGPlatformReadEntireFile(Thread, "fonts/LiberationMono-Regular.ttf");
 
   stbtt_fontinfo Font;
@@ -245,49 +246,49 @@ InitFont(thread_context* Thread, font* FontState, memory_arena* BitmapArena, mem
   r32 ScaleForPixelHeight = stbtt_ScaleForPixelHeight(&Font, 30);
   int    Ascent, Descent, LineGap;
   stbtt_GetFontVMetrics(&Font,
-			&Ascent, &Descent, &LineGap);
+  &Ascent, &Descent, &LineGap);
   font_metrics* FontMetrics = &FontState->Metrics;
   FontMetrics->ScaleForPixelHeight = ScaleForPixelHeight;
   FontMetrics->Ascent  = ScaleForPixelHeight*Ascent;
   FontMetrics->Descent = ScaleForPixelHeight*Descent;
   FontMetrics->LineGap = ScaleForPixelHeight*LineGap;
   FontMetrics->VerticalAdvance = FontMetrics->Ascent -
-    FontMetrics->Descent + FontMetrics->LineGap;
+  FontMetrics->Descent + FontMetrics->LineGap;
   for(char codePoint = '!'; codePoint <= 'z'; ++codePoint)
-    {
-      s32 BitmapWidth, BitmapHeight,
-	  XOffset, YOffset;
-      u8* STBCharacterBitmap = stbtt_GetCodepointBitmap(&Font, 0, ScaleForPixelHeight,
-							codePoint, &BitmapWidth, &BitmapHeight, &XOffset, &YOffset);
-      glyph_bitmap* Glyph = MakeEmptyGlyphBitmap(&FontState->GlyphArena, BitmapArena, BitmapWidth, BitmapHeight, XOffset, YOffset, true);
+  {
+  s32 BitmapWidth, BitmapHeight,
+  XOffset, YOffset;
+  u8* STBCharacterBitmap = stbtt_GetCodepointBitmap(&Font, 0, ScaleForPixelHeight,
+  codePoint, &BitmapWidth, &BitmapHeight, &XOffset, &YOffset);
+  glyph_bitmap* Glyph = MakeEmptyGlyphBitmap(&FontState->GlyphArena, BitmapArena, BitmapWidth, BitmapHeight, XOffset, YOffset, true);
 
-      u8* SourceRow = STBCharacterBitmap;
-      u8* DestRow   = Glyph->Bitmap->Memory;
-      for(int Y = 0;
-	  Y < BitmapHeight;
-	  ++Y)
-	{
-	  u8*  Source = SourceRow;
-	  u32* Dest   = (u32*)DestRow;
-	  for(int X = 0;
-	      X < BitmapWidth;
-	      ++X)
-	    {
-	      u8 Alpha = *Source;
-	      *Dest = ((Alpha << 24)|
-		       (Alpha << 16)|
-		       (Alpha << 8) |
-		       (Alpha << 0)); 	      
-	      ++Dest;
-	      ++Source;
-	    }
-	  SourceRow += BitmapWidth;
-	  DestRow   += Glyph->Bitmap->Pitch;
-	}
-
-      stbtt_FreeBitmap(STBCharacterBitmap, 0);
+  u8* SourceRow = STBCharacterBitmap;
+  u8* DestRow   = Glyph->Bitmap->Memory;
+  for(int Y = 0;
+  Y < BitmapHeight;
+  ++Y)
+  {
+  u8*  Source = SourceRow;
+  u32* Dest   = (u32*)DestRow;
+  for(int X = 0;
+  X < BitmapWidth;
+  ++X)
+  {
+  u8 Alpha = *Source;
+  *Dest = ((Alpha << 24)|
+  (Alpha << 16)|
+  (Alpha << 8) |
+  (Alpha << 0)); 	      
+  ++Dest;
+  ++Source;
   }
-}
+  SourceRow += BitmapWidth;
+  DestRow   += Glyph->Bitmap->Pitch;
+  }
+
+  stbtt_FreeBitmap(STBCharacterBitmap, 0);
+  }
+  }
 */
 
 typedef struct
@@ -753,29 +754,6 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
     }
 }
 
-internal playing_sound*
-PlaySound(state* State, sound_id SoundID)
-{
-  if(!State->FirstFreePlayingSound)
-    {
-      State->FirstPlayingSound = PushStruct(&State->WorldArena, playing_sound);   
-      State->FirstPlayingSound->Next = 0;
-    }
-  
-  playing_sound* PlayingSound = State->FirstFreePlayingSound;
-  State->FirstFreePlayingSound = PlayingSound->Next;
-
-  PlayingSound->SamplesPlayed = 0;
-  PlayingSound->Volume[0] = 1.0f;
-  PlayingSound->Volume[1] = 1.0f;
-  PlayingSound->ID = SoundID;
-
-  PlayingSound->Next = State->FirstPlayingSound;
-  State->FirstPlayingSound = PlayingSound;
-
-  return(PlayingSound);
-}
-
 #if HANDMADE_INTERNAL
 memory* DebugGlobalMemory;
 #endif
@@ -819,7 +797,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       
       InitializeArena(&State->WorldArena, Memory->PermanentStorageSize - sizeof(state),
 		      (u8*)Memory->PermanentStorage + sizeof(state));
-
+      InitializeAudioState(&State->AudioState, &State->WorldArena);
+      
       AddLowEntity(State, EntityType_Null, NullPosition());
            
       State->World   = PushStruct(&State->WorldArena, world);
@@ -1046,7 +1025,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
       TransState->Assets = AllocateGameAssets(&TransState->TransientArena, Megabytes(64), TransState);
 
-      PlaySound(State, GetFirstSoundFrom(TransState->Assets, Asset_Music));
+      PlaySound(&State->AudioState, GetFirstSoundFrom(TransState->Assets, Asset_Music));
       
       TransState->GroundBufferCount = 256;
       TransState->GroundBuffers = PushArray(&TransState->TransientArena,
@@ -1263,45 +1242,45 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	      {
 		//world_chunk *Chunk = GetWorldChunk(World, ChunkX, ChunkY, ChunkZ, 0);
 		//if(Chunk)
-		  {
-		    world_position ChunkCenterP
-		      = CenteredChunkPoint(ChunkX, ChunkY, ChunkZ);
-		    v3 RelP = Subtract(World, &ChunkCenterP, &State->CameraP);
+		{
+		  world_position ChunkCenterP
+		    = CenteredChunkPoint(ChunkX, ChunkY, ChunkZ);
+		  v3 RelP = Subtract(World, &ChunkCenterP, &State->CameraP);
 		    
-		    r32 FurthestBufferLengthSq = 0.0f;
-		    ground_buffer *FurthestBuffer = 0;
-		    for(u32 GroundBufferIndex = 0;
-			GroundBufferIndex < TransState->GroundBufferCount;
-			++GroundBufferIndex)
-		      {
-			ground_buffer* GroundBuffer = TransState->GroundBuffers + GroundBufferIndex; 
-			if(AreInSameChunk(World, &GroundBuffer->P, &ChunkCenterP))
-			  {
-			    FurthestBuffer = 0;
-			    break;
-			  }
-			else if(IsValid(GroundBuffer->P))
-			  {
-			    v3 RelP = Subtract(World, &GroundBuffer->P, &State->CameraP);
-			    r32 BufferLengthSq = V2LengthSq(RelP.xy);
-			    if(FurthestBufferLengthSq < BufferLengthSq)
-			      {
-				FurthestBufferLengthSq = BufferLengthSq;
-				FurthestBuffer = GroundBuffer;
-			      }
-			  }
-			else
-			  {
-			    FurthestBufferLengthSq = Real32Maximum;
-			    FurthestBuffer = GroundBuffer;
-			  }
-		      }
+		  r32 FurthestBufferLengthSq = 0.0f;
+		  ground_buffer *FurthestBuffer = 0;
+		  for(u32 GroundBufferIndex = 0;
+		      GroundBufferIndex < TransState->GroundBufferCount;
+		      ++GroundBufferIndex)
+		    {
+		      ground_buffer* GroundBuffer = TransState->GroundBuffers + GroundBufferIndex; 
+		      if(AreInSameChunk(World, &GroundBuffer->P, &ChunkCenterP))
+			{
+			  FurthestBuffer = 0;
+			  break;
+			}
+		      else if(IsValid(GroundBuffer->P))
+			{
+			  v3 RelP = Subtract(World, &GroundBuffer->P, &State->CameraP);
+			  r32 BufferLengthSq = V2LengthSq(RelP.xy);
+			  if(FurthestBufferLengthSq < BufferLengthSq)
+			    {
+			      FurthestBufferLengthSq = BufferLengthSq;
+			      FurthestBuffer = GroundBuffer;
+			    }
+			}
+		      else
+			{
+			  FurthestBufferLengthSq = Real32Maximum;
+			  FurthestBuffer = GroundBuffer;
+			}
+		    }
 
-		    if(FurthestBuffer)
-		      {
-			FillGroundChunk(TransState, State, FurthestBuffer, &ChunkCenterP);
-		      }
-		  }
+		  if(FurthestBuffer)
+		    {
+		      FillGroundChunk(TransState, State, FurthestBuffer, &ChunkCenterP);
+		    }
+		}
 	      }
 	  }
       }
@@ -1402,7 +1381,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 						  V3MulS(5.0f, ToV3(ConHero->dSword, 0)));
 				AddCollisionRule(State, Sword->StorageIndex, Entity->StorageIndex, false);
 
-				PlaySound(State, GetRandomSoundFrom(TransState->Assets, Asset_Bloop, &State->GeneralEntropy));
+				PlaySound(&State->AudioState, GetRandomSoundFrom(TransState->Assets, Asset_Bloop, &State->GeneralEntropy));
 			      }
 			  }
 		      }
@@ -1597,7 +1576,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   
   v2 Origin = ScreenCenter;
 
-r32 Angle = 0.1f * State->Time;
+  r32 Angle = 0.1f * State->Time;
 #if 1
   v2 Displacement = V2(100.0f*Cos(5.0f*Angle),
 		       100.0f*Sin(3.0f*Angle));
@@ -1677,89 +1656,6 @@ GET_SOUND_SAMPLES(GetSoundSamples)
   state* State = (state*)(Memory->PermanentStorage);
   transient_state* TranState = (transient_state*) Memory->TransientStorage;
 
-  temporary_memory MixerMemory = BeginTemporaryMemory(&TranState->TransientArena);
-  
-  r32* RealChannel0 = PushArray(&TranState->TransientArena, SoundBuffer->SampleCount, r32);
-  r32* RealChannel1 = PushArray(&TranState->TransientArena, SoundBuffer->SampleCount, r32);
-
-  {
-    r32* Dest0 = RealChannel0;
-    r32* Dest1 = RealChannel1;
-    for(u32 SampleIndex = 0;
-	SampleIndex < SoundBuffer->SampleCount;
-	++SampleIndex)
-      {
-	*Dest0++ = 0.0f;
-	*Dest1++ = 0.0f;
-      }
-  }
-
-  for(playing_sound** PlayingSoundPtr = &State->FirstPlayingSound;
-      *PlayingSoundPtr;
-      )
-    {
-      playing_sound* PlayingSound = *PlayingSoundPtr;
-      bool32 SoundFinished = false;
-
-      loaded_sound* LoadedSound = GetSound(TranState->Assets, PlayingSound->ID);
-      if(LoadedSound)
-	{
-	  r32 Volume0 = PlayingSound->Volume[0];
-	  r32 Volume1 = PlayingSound->Volume[1];
-	  r32* Dest0 = RealChannel0;
-	  r32* Dest1 = RealChannel1;
-
-	  Assert(PlayingSound->SamplesPlayed >= 0);
-	  
-	  u32 SamplesToMix = SoundBuffer->SampleCount;
-	  u32 SamplesRemainingInSound = LoadedSound->SampleCount - PlayingSound->SamplesPlayed;
-	  if(SamplesToMix > SamplesRemainingInSound)
-	    {
-	      SamplesToMix = SamplesRemainingInSound;
-	    }
-	  
-	  for(u32 SampleIndex = PlayingSound->SamplesPlayed;
-	      SampleIndex < (PlayingSound->SamplesPlayed + SamplesRemainingInSound);
-	      ++SampleIndex)
-	    {
-	      r32 SampleValue = LoadedSound->Samples[0][SampleIndex];
-	      *Dest0++ = Volume0*SampleValue;
-	      *Dest1++ = Volume1*SampleValue;
-	    }
-
-	  SoundFinished = ((u32)PlayingSound->SamplesPlayed == LoadedSound->SampleCount);
-	  PlayingSound->SamplesPlayed += SamplesToMix;
-	  
-	}
-      else
-	{
-	  LoadSound(TranState->Assets, PlayingSound->ID);
-	}
-
-      if(SoundFinished)
-	{
-	  *PlayingSoundPtr = PlayingSound->Next;
-	  PlayingSound->Next = State->FirstFreePlayingSound;
-	  State->FirstFreePlayingSound = PlayingSound;
-	}
-      else
-	{
-	  PlayingSoundPtr = &PlayingSound->Next;
-	}
-    }
-
-  {
-    r32* Source0 = RealChannel0;
-    r32* Source1 = RealChannel1;
-	  
-    s16* SampleOut = SoundBuffer->Samples;
-    for(u32 SampleIndex = 0;
-	SampleIndex < SoundBuffer->SampleCount;
-	++SampleIndex)
-      {
-	*SampleOut++ = (s16)(*Source0++ + 0.5f);
-	*SampleOut++ = (s16)(*Source1++ + 0.5f);
-      }
-  }
-  EndTemporaryMemory(MixerMemory);
+  OutputPlayingSounds(&State->AudioState, SoundBuffer, TranState->Assets, &TranState->TransientArena);
 }
+

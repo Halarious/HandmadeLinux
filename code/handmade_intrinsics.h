@@ -5,18 +5,18 @@
 
 #if COMPILER_MSVC
 #define CompletePreviousWritesBeforeFutureWrites _WriteBarrier() 
-AtomicCompareExchangeUInt32(u32 volatile* Value, u32 Expected, u32 New)
+AtomicCompareExchangeUInt32(u32 volatile* Value, u32 New, u32 Expected)
 {
   u32 Result = _InterlockedCompareExchange((long*)Value,
-					   Expected,
-					   New);
+					   New,
+					   Expected);
   return(Result);
 }
 
 #elif COMPILER_LLVM
 #define CompletePreviousWritesBeforeFutureWrites asm volatile("" ::: "memory");
 internal inline u32
-AtomicCompareExchangeUInt32(u32 volatile* Value, u32 Expected, u32 New)
+AtomicCompareExchangeUInt32(u32 volatile* Value, u32 New, u32 Expected)
 {
   u32 Result = __sync_val_compare_and_swap(Value,
 					   Expected,

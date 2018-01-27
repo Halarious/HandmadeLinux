@@ -161,6 +161,7 @@ ZeroSize(memory_index Size, void *Ptr)
 #include "handmade_render_group.h"
 #include "handmade_asset.h"
 #include "handmade_random.h"
+#include "handmade_audio.h"
 
 typedef struct
 {
@@ -200,15 +201,6 @@ typedef struct
   bitmap_id Torso;
 } hero_bitmaps_ids;
 
-typedef struct playing_sound playing_sound;
-struct playing_sound
-{
-  r32 Volume[2];
-  sound_id ID;
-  s32 SamplesPlayed;
-  playing_sound* Next;
-};
-
 typedef struct
 {
   bool32 IsInitialized;
@@ -247,8 +239,7 @@ typedef struct
   random_series GeneralEntropy;
   r32 tSine;
 
-  playing_sound *FirstPlayingSound;
-  playing_sound *FirstFreePlayingSound;
+  audio_state AudioState;
 } state;
 
 typedef struct
