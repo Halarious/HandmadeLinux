@@ -776,14 +776,6 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
   if(!State->IsInitialized)
     {            
-      //NOTE We will do this much differently once we have a system
-      //     for the assets like fonts and bitmaps.
-      /*InitializeArena(&State->BitmapArena, Megabytes(1),
-	(u8*)Memory->PermanentStorage + sizeof(state));
-	InitializeArena(&State->Font.GlyphArena, Memory->PermanentStorageSize - sizeof(state),
-	(u8*)Memory->PermanentStorage + sizeof(state) + Megabytes(1));
-      */
-
       u32 TilesPerWidth = 17;
       u32 TilesPerHeight = 9;
 
@@ -1025,7 +1017,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
       TransState->Assets = AllocateGameAssets(&TransState->TransientArena, Megabytes(64), TransState);
 
-      PlaySound(&State->AudioState, GetFirstSoundFrom(TransState->Assets, Asset_Music));
+      State->Music = PlaySound(&State->AudioState, GetFirstSoundFrom(TransState->Assets, Asset_Music));
       
       TransState->GroundBufferCount = 256;
       TransState->GroundBuffers = PushArray(&TransState->TransientArena,
@@ -1147,18 +1139,26 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
  	  if(Controller->ActionUp.EndedDown)
 	    {
+	      ChangeVolume(&State->AudioState, State->Music,
+			   10.0f, V2(1.0f, 1.0f));
 	      ConHero->dSword = V2(0.0f, 1.0f);
 	    }
  	  if(Controller->ActionDown.EndedDown)
 	    {
+	      ChangeVolume(&State->AudioState, State->Music,
+			   10.0f, V2(0.0f, 0.0f));
 	      ConHero->dSword = V2(0.0f, -1.0f);
 	    } 
 	  if(Controller->ActionLeft.EndedDown)
 	    {
+	      ChangeVolume(&State->AudioState, State->Music,
+			   5.0f, V2(1.0f, 0.0f));
 	      ConHero->dSword = V2(-1.0f, 0.0f);
 	    }
 	  if(Controller->ActionRight.EndedDown)
 	    {
+	      ChangeVolume(&State->AudioState, State->Music,
+			   5.0f, V2(0.0f, 1.0f));
 	      ConHero->dSword = V2(1.0f, 0.0f);
 	    }
 	}

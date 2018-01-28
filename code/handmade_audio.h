@@ -2,7 +2,10 @@
 typedef struct playing_sound playing_sound;
 struct playing_sound
 {
-  r32 Volume[2];
+  v2 CurrentVolume;
+  v2 dCurrentVolume;
+  v2 TargetVolume;
+  
   sound_id ID;
   s32 SamplesPlayed;
   playing_sound* Next;

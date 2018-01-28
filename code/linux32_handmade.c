@@ -738,10 +738,10 @@ main(int ArgCount, char** Arguments)
   DisplayInfo DisplayInfo = {};
   DisplayInfo.Display         = XOpenDisplay(NULL);
   DisplayInfo.Screen          = DefaultScreen(DisplayInfo.Display);
-  //s32 w = 960;//DisplayWidth(DisplayInfo.Display, DisplayInfo.Screen)/2;
-  //s32 h = 540;//DisplayHeight(DisplayInfo.Display, DisplayInfo.Screen)/2;
-  s32 w = 1280;
-  s32 h = 720;
+  s32 w = 960;//DisplayWidth(DisplayInfo.Display, DisplayInfo.Screen)/2;
+  s32 h = 540;//DisplayHeight(DisplayInfo.Display, DisplayInfo.Screen)/2;
+  //s32 w = 1280;
+  //s32 h = 720;
   //s32 w = 1279;
   //s32 h = 719;
   DisplayInfo.RootWindow      = RootWindow(DisplayInfo.Display, DisplayInfo.Screen);

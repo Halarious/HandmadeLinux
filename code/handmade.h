@@ -240,6 +240,7 @@ typedef struct
   r32 tSine;
 
   audio_state AudioState;
+  playing_sound* Music;
 } state;
 
 typedef struct
