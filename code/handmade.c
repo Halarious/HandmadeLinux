@@ -20,6 +20,8 @@
                      maybe like to revisit once we get sound):
     - Day 138; from 50:47 
     - Day 139; sound day but blackboard only. Informative mostly
+    - Day 143; one thing we did not code is that sounds keep playing when
+               the window is not in focus. It's difficult to port without sound...
  */
 
 #include "handmade.h"

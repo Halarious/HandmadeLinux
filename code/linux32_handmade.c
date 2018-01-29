@@ -849,6 +849,9 @@ main(int ArgCount, char** Arguments)
 	      time_t NewSOLastWriteTime = Linux32GetLastWriteTime(SourceCodeSOFullPath);
 	      if(NewSOLastWriteTime != Code.SOLastWriteTime)
 		{
+		  Linux32CompleteAllWork(&HighPriorityQueue);
+		  Linux32CompleteAllWork(&LowPriorityQueue);
+		  
 		  Linux32UnloadCode(&Code);
 		  Code = Linux32LoadCode(SourceCodeSOFullPath,
 					 TempCodeSOFullPath,

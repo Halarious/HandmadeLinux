@@ -103,6 +103,28 @@ PushSize_(memory_arena* Arena, memory_index SizeInit, memory_index Alignment)
   return(Result);
 }
 
+internal inline char*
+PushString(memory_arena* Arena, char* Source)
+{
+  u32 Size = 1;
+  for(char* At = Source;
+      *At;
+      ++At)
+    {
+      ++Size;
+    }
+  
+  char* Dest = PushSize_(Arena, Size, 4);
+  for(u32 CharIndex = 0;
+      CharIndex < Size;
+      ++CharIndex)
+    {
+      Dest[CharIndex] = Source[CharIndex];
+    }
+
+  return(Dest);
+}
+
 internal inline temporary_memory
 BeginTemporaryMemory(memory_arena* Arena)
 {
