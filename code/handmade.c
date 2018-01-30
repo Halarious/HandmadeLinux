@@ -22,6 +22,8 @@
     - Day 139; sound day but blackboard only. Informative mostly
     - Day 143; one thing we did not code is that sounds keep playing when
                the window is not in focus. It's difficult to port without sound...
+    - Day 144; Memory for samples was aligned here, or rather should be when
+               we get sound
  */
 
 #include "handmade.h"
