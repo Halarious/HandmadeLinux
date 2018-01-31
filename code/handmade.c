@@ -24,6 +24,7 @@
                the window is not in focus. It's difficult to port without sound...
     - Day 144; Memory for samples was aligned here, or rather should be when
                we get sound
+    - Day 145; Some more fumbling with code that we dont have in linux32_handmade.c
  */
 
 #include "handmade.h"
