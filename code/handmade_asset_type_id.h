@@ -1,6 +1,15 @@
 
 typedef enum
   {
+    Tag_Smoothness,
+    Tag_Flatness,
+    Tag_FacingDirection,
+    
+    Tag_Count,
+  } asset_tag_id;
+
+typedef enum
+  {
     Asset_None,
     
     Asset_Shadow,

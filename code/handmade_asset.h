@@ -16,15 +16,6 @@ typedef struct
   s16* Samples[2];
 } loaded_sound;
 
-typedef enum
-  {
-    Tag_Smoothness,
-    Tag_Flatness,
-    Tag_FacingDirection,
-    
-    Tag_Count,
-  } asset_tag_id;
-
 typedef struct
 {
   char* Filename;
@@ -112,8 +103,6 @@ struct assets
 
   //hero_bitmaps HeroBitmaps[4];
 
-  u32 DEBUGUsedBitmapCount;
-  u32 DEBUGUsedSoundCount;
   u32 DEBUGUsedAssetCount;
   u32 DEBUGUsedTagCount;
   asset_type* DEBUGAssetType;

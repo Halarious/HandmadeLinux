@@ -6,7 +6,7 @@ CommonLinkerFlags="-ldl -lX11 -lXrandr -lm -lpthread"
 mkdir ../build -p > /dev/null
 pushd ../build    > /dev/null
 
-#clang $CommonCompilerFlags ../code/test_asset_builder.c $CommonLinkerFlags -o TestAssetBuilder
+clang $CommonCompilerFlags ../code/test_asset_builder.c $CommonLinkerFlags -o TestAssetBuilder
 
 echo LOCK > lock.tmp
 clang $CommonCompilerFlags -shared -o handmade.so -fPIC ../code/handmade.c -Wl,-Map,output.map,--gc-sections
