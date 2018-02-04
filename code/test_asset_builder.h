@@ -4,6 +4,8 @@
 #include "handmade_platform.h"
 #include "handmade_asset_type_id.h"
 #include "handmade_file_formats.h"
+#include "handmade_intrinsics.h"
+#include "handmade_math.h"
 
 typedef struct
 {
@@ -15,31 +17,18 @@ typedef struct
   u32 Value;
 } sound_id;
 
-typedef struct
-{
-  char* Filename;
-  r32 AlignPercentage[2];
-} asset_bitmap_info;
+typedef enum
+  {
+    AssetType_Sound,
+    AssetType_Bitmap,
+  } asset_type;
 
 typedef struct
 {
+  asset_type Type;
   char* Filename;
   u32 FirstSampleIndex;
-  u32 SampleCount;
-  sound_id NextIDToPlay;
-} asset_sound_info;
-
-typedef struct
-{
-  u64 DataOffset;
-  u32 FirstTagIndex;
-  u32 OnePastLastTagIndex;
-  union
-  {
-    asset_bitmap_info Bitmap;
-    asset_sound_info Sound;
-  };
-} asset;
+} asset_source;
 
 typedef struct
 {
@@ -55,13 +44,14 @@ typedef struct
   u32 TagCount;
   hha_tag Tags[VERY_LARGE_NUMBER];
   
-  u32 AssetCount;
-  asset Assets[VERY_LARGE_NUMBER];
-  
   u32 AssetTypeCount; 
   hha_asset_type AssetTypes[Asset_Count];
   
+  u32 AssetCount;
+  asset_source AssetSources[VERY_LARGE_NUMBER];
+  hha_asset Assets[VERY_LARGE_NUMBER];
+  
   hha_asset_type* DEBUGAssetType;
-  asset* DEBUGAsset;
+  u32 AssetIndex;
 } assets;
 

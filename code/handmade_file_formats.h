@@ -41,8 +41,8 @@ typedef struct
 
 typedef struct
 {
-  u32 FirstSampleIndex;
   u32 SampleCount;
+  u32 ChannelCount;
   u32 NextIDToPlay;
 } hha_sound;
 

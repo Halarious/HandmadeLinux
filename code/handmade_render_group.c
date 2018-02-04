@@ -1,34 +1,4 @@
 
-internal inline v4
-SRGB255ToLinear1(v4 C)
-{
-  v4 Result;
-
-  r32 Inv255 = 1.0f / 255.0f;
-  
-  Result.r = Square(Inv255*C.r);
-  Result.g = Square(Inv255*C.g);
-  Result.b = Square(Inv255*C.b);
-  Result.a = Inv255*C.a;
-
-  return(Result);
-}
-
-internal inline v4
-Linear1ToSRGB255(v4 C)
-{
-  v4 Result;
-
-  r32 One255 = 255.0f;
-
-  Result.r = One255*SquareRoot(C.r);
-  Result.g = One255*SquareRoot(C.g);
-  Result.b = One255*SquareRoot(C.b);
-  Result.a = One255*C.a;
-
-  return(Result);  
-}
-
 internal v4
 UnscaleAndBiasNormal(v4 Normal)
 {
