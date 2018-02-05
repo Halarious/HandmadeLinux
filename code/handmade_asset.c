@@ -323,23 +323,21 @@ typedef struct
   asset_state FinalState;
 } load_bitmap_work;
 
-internal loaded_bitmap
-DEBUGLoadBMP(char* Filename, v2 Alignment)
-{
-  Assert(!"Nope");
-
-  loaded_bitmap Result = {};
-  return(Result);
-}
-
 internal PLATFORM_WORK_QUEUE_CALLBACK(LoadBitmapWork)
 {
   load_bitmap_work* Work = (load_bitmap_work*) Data;
 
-  asset_bitmap_info* Info = &Work->Assets->Assets[Work->ID.Value].Bitmap;
-  *Work->Bitmap
-    = DEBUGLoadBMP(Info->Filename, Info->AlignPercentage);
+  hha_asset* HHAAsset = &Work->Assets->Assets[Work->ID.Value].HHA;
+  hha_bitmap* Info = &Work->Assets->Assets[Work->ID.Value].HHA.Bitmap;
+  loaded_bitmap* Bitmap = Work->Bitmap;
 
+  Bitmap->AlignPercentage = V2(Info->AlignPercentage[0], Info->AlignPercentage[1]);
+  Bitmap->WidthOverHeight = (r32)Info->Dim[0] / (r32)Info->Dim[1];
+  Bitmap->Width = Info->Dim[0];
+  Bitmap->Height = Info->Dim[1];
+  Bitmap->Pitch = 4*Info->Dim[0];
+  Bitmap->Memory = Work->Assets->HHAContents + HHAAsset->DataOffset;
+  
   CompletePreviousWritesBeforeFutureWrites;
     
   Work->Assets->Slots[Work->ID.Value].Bitmap = Work->Bitmap;
@@ -385,23 +383,26 @@ typedef struct
   asset_state FinalState;
 } load_sound_work;
 
-internal loaded_sound
-DEBUGLoadWAV(char* Filename, u32 SectionFirstSampleIndex, u32 SectionSampleCount)
-{
-  Assert(!"Nope");
-
-  loaded_sound Result = {};
-  return(Result);
-}
-
 internal PLATFORM_WORK_QUEUE_CALLBACK(LoadSoundWork)
 {
   load_sound_work* Work = (load_sound_work*) Data;
 
-  asset_sound_info* Info = &Work->Assets->Assets[Work->ID.Value].Sound;
-  *Work->Sound
-    = DEBUGLoadWAV(Info->Filename, Info->FirstSampleIndex, Info->SampleCount);
+  hha_asset* HHAAsset = &Work->Assets->Assets[Work->ID.Value].HHA;
+  hha_sound* Info = &HHAAsset->Sound;
+  loaded_sound* Sound = Work->Sound;
 
+  Sound->SampleCount  = Info->SampleCount;
+  Sound->ChannelCount = Info->ChannelCount;
+  Assert(Sound->ChannelCount < ArrayCount(Sound->Samples));
+  u64 SampleDataOffset = HHAAsset->DataOffset;
+  for(u32 ChannelIndex = 0;
+      ChannelIndex < Sound->ChannelCount;
+      ++ChannelIndex)
+    {
+      Sound->Samples[ChannelIndex] = (s16*)(Work->Assets->HHAContents + SampleDataOffset);
+      SampleDataOffset = Sound->SampleCount * sizeof(u16);
+    }
+  
   CompletePreviousWritesBeforeFutureWrites;
     
   Work->Assets->Slots[Work->ID.Value].Sound = Work->Sound;
@@ -453,11 +454,11 @@ GetBestMatchAssetFrom(assets* Assets, asset_type_id TypeID,
       asset* Asset = Assets->Assets + AssetIndex;
 
       r32 TotalWeightedDiff = 0.0f;
-      for(u32 TagIndex = Asset->FirstTagIndex;
-	  TagIndex < Asset->OnePastLastTagIndex;
+      for(u32 TagIndex = Asset->HHA.FirstTagIndex;
+	  TagIndex < Asset->HHA.OnePastLastTagIndex;
 	  ++TagIndex)
 	{
-	  asset_tag* Tag = Assets->Tags + TagIndex;
+	  hha_tag* Tag = Assets->Tags + TagIndex;
 
 	  r32 A = MatchVector->E[Tag->ID];
 	  r32 B = Tag->Value;
@@ -654,31 +655,49 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
       Assets->Slots = PushArray(Arena, Assets->AssetCount, asset_slot);
 
       Assets->TagCount = Header->AssetCount;
-      Assets->Tags = PushArray(Arena, Assets->TagCount, asset_tag);
+      Assets->Tags = PushArray(Arena, Assets->TagCount, hha_tag);
 
       hha_tag* HHATags = (hha_tag*)((u8*) ReadResult.Contents + Header->Tags);
+      hha_asset* HHAAssets = (hha_asset*)((u8*) ReadResult.Contents + Header->Assets);
+      hha_asset_type* HHAAssetTypes = (hha_asset_type*)((u8*) ReadResult.Contents + Header->AssetTypes);
       
       for(u32 TagIndex = 0;
-	  TagIndex < Assets->TagCount;
+	  TagIndex < Header->TagCount;
 	  ++TagIndex)
 	{
 	  hha_tag* Source = HHATags + TagIndex;
-	  asset_tag* Dest = Assets->Tags + TagIndex;
+	  hha_tag* Dest = Assets->Tags + TagIndex;
 
 	  Dest->ID = Source->ID;
-	  Dest->Value = Source->Value;
-	  
+	  Dest->Value = Source->Value;	  
 	}
 
-#if 0
-      for()
+      for(u32 AssetIndex = 0;
+	  AssetIndex < Header->AssetCount;
+	  ++AssetIndex)
 	{
+	  hha_asset* Source = HHAAssets + AssetIndex;
+	  asset* Dest = Assets->Assets + AssetIndex;
+
+	  Dest->HHA = *Source;
 	}
       
-      for()
+      for(u32 AssetTypeIndex = 0;
+	  AssetTypeIndex < Header->AssetTypeCount;
+	  ++AssetTypeIndex)
 	{
+	  hha_asset_type* Source = HHAAssetTypes + AssetTypeIndex;
+
+	  if(Source->TypeID < Asset_Count)
+	    {
+	      asset_type* Dest = Assets->AssetTypes + Source->TypeID;
+	      Assert(Dest->FirstAssetIndex == 0);
+	      Assert(Dest->OnePastLastAssetIndex == 0);
+	      Dest->FirstAssetIndex = Source->FirstAssetIndex;
+	      Dest->OnePastLastAssetIndex = Source->OnePastLastAssetIndex;
+	    }
 	}
-#endif
+      Assets->HHAContents = (u8*)ReadResult.Contents;
     }
 
 #if 0

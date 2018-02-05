@@ -1,16 +1,6 @@
 
 typedef struct
 {
-  u32 Value;
-} bitmap_id;
-
-typedef struct
-{
-  u32 Value;
-} sound_id;
-
-typedef struct
-{
   u32 SampleCount;
   u32 ChannelCount;
   s16* Samples[2];
@@ -18,34 +8,7 @@ typedef struct
 
 typedef struct
 {
-  char* Filename;
-  v2 AlignPercentage;
-} asset_bitmap_info;
-
-typedef struct
-{
-  char* Filename;
-  u32 FirstSampleIndex;
-  u32 SampleCount;
-  sound_id NextIDToPlay;
-} asset_sound_info;
-
-typedef struct
-{
-  u32 ID;
-  r32 Value;
-} asset_tag;
-
-typedef struct
-{
-  u32 FirstTagIndex;
-  u32 OnePastLastTagIndex;
-  
-  union
-  {
-    asset_bitmap_info Bitmap;
-    asset_sound_info Sound;
-  };
+  hha_asset HHA;
 } asset;
 
 typedef struct
@@ -93,13 +56,15 @@ struct assets
   r32 TagRange[Tag_Count];
 
   u32 TagCount;
-  asset_tag* Tags;
+  hha_tag* Tags;
   asset_slot* Slots;
 
   u32 AssetCount;
   asset* Assets;
   
   asset_type AssetTypes[Asset_Count];
+
+  u8* HHAContents;
 #if 0
   //hero_bitmaps HeroBitmaps[4];
 
@@ -128,12 +93,12 @@ GetSound(assets* Assets, sound_id ID)
   return(Result);
 }
 
-internal inline asset_sound_info*
+internal inline hha_sound*
 GetSoundInfo(assets* Assets, sound_id ID)
 {
   Assert(ID.Value <= Assets->AssetCount);
   
-  asset_sound_info* Result = &Assets->Assets[ID.Value].Sound;
+  hha_sound* Result = &Assets->Assets[ID.Value].HHA.Sound;
   return(Result);
 }
 

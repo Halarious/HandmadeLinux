@@ -181,11 +181,11 @@ ZeroSize(memory_index Size, void *Ptr)
 #include "handmade_sim_region.h"
 #include "handmade_entity.h"
 #include "handmade_render_group.h"
+#include "handmade_file_formats.h"
 #include "handmade_asset_type_id.h"
 #include "handmade_asset.h"
 #include "handmade_random.h"
 #include "handmade_audio.h"
-#include "handmade_file_formats.h"
 
 typedef struct
 {

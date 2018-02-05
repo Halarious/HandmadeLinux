@@ -7,16 +7,6 @@
 #include "handmade_intrinsics.h"
 #include "handmade_math.h"
 
-typedef struct
-{
-  u32 Value;
-} bitmap_id;
-
-typedef struct
-{
-  u32 Value;
-} sound_id;
-
 typedef enum
   {
     AssetType_Sound,

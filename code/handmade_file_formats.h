@@ -5,6 +5,16 @@
 
 typedef struct
 {
+  u32 Value;
+} bitmap_id;
+
+typedef struct
+{
+  u32 Value;
+} sound_id;
+
+typedef struct
+{
 #define HHA_MAGIC_VALUE HHA_CODE('h', 'h', 'a', 'f')
   u32 MagicValue;
 
@@ -22,7 +32,7 @@ typedef struct
 
 typedef struct
 {
-  r32 ID;
+  u32 ID;
   r32 Value;
 } hha_tag; 
 
@@ -43,7 +53,7 @@ typedef struct
 {
   u32 SampleCount;
   u32 ChannelCount;
-  u32 NextIDToPlay;
+  sound_id NextIDToPlay;
 } hha_sound;
 
 typedef struct
