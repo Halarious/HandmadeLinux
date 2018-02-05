@@ -1,3 +1,4 @@
+#if 0
 
 #pragma pack(push, 1)
 typedef struct
@@ -310,6 +311,8 @@ DEBUGLoadWAV(char* Filename, u32 SectionFirstSampleIndex, u32 SectionSampleCount
   return(Result);
 }
 
+#endif
+
 typedef struct
 {
   assets *Assets;
@@ -319,6 +322,15 @@ typedef struct
 
   asset_state FinalState;
 } load_bitmap_work;
+
+internal loaded_bitmap
+DEBUGLoadBMP(char* Filename, v2 Alignment)
+{
+  Assert(!"Nope");
+
+  loaded_bitmap Result = {};
+  return(Result);
+}
 
 internal PLATFORM_WORK_QUEUE_CALLBACK(LoadBitmapWork)
 {
@@ -372,6 +384,15 @@ typedef struct
 
   asset_state FinalState;
 } load_sound_work;
+
+internal loaded_sound
+DEBUGLoadWAV(char* Filename, u32 SectionFirstSampleIndex, u32 SectionSampleCount)
+{
+  Assert(!"Nope");
+
+  loaded_sound Result = {};
+  return(Result);
+}
 
 internal PLATFORM_WORK_QUEUE_CALLBACK(LoadSoundWork)
 {
@@ -533,6 +554,8 @@ GetRandomSoundFrom(assets* Assets, asset_type_id TypeID, random_series* Series)
   return(Result);
 }
 
+#if 0
+
 internal void
 BeginAssetType(assets* Assets, asset_type_id TypeID)
 {
@@ -601,6 +624,8 @@ EndAssetType(assets* Assets)
   Assets->DEBUGAsset = 0;
 }
 
+#endif
+
 internal assets*
 AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* TransState)
 {
@@ -617,12 +642,46 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
     }
   Assets->TagRange[Tag_FacingDirection] = Tau32;
 
-  Assets->AssetCount = 2*256*Asset_Count;
-  Assets->Assets = PushArray(Arena, Assets->AssetCount, asset);
-  Assets->Slots = PushArray(Arena, Assets->AssetCount, asset_slot);
+  loaded_file ReadResult = DEBUGPlatformReadEntireFile("../data/test/test.hha");
+  if(ReadResult.Contents)
+    {      
+      hha_header* Header = (hha_header*)ReadResult.Contents;
+      Assert(Header->MagicValue == HHA_MAGIC_VALUE);
+      Assert(Header->Version == HHA_VERSION);
+      
+      Assets->AssetCount = Header->AssetCount;
+      Assets->Assets = PushArray(Arena, Assets->AssetCount, asset);
+      Assets->Slots = PushArray(Arena, Assets->AssetCount, asset_slot);
 
-  Assets->TagCount = 1024*Asset_Count;
-  Assets->Tags = PushArray(Arena, Assets->TagCount, asset_tag);
+      Assets->TagCount = Header->AssetCount;
+      Assets->Tags = PushArray(Arena, Assets->TagCount, asset_tag);
+
+      hha_tag* HHATags = (hha_tag*)((u8*) ReadResult.Contents + Header->Tags);
+      
+      for(u32 TagIndex = 0;
+	  TagIndex < Assets->TagCount;
+	  ++TagIndex)
+	{
+	  hha_tag* Source = HHATags + TagIndex;
+	  asset_tag* Dest = Assets->Tags + TagIndex;
+
+	  Dest->ID = Source->ID;
+	  Dest->Value = Source->Value;
+	  
+	}
+
+#if 0
+      for()
+	{
+	}
+      
+      for()
+	{
+	}
+#endif
+    }
+
+#if 0
   
   Assets->DEBUGUsedAssetCount = 1;
 
@@ -747,6 +806,7 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
   AddSoundAsset(Assets, "../data/test3/puhp_00.wav", 0, 0);
   AddSoundAsset(Assets, "../data/test3/puhp_01.wav", 0, 0);
   EndAssetType(Assets);
+#endif
 
   return(Assets);
 }

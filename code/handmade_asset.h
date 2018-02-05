@@ -100,13 +100,14 @@ struct assets
   asset* Assets;
   
   asset_type AssetTypes[Asset_Count];
-
+#if 0
   //hero_bitmaps HeroBitmaps[4];
 
   u32 DEBUGUsedAssetCount;
   u32 DEBUGUsedTagCount;
   asset_type* DEBUGAssetType;
   asset* DEBUGAsset;
+#endif
 };
 
 internal inline loaded_bitmap*

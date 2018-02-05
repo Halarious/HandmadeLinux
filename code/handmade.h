@@ -185,6 +185,7 @@ ZeroSize(memory_index Size, void *Ptr)
 #include "handmade_asset.h"
 #include "handmade_random.h"
 #include "handmade_audio.h"
+#include "handmade_file_formats.h"
 
 typedef struct
 {
