@@ -8,11 +8,6 @@ typedef struct
 
 typedef struct
 {
-  hha_asset HHA;
-} asset;
-
-typedef struct
-{
   r32 E[Tag_Count];
 } asset_vector;
 
@@ -46,6 +41,16 @@ typedef struct
   };
 } asset_slot;
 
+typedef struct
+{
+  //platform_file_handle Handle;
+  
+  hha_header Header;
+  hha_asset_type* AssetTypeArray;
+
+  u32 TagBase;
+} asset_file;
+
 typedef struct transient_state transient_state;
 struct assets
 {
@@ -55,12 +60,16 @@ struct assets
 
   r32 TagRange[Tag_Count];
 
+  u32 FileCount;
+  asset_file* Files;
+  
   u32 TagCount;
   hha_tag* Tags;
-  asset_slot* Slots;
 
+  
   u32 AssetCount;
-  asset* Assets;
+  hha_asset* Assets;
+  asset_slot* Slots;
   
   asset_type AssetTypes[Asset_Count];
 
@@ -98,7 +107,7 @@ GetSoundInfo(assets* Assets, sound_id ID)
 {
   Assert(ID.Value <= Assets->AssetCount);
   
-  hha_sound* Result = &Assets->Assets[ID.Value].HHA.Sound;
+  hha_sound* Result = &Assets->Assets[ID.Value].Sound;
   return(Result);
 }
 

@@ -327,8 +327,8 @@ internal PLATFORM_WORK_QUEUE_CALLBACK(LoadBitmapWork)
 {
   load_bitmap_work* Work = (load_bitmap_work*) Data;
 
-  hha_asset* HHAAsset = &Work->Assets->Assets[Work->ID.Value].HHA;
-  hha_bitmap* Info = &Work->Assets->Assets[Work->ID.Value].HHA.Bitmap;
+  hha_asset* HHAAsset = &Work->Assets->Assets[Work->ID.Value];
+  hha_bitmap* Info = &Work->Assets->Assets[Work->ID.Value].Bitmap;
   loaded_bitmap* Bitmap = Work->Bitmap;
 
   Bitmap->AlignPercentage = V2(Info->AlignPercentage[0], Info->AlignPercentage[1]);
@@ -387,7 +387,7 @@ internal PLATFORM_WORK_QUEUE_CALLBACK(LoadSoundWork)
 {
   load_sound_work* Work = (load_sound_work*) Data;
 
-  hha_asset* HHAAsset = &Work->Assets->Assets[Work->ID.Value].HHA;
+  hha_asset* HHAAsset = &Work->Assets->Assets[Work->ID.Value];
   hha_sound* Info = &HHAAsset->Sound;
   loaded_sound* Sound = Work->Sound;
 
@@ -451,11 +451,11 @@ GetBestMatchAssetFrom(assets* Assets, asset_type_id TypeID,
       AssetIndex < Type->OnePastLastAssetIndex;
       ++AssetIndex)
     {
-      asset* Asset = Assets->Assets + AssetIndex;
+      hha_asset* Asset = Assets->Assets + AssetIndex;
 
       r32 TotalWeightedDiff = 0.0f;
-      for(u32 TagIndex = Asset->HHA.FirstTagIndex;
-	  TagIndex < Asset->HHA.OnePastLastTagIndex;
+      for(u32 TagIndex = Asset->FirstTagIndex;
+	  TagIndex < Asset->OnePastLastTagIndex;
 	  ++TagIndex)
 	{
 	  hha_tag* Tag = Assets->Tags + TagIndex;
@@ -643,44 +643,104 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
     }
   Assets->TagRange[Tag_FacingDirection] = Tau32;
 
+  Assets->TagCount = 0;
+  Assets->AssetCount = 0;
+#if 0
+  {  
+    platform_file_group FileGroup = PlatformGetAllFilesOfTypeBegin("hha");
+    Assets->FileCount = FileGroup.FileCount;
+    Assets->Files = PushArray(Arena, Assets->FileCount, asset_file);
+    for(u32 FileIndex = 0;
+	FileIndex < Assets->FileCount;
+	++FileIndex)
+      {
+	asset_file* File = Assets->Files + FileIndex;
+
+	u32 AssetTypeArraySize = File->AssetTypeCount*sizeof(hha_asset_type);
+
+	ZeroStruct(File->Header);
+	File->Handle = PlatformOpenFile(FileGroup, FileIndex);
+	PlatformReadDataFromFile(File->Handle, 0, sizeof(File->Header), &File->Header);
+	File->AssetTypeArray = (hha_asset_type*)PushSize(Arena, AssetTypeArraySize);
+	PlatformReadDataFromFile(File->Handle, File->AssetTypes,
+				 AssetTypeArraySize, File->AssetTypeArray);
+
+	if(Header->MagicValue != HHA_MAGIC_VALUE)
+	  {
+	    PlatformFileError(File->Handle, "HHA File has invalid magic value");
+	  }
+
+	if(Header->Version > HHA_VERSION)
+	  {
+	    PlatformFileError(File->Handle, "HHA File is a late version");
+	  }
+      
+	if(PlatformNoFileErrors(File->Handle))
+	  {
+	    Assets->TagCount += Header->TagCount;
+	    Assets->AssetCount += Header->AssetCount;
+	  }
+	else
+	  {
+	    InvalidCodePath;
+	  }
+      }
+    PlatformGetAllFilesOfTypeBegin(FileGroup);
+  }
+      
+  Assets->Assets = PushArray(Arena, Assets->AssetCount, hha_slot);
+  Assets->Slots = PushArray(Arena, Assets->AssetCount, asset_slot);
+  Assets->Tags = PushArray(Arena, Assets->TagCount, hha_slot);
+
+  u32 AssetCount = 0;
+  u32 TagCount = 0;
+  for(u32 DestTypeID = 0;
+      DestTypeID < Asset_Count;
+      ++DestTypeID)
+    {
+      asset_type* DestType = Assets->AssetTypes + DestTypeID;
+      DestType->FirstAssetIndex = AssetCount;
+            
+      for(u32 FileIndex = 0;
+	  FileIndex < Assets->FileCount;
+	  ++FileIndex)
+	{
+	  asset_file* File = Assets->Files + FileIndex;
+	  if(PlatformNoFileErrors(File->Handle))
+	    {
+	      for(u32 SourceIndex = 0;
+		  SourceIndex < File->Header.AssetTypeCount;
+		  ++SourceIndex)
+		{
+		  hha_asset_type* SourceType = File->AssetTypeArray + SourceIndex;
+		  if(SourceType->TypeID == AssetTypeID)
+		    {
+		      PlatformReadDataFromFile();
+		      AssetCount += ;
+		    }
+		}
+	    }
+	}
+      DestType->OnePastLastAssetIndex = AssetCount;
+    }
+
+  Assert(AssetCount == Assets->AssetCount);
+  Assert(TagCount == Assets->TagCount);
+#endif
+  
   loaded_file ReadResult = DEBUGPlatformReadEntireFile("../data/test/test.hha");
   if(ReadResult.Contents)
     {      
       hha_header* Header = (hha_header*)ReadResult.Contents;
-      Assert(Header->MagicValue == HHA_MAGIC_VALUE);
-      Assert(Header->Version == HHA_VERSION);
       
       Assets->AssetCount = Header->AssetCount;
-      Assets->Assets = PushArray(Arena, Assets->AssetCount, asset);
+      Assets->Assets = (hha_asset*)((u8*) ReadResult.Contents + Header->Assets);
       Assets->Slots = PushArray(Arena, Assets->AssetCount, asset_slot);
 
       Assets->TagCount = Header->AssetCount;
-      Assets->Tags = PushArray(Arena, Assets->TagCount, hha_tag);
+      Assets->Tags = (hha_tag*)((u8*) ReadResult.Contents + Header->Tags);
 
-      hha_tag* HHATags = (hha_tag*)((u8*) ReadResult.Contents + Header->Tags);
-      hha_asset* HHAAssets = (hha_asset*)((u8*) ReadResult.Contents + Header->Assets);
       hha_asset_type* HHAAssetTypes = (hha_asset_type*)((u8*) ReadResult.Contents + Header->AssetTypes);
-      
-      for(u32 TagIndex = 0;
-	  TagIndex < Header->TagCount;
-	  ++TagIndex)
-	{
-	  hha_tag* Source = HHATags + TagIndex;
-	  hha_tag* Dest = Assets->Tags + TagIndex;
-
-	  Dest->ID = Source->ID;
-	  Dest->Value = Source->Value;	  
-	}
-
-      for(u32 AssetIndex = 0;
-	  AssetIndex < Header->AssetCount;
-	  ++AssetIndex)
-	{
-	  hha_asset* Source = HHAAssets + AssetIndex;
-	  asset* Dest = Assets->Assets + AssetIndex;
-
-	  Dest->HHA = *Source;
-	}
       
       for(u32 AssetTypeIndex = 0;
 	  AssetTypeIndex < Header->AssetTypeCount;
