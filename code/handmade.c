@@ -750,7 +750,7 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 	{
 	  GroundBuffer->P = *ChunkP;
 
-	  PlatformAddEntry(TransState->LowPriorityQueue, FillGroundChunkWork, Work);
+	  Platform.AddEntry(TransState->LowPriorityQueue, FillGroundChunkWork, Work);
 	}
       else
 	{
@@ -764,9 +764,7 @@ memory* DebugGlobalMemory;
 #endif
 extern UPDATE_AND_RENDER(UpdateAndRender)
 {
-  PlatformAddEntry = Memory->PlatformAddEntry;
-  PlatformCompleteAllWork = Memory->PlatformCompleteAllWork;
-  DEBUGPlatformReadEntireFile = Memory->DEBUGPlatformReadEntireFile;
+  Platform = Memory->PlatformAPI;
   
 #if HANDMADE_INTERNAL
   DebugGlobalMemory = Memory;

@@ -666,6 +666,38 @@ Linux32MakeQueue(platform_work_queue* Queue, u32 ThreadCount)
     }
 }
 
+internal
+PLATFORM_GET_ALL_FILES_OF_TYPE_BEGIN(Linux32GetAllFilesOfTypeBegin)
+{
+  platform_file_group FileGroup = {};
+  return(FileGroup);
+}
+
+internal
+PLATFORM_GET_ALL_FILES_OF_TYPE_END(Linux32GetAllFilesOfTypeEnd)
+{
+
+}
+
+internal
+PLATFORM_OPEN_FILE(Linux32OpenFile)
+{
+  platform_file_handle* Result = 0;
+  return(Result);
+}
+
+internal
+PLATFORM_READ_DATA_FROM_FILE(Linux32ReadDataFromFile)
+{
+
+}
+
+internal
+PLATFORM_FILE_ERROR(Linux32FileError)
+{
+
+}
+
 int
 main(int ArgCount, char** Arguments)
 {
@@ -806,12 +838,19 @@ main(int ArgCount, char** Arguments)
       Memory.TransientStorageSize = Gigabytes((u64)1);
       Memory.HighPriorityQueue = &HighPriorityQueue;
       Memory.LowPriorityQueue = &LowPriorityQueue;
-      Memory.PlatformAddEntry = Linux32AddEntry;
-      Memory.PlatformCompleteAllWork = Linux32CompleteAllWork;
-      Memory.DEBUGPlatformReadEntireFile = DEBUGPlatformReadEntireFile;
-      Memory.DEBUGPlatformFreeFileMemory = DEBUGPlatformFreeFileMemory;
-      Memory.DEBUGPlatformWriteEntireFile = DEBUGPlatformWriteEntireFile;
-
+      Memory.PlatformAPI.AddEntry = Linux32AddEntry;
+      Memory.PlatformAPI.CompleteAllWork = Linux32CompleteAllWork;
+      
+      Memory.PlatformAPI.GetAllFilesOfTypeBegin = Linux32GetAllFilesOfTypeBegin;
+      Memory.PlatformAPI.GetAllFilesOfTypeEnd = Linux32GetAllFilesOfTypeEnd;
+      Memory.PlatformAPI.OpenFile = Linux32OpenFile;
+      Memory.PlatformAPI.ReadDataFromFile = Linux32ReadDataFromFile;
+      Memory.PlatformAPI.FileError = Linux32FileError;
+      
+      Memory.PlatformAPI.DEBUGReadEntireFile = DEBUGPlatformReadEntireFile;
+      Memory.PlatformAPI.DEBUGFreeFileMemory = DEBUGPlatformFreeFileMemory;
+      Memory.PlatformAPI.DEBUGWriteEntireFile = DEBUGPlatformWriteEntireFile;
+      
       Linux32State.TotalSize   = Memory.PermanentStorageSize + Memory.TransientStorageSize;
       Linux32State.MemoryBlock = mmap(BaseAddress, Linux32State.TotalSize,
 				     PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS,

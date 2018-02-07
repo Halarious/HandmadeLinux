@@ -43,7 +43,7 @@ typedef struct
 
 typedef struct
 {
-  //platform_file_handle Handle;
+  platform_file_handle* Handle;
   
   hha_header Header;
   hha_asset_type* AssetTypeArray;
@@ -74,7 +74,9 @@ struct assets
   asset_type AssetTypes[Asset_Count];
 
   u8* HHAContents;
-#if 0
+  #if 0
+
+
   //hero_bitmaps HeroBitmaps[4];
 
   u32 DEBUGUsedAssetCount;
@@ -88,8 +90,10 @@ internal inline loaded_bitmap*
 GetBitmap(assets* Assets, bitmap_id ID)
 {
   Assert(ID.Value <= Assets->AssetCount);
-    
-  loaded_bitmap* Result = Assets->Slots[ID.Value].Bitmap;
+
+  asset_slot* Slot = Assets->Slots + ID.Value; 
+  loaded_bitmap* Result = (Slot->State >= AssetState_Loaded) ? Slot->Bitmap : 0;
+
   return(Result);
 }
 
@@ -97,8 +101,10 @@ internal inline loaded_sound*
 GetSound(assets* Assets, sound_id ID)
 {
   Assert(ID.Value <= Assets->AssetCount);
-  
-  loaded_sound* Result = Assets->Slots[ID.Value].Sound;
+
+  asset_slot* Slot = Assets->Slots + ID.Value; 
+  loaded_sound* Result = (Slot->State >= AssetState_Loaded) ? Slot->Sound : 0;;
+
   return(Result);
 }
 
