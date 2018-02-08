@@ -666,6 +666,12 @@ Linux32MakeQueue(platform_work_queue* Queue, u32 ThreadCount)
     }
 }
 
+typedef struct
+{
+  platform_file_handle H;
+  int Linux32Handle;
+} linux32_platform_file_handle;
+
 internal
 PLATFORM_GET_ALL_FILES_OF_TYPE_BEGIN(Linux32GetAllFilesOfTypeBegin)
 {
@@ -682,8 +688,16 @@ PLATFORM_GET_ALL_FILES_OF_TYPE_END(Linux32GetAllFilesOfTypeEnd)
 internal
 PLATFORM_OPEN_FILE(Linux32OpenFile)
 {
-  platform_file_handle* Result = 0;
-  return(Result);
+  linux32_platform_file_handle* Result = (platform_file_handle*) mmap(0, sizeof(platform_file_handle),
+								      PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS,
+								      -1, 0);
+  if(Result)
+    {
+      Result.Linux32Handle = open(Filename, O_RDONLY);
+      Result.NoErrors = (FileDescriptor != -1)
+    }
+        
+  return((platform_file_handle*)Result);
 }
 
 internal

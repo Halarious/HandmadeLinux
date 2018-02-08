@@ -4,7 +4,9 @@
 
 
 #if COMPILER_MSVC
+#define CompletePreviousReadsBeforeFutureReads _ReadBarrier() ; 
 #define CompletePreviousWritesBeforeFutureWrites _WriteBarrier() 
+
 AtomicCompareExchangeUInt32(u32 volatile* Value, u32 New, u32 Expected)
 {
   u32 Result = _InterlockedCompareExchange((long*)Value,
@@ -14,7 +16,9 @@ AtomicCompareExchangeUInt32(u32 volatile* Value, u32 New, u32 Expected)
 }
 
 #elif COMPILER_LLVM
+#define CompletePreviousReadsBeforeFutureReads   asm volatile("" ::: "memory");
 #define CompletePreviousWritesBeforeFutureWrites asm volatile("" ::: "memory");
+
 internal inline u32
 AtomicCompareExchangeUInt32(u32 volatile* Value, u32 New, u32 Expected)
 {

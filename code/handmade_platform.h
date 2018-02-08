@@ -213,7 +213,7 @@ typedef struct
 
 typedef struct
 {
-  bool32 HasErrors;
+  bool32 NoErrors;
 } platform_file_handle;
 
 typedef struct

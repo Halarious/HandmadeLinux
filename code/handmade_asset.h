@@ -43,6 +43,12 @@ typedef struct
 
 typedef struct
 {
+  hha_asset HHA;
+  u32 FileIndex;
+} asset;
+
+typedef struct
+{
   platform_file_handle* Handle;
   
   hha_header Header;
@@ -65,17 +71,15 @@ struct assets
   
   u32 TagCount;
   hha_tag* Tags;
-
   
   u32 AssetCount;
-  hha_asset* Assets;
+  asset* Assets;
   asset_slot* Slots;
   
   asset_type AssetTypes[Asset_Count];
 
+#if 0
   u8* HHAContents;
-  #if 0
-
 
   //hero_bitmaps HeroBitmaps[4];
 
@@ -90,10 +94,16 @@ internal inline loaded_bitmap*
 GetBitmap(assets* Assets, bitmap_id ID)
 {
   Assert(ID.Value <= Assets->AssetCount);
-
   asset_slot* Slot = Assets->Slots + ID.Value; 
-  loaded_bitmap* Result = (Slot->State >= AssetState_Loaded) ? Slot->Bitmap : 0;
 
+
+  loaded_bitmap* Result = 0;
+  if(Slot->State >= AssetState_Loaded)
+    {
+      CompletePreviousReadsBeforeFutureReads;
+      Result = Slot->Bitmap;
+    }
+  
   return(Result);
 }
 
@@ -103,8 +113,13 @@ GetSound(assets* Assets, sound_id ID)
   Assert(ID.Value <= Assets->AssetCount);
 
   asset_slot* Slot = Assets->Slots + ID.Value; 
-  loaded_sound* Result = (Slot->State >= AssetState_Loaded) ? Slot->Sound : 0;;
-
+  loaded_sound* Result = 0;
+  if(Slot->State >= AssetState_Loaded)
+    {
+      CompletePreviousReadsBeforeFutureReads;
+      Result = Slot->Sound;
+    }
+  
   return(Result);
 }
 
@@ -113,7 +128,7 @@ GetSoundInfo(assets* Assets, sound_id ID)
 {
   Assert(ID.Value <= Assets->AssetCount);
   
-  hha_sound* Result = &Assets->Assets[ID.Value].Sound;
+  hha_sound* Result = &Assets->Assets[ID.Value].HHA.Sound;
   return(Result);
 }
 

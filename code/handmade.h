@@ -175,6 +175,15 @@ ZeroSize(memory_index Size, void *Ptr)
     }
 }
 
+internal inline void
+Copy(memory_index Size, void* SourceInit, void* DestInit)
+{
+  u8* Source = (u8*)SourceInit;
+  u8* Dest = (u8*)DestInit;
+
+  while(Size--) { *Dest++ = *Source++; }
+}
+
 #include "handmade_intrinsics.h"
 #include "handmade_math.h"
 #include "handmade_world.h"
