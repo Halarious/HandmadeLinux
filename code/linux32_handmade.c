@@ -676,6 +676,9 @@ internal
 PLATFORM_GET_ALL_FILES_OF_TYPE_BEGIN(Linux32GetAllFilesOfTypeBegin)
 {
   platform_file_group FileGroup = {};
+
+  FileGroup.FileCount = 1;
+
   return(FileGroup);
 }
 
@@ -688,28 +691,48 @@ PLATFORM_GET_ALL_FILES_OF_TYPE_END(Linux32GetAllFilesOfTypeEnd)
 internal
 PLATFORM_OPEN_FILE(Linux32OpenFile)
 {
-  linux32_platform_file_handle* Result = (platform_file_handle*) mmap(0, sizeof(platform_file_handle),
-								      PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS,
-								      -1, 0);
+  char* Filename = "../data/test/test.hha";
+
+  linux32_platform_file_handle* Result
+    = (linux32_platform_file_handle*) mmap(0, sizeof(platform_file_handle),
+					   PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS,
+					   -1, 0);
   if(Result)
     {
-      Result.Linux32Handle = open(Filename, O_RDONLY);
-      Result.NoErrors = (FileDescriptor != -1)
+      Result->Linux32Handle = open(Filename, O_RDONLY);
+      Result->H.NoErrors = (Result->Linux32Handle != -1);
     }
         
   return((platform_file_handle*)Result);
 }
 
 internal
-PLATFORM_READ_DATA_FROM_FILE(Linux32ReadDataFromFile)
+PLATFORM_FILE_ERROR(Linux32FileError)
 {
-
+  Handle->NoErrors = false;
 }
 
 internal
-PLATFORM_FILE_ERROR(Linux32FileError)
+PLATFORM_READ_DATA_FROM_FILE(Linux32ReadDataFromFile)
 {
-
+  if(PlatformNoFileErrors(Source))
+    {
+      linux32_platform_file_handle* Handle = (linux32_platform_file_handle*) Source;
+  
+      u32 FileSize32 = SafeTruncateUInt64(Size);
+  
+      ssize_t BytesRead = pread(Handle->Linux32Handle,
+				Dest, FileSize32, Offset);
+      if(BytesRead != -1  &&
+	 BytesRead == Size)
+	{
+      
+	}
+      else
+	{
+	  Linux32FileError(&Handle->H, "Read file failed!");
+	}
+    }
 }
 
 int

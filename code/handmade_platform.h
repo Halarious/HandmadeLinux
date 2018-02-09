@@ -87,6 +87,14 @@ typedef double r64;
 #define Align8(Value)  ((Value + 7)  & ~7)
 #define Align16(Value) ((Value + 15) & ~15)
 
+internal inline u32 
+SafeTruncateUInt64(u64 Value)
+{
+  Assert(Value <= 0xffffffff);
+  u32 Result = (u32)Value;
+  return(Result);
+}
+
 #if HANDMADE_INTERNAL
 
 typedef struct
@@ -222,7 +230,7 @@ typedef struct
   void* Data;
 } platform_file_group ;
 
-#define PlatformNoFileErrors(Handle) (!(Handle)->HasErrors)
+#define PlatformNoFileErrors(Handle) (!(Handle)->NoErrors)
 
 #define PLATFORM_GET_ALL_FILES_OF_TYPE_BEGIN(name) platform_file_group name(char* Type)
 typedef PLATFORM_GET_ALL_FILES_OF_TYPE_BEGIN(platform_get_all_files_of_type_begin);
@@ -233,7 +241,7 @@ typedef PLATFORM_GET_ALL_FILES_OF_TYPE_END(platform_get_all_files_of_type_end);
 #define PLATFORM_OPEN_FILE(name) platform_file_handle* name(platform_file_group FileGroup, u32 FileIndex)
 typedef PLATFORM_OPEN_FILE(platform_open_file);
 
-#define PLATFORM_READ_DATA_FROM_FILE(name) void name(platform_file_handle* Handle, u32 Offset, u32 Size, void* Dest)
+#define PLATFORM_READ_DATA_FROM_FILE(name) void name(platform_file_handle* Source, u32 Offset, u32 Size, void* Dest)
 typedef PLATFORM_READ_DATA_FROM_FILE(platform_read_data_from_file);
 
 #define PLATFORM_FILE_ERROR(name) void name(platform_file_handle* Handle, char* Message)

@@ -38,16 +38,6 @@ typedef struct
   memory_arena GlyphArena;
 } font;
 
-//NOTE: Services the platform layer provides to the game
-
-inline u32
-SafeTruncateUInt64(u64 Value)
-{
-  Assert(Value <= 0xFFFFFFFF);
-  u32 Result = (u32) Value;
-  return Result;
-}
-
 internal void
 InitializeArena(memory_arena* Arena, memory_index Size, void* StorageBase)
 {

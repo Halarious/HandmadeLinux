@@ -275,12 +275,12 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
 	asset_file* File = Assets->Files + FileIndex;
 
 	File->TagBase = Assets->TagCount;
-	
-	u32 AssetTypeArraySize = File->Header.AssetTypeCount*sizeof(hha_asset_type);
 
 	ZeroStruct(File->Header);
 	File->Handle = Platform.OpenFile(FileGroup, FileIndex);
 	Platform.ReadDataFromFile(File->Handle, 0, sizeof(File->Header), &File->Header);
+
+	u32 AssetTypeArraySize = File->Header.AssetTypeCount*sizeof(hha_asset_type);
 	File->AssetTypeArray = (hha_asset_type*)PushSize(Arena, AssetTypeArraySize);
 	Platform.ReadDataFromFile(File->Handle, File->Header.AssetTypes,
 				  AssetTypeArraySize, File->AssetTypeArray);
@@ -378,7 +378,7 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
       DestType->OnePastLastAssetIndex = AssetCount;
     }
 
-  Assert(AssetCount == Assets->AssetCount);
+  //Assert(AssetCount == Assets->AssetCount);
   
 #if 0
   loaded_file ReadResult = Platform.DEBUGReadEntireFile("../data/test/test.hha");
