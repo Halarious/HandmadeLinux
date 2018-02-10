@@ -378,7 +378,7 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
       DestType->OnePastLastAssetIndex = AssetCount;
     }
 
-  //Assert(AssetCount == Assets->AssetCount);
+  Assert(AssetCount == Assets->AssetCount);
   
 #if 0
   loaded_file ReadResult = Platform.DEBUGReadEntireFile("../data/test/test.hha");
