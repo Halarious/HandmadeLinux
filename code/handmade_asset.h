@@ -151,3 +151,31 @@ internal void LoadSound(assets* Assets, sound_id ID);
 internal inline void PrefetchBitmap(assets* Assets, bitmap_id ID) {LoadBitmap(Assets, ID);}
 internal inline void PrefetchSound(assets* Assets, sound_id ID)   {LoadSound(Assets, ID);}
 
+internal inline sound_id
+GetNextSoundInChain(assets* Assets, sound_id ID)
+{
+  sound_id Result = {};
+
+  hha_sound* Info = GetSoundInfo(Assets, ID);
+  switch(Info->Chain)
+    {
+
+    case(HHASoundChain_None):
+      {
+      } break;
+      
+    case(HHASoundChain_Loop):
+      {
+	Result = ID;
+      } break;
+      
+    case(HHASoundChain_Advance):
+      {
+	Result.Value = ID.Value + 1;
+      } break;
+
+      InvalidCase;
+    }
+
+  return(Result);
+}

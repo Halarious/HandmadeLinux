@@ -1068,7 +1068,7 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget, rect
 	    BaseAddress += sizeof(*Entry);	    
 	  } break;
 	  
-	  InvalidDefaultCase;
+	  InvalidCase;
 	}
     }
 

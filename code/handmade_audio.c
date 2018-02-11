@@ -95,9 +95,9 @@ OutputPlayingSounds(audio_state* AudioState,
 	  loaded_sound* LoadedSound = GetSound(Assets, PlayingSound->ID);
 	  if(LoadedSound)
 	    {
-	      hha_sound* Info = GetSoundInfo(Assets, PlayingSound->ID);
-	      PrefetchSound(Assets, Info->NextIDToPlay);
-	  
+	      sound_id NextSoundInChain = GetNextSoundInChain(Assets, PlayingSound->ID);
+	      PrefetchSound(Assets, NextSoundInChain);
+	      		      	  
 	      v2 Volume  = PlayingSound->CurrentVolume;
 	      v2 dVolume  = V2MulS(SecondsPerSample, PlayingSound->dCurrentVolume);
 	      v2 dVolumeChunk = V2MulS(4.0f, dVolume);
@@ -219,9 +219,9 @@ OutputPlayingSounds(audio_state* AudioState,
 	      
 	      if(ChunksToMix == ChunksRemainingInSound)
 		{
-		  if(IsSoundIDValid(Info->NextIDToPlay))
+		  if(IsSoundIDValid(NextSoundInChain))
 		    {
-		      PlayingSound->ID = Info->NextIDToPlay;
+		      PlayingSound->ID = NextSoundInChain;
 		      Assert(PlayingSound->SamplesPlayed >= LoadedSound->SampleCount);
 		      PlayingSound->SamplesPlayed -= (r32)LoadedSound->SampleCount;
 		      if(PlayingSound->SamplesPlayed < 0)

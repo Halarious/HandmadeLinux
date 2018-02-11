@@ -25,13 +25,12 @@ typedef enum
     Asset_Cape,
     Asset_Torso,
 
-    
     Asset_Bloop,
     Asset_Crack,
     Asset_Drop,
     Asset_Glide,
     Asset_Music,
     Asset_Puhp,
-        
+    
     Asset_Count,
   } asset_type_id;

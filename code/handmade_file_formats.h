@@ -43,6 +43,13 @@ typedef struct
   u32 OnePastLastAssetIndex;
 } hha_asset_type; 
 
+typedef enum
+  {
+    HHASoundChain_None,
+    HHASoundChain_Loop,
+    HHASoundChain_Advance,
+  } hha_sound_chain;
+
 typedef struct
 {
   u32 Dim[2];
@@ -53,7 +60,7 @@ typedef struct
 {
   u32 SampleCount;
   u32 ChannelCount;
-  sound_id NextIDToPlay;
+  u32 Chain;
 } hha_sound;
 
 typedef struct

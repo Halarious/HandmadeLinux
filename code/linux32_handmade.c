@@ -677,7 +677,7 @@ PLATFORM_GET_ALL_FILES_OF_TYPE_BEGIN(Linux32GetAllFilesOfTypeBegin)
 {
   platform_file_group FileGroup = {};
 
-  FileGroup.FileCount = 1;
+  FileGroup.FileCount = 3;
 
   return(FileGroup);
 }
@@ -691,8 +691,17 @@ PLATFORM_GET_ALL_FILES_OF_TYPE_END(Linux32GetAllFilesOfTypeEnd)
 internal
 PLATFORM_OPEN_FILE(Linux32OpenFile)
 {
-  char* Filename = "../data/test/test.hha";
-
+  Assert(FileIndex >= 0);
+  Assert(FileIndex <  3);
+  
+  char* Filenames[] =
+    {
+      "../data/test1.hha",
+      "../data/test2.hha",
+      "../data/test3.hha",
+    };
+  char* Filename = Filenames[FileIndex];
+  
   linux32_platform_file_handle* Result
     = (linux32_platform_file_handle*) mmap(0, sizeof(platform_file_handle),
 					   PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS,
