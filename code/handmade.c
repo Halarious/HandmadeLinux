@@ -782,7 +782,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       u32 TilesPerWidth = 17;
       u32 TilesPerHeight = 9;
 
-      State->GeneralEntropy = Seed(1234);
+      State->EffectsEntropy = Seed(1234);
       State->TypicalFloorHeight = 3.0f;
       
       r32 PixelsToMeters = 1.0f / 42.0f;
@@ -1384,7 +1384,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 						  V3MulS(5.0f, ToV3(ConHero->dSword, 0)));
 				AddCollisionRule(State, Sword->StorageIndex, Entity->StorageIndex, false);
 
-				PlaySound(&State->AudioState, GetRandomSoundFrom(TransState->Assets, Asset_Bloop, &State->GeneralEntropy));
+				PlaySound(&State->AudioState, GetRandomSoundFrom(TransState->Assets, Asset_Bloop, &State->EffectsEntropy));
 			      }
 			  }
 		      }
@@ -1475,7 +1475,54 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		PushBitmapByID(RenderGroup, HeroBitmaps.Cape,  V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 		PushBitmapByID(RenderGroup, HeroBitmaps.Head,  V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));	
 		DrawHitpoints(Entity, RenderGroup);
-	    	    
+
+		for(u32 ParticleSpawnIndex = 0;
+		    ParticleSpawnIndex < 2;
+		    ++ParticleSpawnIndex)
+		  {
+		    particle* Particle = State->Particles + State->NextParticle++;
+		    if(State->NextParticle >= ArrayCount(State->Particles))
+		      {
+			State->NextParticle = 0;
+		      }
+		    
+		    Particle->P = V3(RandomBetween(&State->EffectsEntropy, -0.25f, 0.25f), 0.0f, 0.0f);
+		    Particle->dP = V3(RandomBetween(&State->EffectsEntropy, -0.5f, 0.5f), RandomBetween(&State->EffectsEntropy, 0.7f, 1.0f), 0.0f);
+		    Particle->Color = V4(RandomBetween(&State->EffectsEntropy, 0.75f, 1.0f),
+					 RandomBetween(&State->EffectsEntropy, 0.75f, 1.0f),
+					 RandomBetween(&State->EffectsEntropy, 0.75f, 1.0f),
+					 1.0f);
+		    Particle->dColor = V4(0.0f, 0.0f, 0.0f, -0.5f);
+		  }
+		
+		for(u32 ParticleIndex = 0;
+		    ParticleIndex < ArrayCount(State->Particles);
+		    ++ParticleIndex)
+		  {
+		    particle* Particle = State->Particles + ParticleIndex;
+
+		    Particle->P = V3Add(Particle->P,
+					V3MulS(Input->dtForFrame, Particle->dP));
+		    Particle->Color = V4Add(Particle->Color,
+					    V4MulS(Input->dtForFrame, Particle->dColor));
+
+		    v4 Color; 
+		    Color.r = Clamp01(Particle->Color.r);
+		    Color.g = Clamp01(Particle->Color.g);
+		    Color.b = Clamp01(Particle->Color.b);
+		    Color.a = Clamp01(Particle->Color.a);
+
+		    
+		    
+		    if(Color.a > 0.9f)
+		      {
+			Color.a = 0.9f * Clamp01MapToRange(1.0f, Color.a, 0.9f);
+		      }
+		    
+		    PushBitmapByID(RenderGroup, GetFirstBitmapFrom(TransState->Assets, Asset_Head),
+				   Particle->P, 1.0f, Color);
+		  }
+		
 	      } break;
 
 	    case EntityType_Wall:
@@ -1642,6 +1689,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 #endif
 
 #endif
+  
   TiledRenderGroupToOutput(TransState->HighPriorityQueue, RenderGroup, DrawBuffer);
     
   EndSim(SimRegion, State);

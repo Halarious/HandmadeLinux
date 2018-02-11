@@ -27,16 +27,19 @@ internal void
 ChangeVolume(audio_state* AudioState, playing_sound* Sound,
 	     r32 FadeDurationInSeconds, v2 Volume)
 {
-  if(FadeDurationInSeconds <= 0.0f)
+  if(Sound)
     {
-      Sound->CurrentVolume = Sound->TargetVolume = Volume;
-    }
-  else
-    {
-      r32 OneOverFade = 1.0f / FadeDurationInSeconds;
-      Sound->TargetVolume = Volume;
-      Sound->dCurrentVolume = V2MulS(OneOverFade,
-				     V2Sub(Sound->TargetVolume, Sound->CurrentVolume));
+      if(FadeDurationInSeconds <= 0.0f)
+	{
+	  Sound->CurrentVolume = Sound->TargetVolume = Volume;
+	}
+      else
+	{
+	  r32 OneOverFade = 1.0f / FadeDurationInSeconds;
+	  Sound->TargetVolume = Volume;
+	  Sound->dCurrentVolume = V2MulS(OneOverFade,
+					 V2Sub(Sound->TargetVolume, Sound->CurrentVolume));
+	}
     }
 }
 
@@ -44,7 +47,10 @@ internal void
 ChangePitch(audio_state* AudioState, playing_sound* Sound,
 	    r32 dSample)
 {
-  Sound->dSample = dSample;
+  if(Sound)
+    {
+      Sound->dSample = dSample;
+    }
 }
 
 internal void

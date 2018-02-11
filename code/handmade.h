@@ -226,6 +226,14 @@ typedef struct
 
 typedef struct
 {
+  v3 P;
+  v3 dP;
+  v4 Color;
+  v4 dColor;
+} particle;
+
+typedef struct
+{
   bool32 IsInitialized;
   
   memory_arena MetaArena;
@@ -259,11 +267,14 @@ typedef struct
   loaded_bitmap TestDiffuse;
   loaded_bitmap TestNormal;
 
-  random_series GeneralEntropy;
+  random_series EffectsEntropy;
   r32 tSine;
 
   audio_state AudioState;
   playing_sound* Music;
+
+  u32 NextParticle;
+  particle Particles[256];
 } state;
 
 typedef struct
