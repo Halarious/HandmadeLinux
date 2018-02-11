@@ -8,6 +8,8 @@
 #include <sys/stat.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <dirent.h>
+#include <fnmatch.h>
 #include <dlfcn.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -669,49 +671,130 @@ Linux32MakeQueue(platform_work_queue* Queue, u32 ThreadCount)
 typedef struct
 {
   platform_file_handle H;
+
   int Linux32Handle;
 } linux32_platform_file_handle;
+
+typedef struct
+{
+  platform_file_group H;
+
+  DIR* DirectoryStream;
+  struct dirent* DirEntry;
+  char Wildcard[32];
+} linux32_platform_file_group;
 
 internal
 PLATFORM_GET_ALL_FILES_OF_TYPE_BEGIN(Linux32GetAllFilesOfTypeBegin)
 {
-  platform_file_group FileGroup = {};
+  linux32_platform_file_group* Linux32FileGroup
+    = mmap(0, sizeof(linux32_platform_file_group),
+	   PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS,
+	   -1, 0);
 
-  FileGroup.FileCount = 3;
+  char* DirPath  = "../data";
+  char* TypeAt = Type;
+  Linux32FileGroup->Wildcard[0] = '*';
+  Linux32FileGroup->Wildcard[1] = '.';
+  for(u32 WildcardIndex = 2;
+      WildcardIndex < sizeof(Linux32FileGroup->Wildcard);
+      ++WildcardIndex)
+    {
+      Linux32FileGroup->Wildcard[WildcardIndex] = *TypeAt;
+      if(*TypeAt == 0)
+	{
+	  break;
+	}
 
-  return(FileGroup);
+      ++TypeAt;
+    }
+  Linux32FileGroup->Wildcard[sizeof(Linux32FileGroup->Wildcard) - 1] = 0;  
+  
+  Linux32FileGroup->H.FileCount = 0;
+
+  DIR* DirectoryStream = opendir(DirPath);
+  if(DirectoryStream)
+    {
+      for(struct dirent* Entry = readdir(DirectoryStream);
+	  Entry != 0;
+	  Entry = readdir(DirectoryStream))
+	{
+	  if(!fnmatch(Linux32FileGroup->Wildcard, Entry->d_name, 0))
+	    {
+	      ++Linux32FileGroup->H.FileCount;
+	    }
+	}
+      closedir(DirectoryStream);
+    }
+
+  Linux32FileGroup->DirectoryStream = opendir(DirPath);
+  for(Linux32FileGroup->DirEntry  = readdir(Linux32FileGroup->DirectoryStream);
+      Linux32FileGroup->DirEntry != 0;
+      Linux32FileGroup->DirEntry  = readdir(Linux32FileGroup->DirectoryStream))
+    {
+      if(!fnmatch(Linux32FileGroup->Wildcard, Linux32FileGroup->DirEntry->d_name, 0))
+	{
+	  break;
+	}
+    }
+  
+  return((platform_file_group*)Linux32FileGroup);
 }
 
 internal
 PLATFORM_GET_ALL_FILES_OF_TYPE_END(Linux32GetAllFilesOfTypeEnd)
 {
-
+  linux32_platform_file_group* Linux32FileGroup = (linux32_platform_file_group*) FileGroup;
+  if(Linux32FileGroup)
+    {
+      if(Linux32FileGroup->DirectoryStream != 0)
+	{
+	  closedir(Linux32FileGroup->DirectoryStream);
+	}
+            
+      int r = munmap(Linux32FileGroup, sizeof(linux32_platform_file_group));
+      Assert(!r);
+    }
 }
 
 internal
-PLATFORM_OPEN_FILE(Linux32OpenFile)
+PLATFORM_OPEN_FILE(Linux32OpenNextFile)
 {
-  Assert(FileIndex >= 0);
-  Assert(FileIndex <  3);
-  
-  char* Filenames[] =
+  linux32_platform_file_group* Linux32FileGroup = (linux32_platform_file_group*) FileGroup; 
+  linux32_platform_file_handle* Result = 0;
+
+  if(Linux32FileGroup != 0)
     {
-      "../data/test1.hha",
-      "../data/test2.hha",
-      "../data/test3.hha",
-    };
-  char* Filename = Filenames[FileIndex];
-  
-  linux32_platform_file_handle* Result
-    = (linux32_platform_file_handle*) mmap(0, sizeof(platform_file_handle),
-					   PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS,
-					   -1, 0);
-  if(Result)
-    {
-      Result->Linux32Handle = open(Filename, O_RDONLY);
-      Result->H.NoErrors = (Result->Linux32Handle != -1);
+      Result
+	= (linux32_platform_file_handle*) mmap(0, sizeof(platform_file_handle),
+					       PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS,
+					       -1, 0);
+      if(Result)
+	{
+	  char* Filename = Linux32FileGroup->DirEntry->d_name;
+	  Result->Linux32Handle = open(Filename, O_RDONLY);
+	  Result->H.NoErrors = (Result->Linux32Handle != -1);
+	}
+
+      //TODO: I think we dont like this
+      for(Linux32FileGroup->DirEntry  = readdir(Linux32FileGroup->DirectoryStream);
+	  Linux32FileGroup->DirEntry != 0;
+	  Linux32FileGroup->DirEntry  = readdir(Linux32FileGroup->DirectoryStream))
+	{
+	  if(!fnmatch(Linux32FileGroup->Wildcard, Linux32FileGroup->DirEntry->d_name, 0))
+	    {
+	      break;
+	    }
+	}
+      
+      if(!Linux32FileGroup->DirEntry)
+	{
+	  closedir(Linux32FileGroup->DirectoryStream);
+	  Linux32FileGroup->DirectoryStream = 0;
+	}
+      
     }
-        
+  
   return((platform_file_handle*)Result);
 }
 
@@ -889,7 +972,7 @@ main(int ArgCount, char** Arguments)
       
       Memory.PlatformAPI.GetAllFilesOfTypeBegin = Linux32GetAllFilesOfTypeBegin;
       Memory.PlatformAPI.GetAllFilesOfTypeEnd = Linux32GetAllFilesOfTypeEnd;
-      Memory.PlatformAPI.OpenFile = Linux32OpenFile;
+      Memory.PlatformAPI.OpenNextFile = Linux32OpenNextFile;
       Memory.PlatformAPI.ReadDataFromFile = Linux32ReadDataFromFile;
       Memory.PlatformAPI.FileError = Linux32FileError;
       
