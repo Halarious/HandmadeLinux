@@ -226,8 +226,15 @@ typedef struct
 
 typedef struct
 {
+  r32 Density;
+  v3 VelocityTimesDensity;
+} particle_cell;
+  
+typedef struct
+{
   v3 P;
   v3 dP;
+  v3 ddP;
   v4 Color;
   v4 dColor;
 } particle;
@@ -273,8 +280,10 @@ typedef struct
   audio_state AudioState;
   playing_sound* Music;
 
+#define PARTICLE_CELL_DIM 16
   u32 NextParticle;
   particle Particles[256];
+  particle_cell ParticleCells[PARTICLE_CELL_DIM][PARTICLE_CELL_DIM];
 } state;
 
 typedef struct

@@ -1486,13 +1486,61 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 			State->NextParticle = 0;
 		      }
 		    
-		    Particle->P = V3(RandomBetween(&State->EffectsEntropy, -0.25f, 0.25f), 0.0f, 0.0f);
-		    Particle->dP = V3(RandomBetween(&State->EffectsEntropy, -0.5f, 0.5f), RandomBetween(&State->EffectsEntropy, 0.7f, 1.0f), 0.0f);
+		    Particle->P = V3(RandomBetween(&State->EffectsEntropy, -0.05f, 0.05f), 0.0f, 0.0f);
+		    Particle->dP = V3(RandomBetween(&State->EffectsEntropy, -0.01f, 0.01f), 5.0f * RandomBetween(&State->EffectsEntropy, 0.7f, 1.0f), 0.0f);
+		    Particle->ddP = V3(0.0f, -9.8f, 0.0f);
 		    Particle->Color = V4(RandomBetween(&State->EffectsEntropy, 0.75f, 1.0f),
 					 RandomBetween(&State->EffectsEntropy, 0.75f, 1.0f),
 					 RandomBetween(&State->EffectsEntropy, 0.75f, 1.0f),
 					 1.0f);
 		    Particle->dColor = V4(0.0f, 0.0f, 0.0f, -0.5f);
+		  }
+
+		ZeroStruct(State->ParticleCells);
+
+		r32 GridScale = 0.5f;
+		r32 InvGridScale = 1.0f / GridScale;
+		v3 GridOrigin = {-5.0f*GridScale*PARTICLE_CELL_DIM, 0.0f, 0.0f};
+		for(u32 ParticleIndex = 0;
+		    ParticleIndex < ArrayCount(State->Particles);
+		    ++ParticleIndex)
+		  {
+		    particle* Particle = State->Particles + ParticleIndex;
+
+		    v3 P = V3MulS(InvGridScale,
+				  V3Sub(Particle->P, GridOrigin));
+		    
+		    s32 X = TruncateReal32ToInt32(P.x);
+		    s32 Y = TruncateReal32ToInt32(P.y);
+		    
+		    if(X < 0) {X = 0;}
+		    if(X > (PARTICLE_CELL_DIM - 1)) {X = (PARTICLE_CELL_DIM - 1);}
+		    if(Y < 0) {Y = 0;}
+		    if(Y > (PARTICLE_CELL_DIM - 1)) {Y = (PARTICLE_CELL_DIM - 1);}
+		    		    
+		    particle_cell* Cell = &State->ParticleCells[Y][X];
+		    r32 Density = Particle->Color.a;
+		    Cell->Density += Density;
+		    Cell->VelocityTimesDensity = V3Add(Cell->VelocityTimesDensity,
+						       V3MulS(Density, Particle->dP));
+		  }
+
+		for(u32 Y = 0;
+		    Y < PARTICLE_CELL_DIM;
+		    ++Y)
+		  {
+		    for(u32 X = 0;
+			X < PARTICLE_CELL_DIM;
+			++X)
+		      {
+			particle_cell* Cell = &State->ParticleCells[Y][X];
+			r32 Alpha = Clamp01(0.1f * Cell->Density);
+			PushRect(RenderGroup, V3Add(V3MulS(GridScale,
+							   V3(X, Y, 0)),
+						    GridOrigin),
+				 V2MulS(GridScale, V2(1.0f, 1.0f)),
+				 V4(1.0f, 0.5f, 0.0f, Alpha));
+		      }
 		  }
 		
 		for(u32 ParticleIndex = 0;
@@ -1501,19 +1549,60 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		  {
 		    particle* Particle = State->Particles + ParticleIndex;
 
+		    v3 P = V3MulS(InvGridScale,
+				  V3Sub(Particle->P, GridOrigin));
+		    
+		    s32 X = TruncateReal32ToInt32(P.x);
+		    s32 Y = TruncateReal32ToInt32(P.y);
+		    
+		    if(X < 1) {X = 1;}
+		    if(X > (PARTICLE_CELL_DIM - 2)) {X = (PARTICLE_CELL_DIM - 2);}
+		    if(Y < 1) {Y = 1;}
+		    if(Y > (PARTICLE_CELL_DIM - 2)) {Y = (PARTICLE_CELL_DIM - 2);}
+
+		    particle_cell* CellCenter = &State->ParticleCells[Y][X];
+		    particle_cell* CellLeft   = &State->ParticleCells[Y][X - 1];
+		    particle_cell* CellRight  = &State->ParticleCells[Y][X + 1];
+		    particle_cell* CellDown   = &State->ParticleCells[Y - 1][X];
+		    particle_cell* CellUp     = &State->ParticleCells[Y + 1][X];
+
+		    v3 Dispersion = V3(0.0f, 0.0f, 0.0f);
+		    r32 Dc = 1.0f;
+		    Dispersion = V3Add(Dispersion,
+				       V3MulS(Dc * (CellCenter->Density - CellLeft->Density), V3(-1.0f, 0.0f, 0.0f)));
+		    Dispersion = V3Add(Dispersion,
+				       V3MulS(Dc * (CellCenter->Density - CellRight->Density), V3(1.0f, 0.0f, 0.0f)));
+		    Dispersion = V3Add(Dispersion,
+				       V3MulS(Dc * (CellCenter->Density - CellDown->Density), V3(0.0f, -1.0f, 0.0f)));
+		    Dispersion = V3Add(Dispersion,
+				       V3MulS(Dc * (CellCenter->Density - CellUp->Density), V3(0.0f, 1.0f, 0.0f)));
+
+		    v3 ddP = V3Add(Particle->ddP, Dispersion);
+		    
 		    Particle->P = V3Add(Particle->P,
-					V3MulS(Input->dtForFrame, Particle->dP));
+					V3Add(V3MulS(0.5f*Square(Input->dtForFrame) * Input->dtForFrame,
+						     ddP),
+					      V3MulS(Input->dtForFrame,
+						     Particle->dP)));
+		    Particle->dP = V3Add(Particle->dP,
+					 V3MulS(Input->dtForFrame, ddP));
 		    Particle->Color = V4Add(Particle->Color,
 					    V4MulS(Input->dtForFrame, Particle->dColor));
 
+		    if(Particle->P.y < 0)
+		      {
+			r32 CoefficientOfRestitution = 0.3f;
+			Particle->P.y = -Particle->P.y;
+			Particle->dP.y = -CoefficientOfRestitution * Particle->dP.y;
+		      }
+
+		    
 		    v4 Color; 
 		    Color.r = Clamp01(Particle->Color.r);
 		    Color.g = Clamp01(Particle->Color.g);
 		    Color.b = Clamp01(Particle->Color.b);
 		    Color.a = Clamp01(Particle->Color.a);
 
-		    
-		    
 		    if(Color.a > 0.9f)
 		      {
 			Color.a = 0.9f * Clamp01MapToRange(1.0f, Color.a, 0.9f);
