@@ -52,9 +52,9 @@ internal loaded_bitmap
 MakeEmptyBitmap(memory_arena* Arena, s32 Width, s32 Height, bool32 ClearToZero)
 {
   loaded_bitmap Result = {};
-  Result.Width  = Width;
-  Result.Height = Height;
-  Result.Pitch  = Width*BITMAP_BYTES_PER_PIXEL;
+  Result.Width  = SafeTruncateUInt16(Width);
+  Result.Height = SafeTruncateUInt16(Height);
+  Result.Pitch  = SafeTruncateUInt16(Width*BITMAP_BYTES_PER_PIXEL);
 
   s32 TotalBitmapSize = Width*Height*4;
   Result.Memory      = PushSizeA(Arena, TotalBitmapSize, 16);
@@ -1018,7 +1018,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  SubArena(&Task->Arena, &TransState->TransientArena, Megabytes(1), 16);
 	}
 
-      TransState->Assets = AllocateGameAssets(&TransState->TransientArena, Megabytes(64), TransState);
+      TransState->Assets = AllocateGameAssets(&TransState->TransientArena, Megabytes(2), TransState);
 
       State->Music = PlaySound(&State->AudioState, GetFirstSoundFrom(TransState->Assets, Asset_Music));
       
@@ -1171,9 +1171,9 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   
   loaded_bitmap DrawBuffer_ = {};
   loaded_bitmap *DrawBuffer = &DrawBuffer_;
-  DrawBuffer->Width = Buffer->Width;
-  DrawBuffer->Height = Buffer->Height;
-  DrawBuffer->Pitch = Buffer->Pitch;
+  DrawBuffer->Width = SafeTruncateUInt16(Buffer->Width);
+  DrawBuffer->Height = SafeTruncateUInt16(Buffer->Height);
+  DrawBuffer->Pitch = SafeTruncateUInt16(Buffer->Pitch);
   DrawBuffer->Memory = Buffer->Memory;
 
 #if 0
@@ -1539,7 +1539,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 							   V3(X, Y, 0)),
 						    GridOrigin),
 				 V2MulS(GridScale, V2(1.0f, 1.0f)),
-				 V4(1.0f, 0.5f, 0.0f, Alpha));
+				 V4(Alpha, Alpha, Alpha, 1.0f));
 		      }
 		  }
 		
@@ -1592,8 +1592,10 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		    if(Particle->P.y < 0)
 		      {
 			r32 CoefficientOfRestitution = 0.3f;
+			r32 CoefficientOfFriction = 0.7f;
 			Particle->P.y = -Particle->P.y;
 			Particle->dP.y = -CoefficientOfRestitution * Particle->dP.y;
+			Particle->dP.x = CoefficientOfFriction * Particle->dP.x;
 		      }
 
 		    

@@ -1,13 +1,13 @@
 
 typedef struct
 {
-  v2 AlignPercentage;
-  r32 WidthOverHeight;
-    
-  int Width;
-  int Height;
-  int Pitch;
   void* Memory;
+  
+  v2 AlignPercentage;
+  r32 WidthOverHeight;    
+  s16 Width;
+  s16 Height;
+  s16 Pitch;  
 } loaded_bitmap;
 
 typedef struct

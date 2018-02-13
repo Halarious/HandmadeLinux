@@ -95,6 +95,15 @@ SafeTruncateUInt64(u64 Value)
   return(Result);
 }
 
+internal inline u16 
+SafeTruncateUInt16(u32 Value)
+{
+  Assert(Value <= 65535);
+  Assert(Value >= 0);
+  u16 Result = (u16)Value;
+  return(Result);
+}
+
 #if HANDMADE_INTERNAL
 
 typedef struct

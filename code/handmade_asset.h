@@ -1,9 +1,9 @@
 
 typedef struct
 {
+  s16* Samples[2];
   u32 SampleCount;
   u32 ChannelCount;
-  s16* Samples[2];
 } loaded_sound;
 
 typedef struct
@@ -33,11 +33,11 @@ typedef enum
 
 typedef struct
 {
-  asset_state State;  
+  u32 State;
   union
   {
-    loaded_bitmap* Bitmap;
-    loaded_sound* Sound;
+    loaded_bitmap Bitmap;
+    loaded_sound Sound;
   };
 } asset_slot;
 
@@ -60,8 +60,7 @@ typedef struct
 typedef struct transient_state transient_state;
 struct assets
 {
-  transient_state* TransState;
-  
+  transient_state* TransState;  
   memory_arena Arena;
 
   r32 TagRange[Tag_Count];
@@ -101,7 +100,7 @@ GetBitmap(assets* Assets, bitmap_id ID)
   if(Slot->State >= AssetState_Loaded)
     {
       CompletePreviousReadsBeforeFutureReads;
-      Result = Slot->Bitmap;
+      Result = &Slot->Bitmap;
     }
   
   return(Result);
@@ -117,7 +116,7 @@ GetSound(assets* Assets, sound_id ID)
   if(Slot->State >= AssetState_Loaded)
     {
       CompletePreviousReadsBeforeFutureReads;
-      Result = Slot->Sound;
+      Result = &Slot->Sound;
     }
   
   return(Result);
