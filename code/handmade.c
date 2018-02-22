@@ -1786,7 +1786,9 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   EndSim(SimRegion, State);
   EndTemporaryMemory(SimMemory);
   EndTemporaryMemory(RenderMemory);
- 
+
+  FreeAssetsAsNecessary(TransState->Assets);
+  
   CheckArena(&State->WorldArena);
   CheckArena(&TransState->TransientArena);
 

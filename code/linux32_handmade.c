@@ -827,6 +827,27 @@ PLATFORM_READ_DATA_FROM_FILE(Linux32ReadDataFromFile)
     }
 }
 
+PLATFORM_ALLOCATE_MEMORY(Linux32AllocateMemory)
+{
+  void* Result = mmap(0, Size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS,
+		      -1, 0);
+
+  if(Result == MAP_FAILED)
+    {
+      Result = 0;
+    }
+  
+  return(Result);
+}
+
+PLATFORM_DEALLOCATE_MEMORY(Linux32DeallocateMemory)
+{
+  if(Memory)
+    {
+      munmap(Memory, 0);
+    }
+}
+
 int
 main(int ArgCount, char** Arguments)
 {
@@ -975,6 +996,9 @@ main(int ArgCount, char** Arguments)
       Memory.PlatformAPI.OpenNextFile = Linux32OpenNextFile;
       Memory.PlatformAPI.ReadDataFromFile = Linux32ReadDataFromFile;
       Memory.PlatformAPI.FileError = Linux32FileError;
+
+      Memory.PlatformAPI.AllocateMemory = Linux32AllocateMemory;
+      Memory.PlatformAPI.DeallocateMemory = Linux32DeallocateMemory;
       
       Memory.PlatformAPI.DEBUGReadEntireFile = DEBUGPlatformReadEntireFile;
       Memory.PlatformAPI.DEBUGFreeFileMemory = DEBUGPlatformFreeFileMemory;

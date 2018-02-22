@@ -29,6 +29,11 @@ typedef enum
     AssetState_Queued,
     AssetState_Loaded,
     AssetState_Locked,
+    AssetState_StateMask = 0xfff,
+
+    AssetState_Sound = 0x1000,
+    AssetState_Bitmap = 0x2000,
+    AssetState_TypeMask = 0xf000,
   } asset_state;
 
 typedef struct
@@ -47,6 +52,17 @@ typedef struct
   u32 FileIndex;
 } asset;
 
+typedef struct asset_memory_header asset_memory_header;
+
+struct asset_memory_header
+{
+  asset_memory_header* Next;
+  asset_memory_header* Prev;
+
+  u32 SlotIndex;
+  u32 Reserved;
+};
+
 typedef struct
 {
   platform_file_handle* Handle;
@@ -63,6 +79,10 @@ struct assets
   transient_state* TransState;  
   memory_arena Arena;
 
+  u64 TargetMemoryUsed;
+  u64 TotalMemoryUsed;
+  asset_memory_header LoadedAssetSentinel;
+  
   r32 TagRange[Tag_Count];
 
   u32 FileCount;
@@ -89,15 +109,28 @@ struct assets
 #endif
 };
 
+internal inline u32
+GetType(asset_slot* Slot)
+{
+  u32 Result = Slot->State & AssetState_TypeMask;
+  return(Result);
+}
+
+internal inline u32
+GetState(asset_slot* Slot)
+{
+  u32 Result = Slot->State & AssetState_StateMask;
+  return(Result);
+}
+
 internal inline loaded_bitmap*
 GetBitmap(assets* Assets, bitmap_id ID)
 {
   Assert(ID.Value <= Assets->AssetCount);
   asset_slot* Slot = Assets->Slots + ID.Value; 
 
-
   loaded_bitmap* Result = 0;
-  if(Slot->State >= AssetState_Loaded)
+  if(GetState(Slot) >= AssetState_Loaded)
     {
       CompletePreviousReadsBeforeFutureReads;
       Result = &Slot->Bitmap;
@@ -113,7 +146,7 @@ GetSound(assets* Assets, sound_id ID)
 
   asset_slot* Slot = Assets->Slots + ID.Value; 
   loaded_sound* Result = 0;
-  if(Slot->State >= AssetState_Loaded)
+  if(GetState(Slot) >= AssetState_Loaded)
     {
       CompletePreviousReadsBeforeFutureReads;
       Result = &Slot->Sound;
