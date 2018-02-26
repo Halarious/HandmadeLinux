@@ -844,7 +844,7 @@ PLATFORM_DEALLOCATE_MEMORY(Linux32DeallocateMemory)
 {
   if(Memory)
     {
-      munmap(Memory, 0);
+      munmap(Memory, Size);
     }
 }
 

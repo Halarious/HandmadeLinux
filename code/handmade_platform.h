@@ -271,7 +271,7 @@ typedef PLATFORM_WORK_QUEUE_CALLBACK(platform_work_queue_callback);
 #define PLATFORM_ALLOCATE_MEMORY(name) void* name(memory_index Size)
 typedef PLATFORM_ALLOCATE_MEMORY(platform_allocate_memory);
 
-#define PLATFORM_DEALLOCATE_MEMORY(name) void name(void* Memory)
+#define PLATFORM_DEALLOCATE_MEMORY(name) void name(void* Memory, memory_index Size)
 typedef PLATFORM_DEALLOCATE_MEMORY(platform_deallocate_memory);
 
 typedef void platform_add_entry(platform_work_queue* Queue, platform_work_queue_callback* Callback, void* Data);

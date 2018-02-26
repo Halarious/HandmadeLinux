@@ -662,7 +662,7 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
       Assert(Width == Height);
       v2 HalfDim = V2MulS(0.5f, V2(Width, Height));
 
-      render_group* RenderGroup = AllocateRenderGroup(TransState->Assets, &Task->Arena, 0);
+      render_group* RenderGroup = AllocateRenderGroup(TransState->Assets, &Task->Arena, 0, true);
       Orthographic(RenderGroup, Buffer->Width, Buffer->Height,
 		   (Buffer->Width - 2) / Width);
 
@@ -1018,7 +1018,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  SubArena(&Task->Arena, &TransState->TransientArena, Megabytes(1), 16);
 	}
 
-      TransState->Assets = AllocateGameAssets(&TransState->TransientArena, Megabytes(2), TransState);
+      TransState->Assets = AllocateGameAssets(&TransState->TransientArena, Megabytes(4), TransState);
 
       State->Music = PlaySound(&State->AudioState, GetFirstSoundFrom(TransState->Assets, Asset_Music));
       
@@ -1180,7 +1180,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   DrawBuffer->Width = 1279;
   DrawBuffer->Height = 719;
 #endif
-  render_group* RenderGroup = AllocateRenderGroup(TransState->Assets, &TransState->TransientArena, Megabytes(4));
+  render_group* RenderGroup = AllocateRenderGroup(TransState->Assets, &TransState->TransientArena, Megabytes(4), false);
   r32 WidthOfMonitor = 0.635f;
   r32 MetersToPixels = (r32)DrawBuffer->Width * WidthOfMonitor;
   r32 FocalLength = 0.6f;

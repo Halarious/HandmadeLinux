@@ -28,40 +28,34 @@ typedef enum
     AssetState_Unloaded,
     AssetState_Queued,
     AssetState_Loaded,
-    AssetState_Locked,
     AssetState_StateMask = 0xfff,
 
-    AssetState_Sound = 0x1000,
-    AssetState_Bitmap = 0x2000,
-    AssetState_TypeMask = 0xf000,
+    AssetState_Lock = 0x10000,
   } asset_state;
 
-typedef struct
-{
-  u32 State;
-  union
-  {
-    loaded_bitmap Bitmap;
-    loaded_sound Sound;
-  };
-} asset_slot;
-
-typedef struct
-{
-  hha_asset HHA;
-  u32 FileIndex;
-} asset;
-
 typedef struct asset_memory_header asset_memory_header;
-
 struct asset_memory_header
 {
   asset_memory_header* Next;
   asset_memory_header* Prev;
 
-  u32 SlotIndex;
-  u32 Reserved;
+  u32 AssetIndex;
+  u32 TotalSize;
+  union
+  {
+    loaded_bitmap Bitmap;
+    loaded_sound Sound;
+  };
 };
+
+typedef struct
+{
+  u32 State;
+  asset_memory_header* Header;
+
+  hha_asset HHA;
+  u32 FileIndex;
+} asset;
 
 typedef struct
 {
@@ -93,8 +87,7 @@ struct assets
   
   u32 AssetCount;
   asset* Assets;
-  asset_slot* Slots;
-  
+    
   asset_type AssetTypes[Asset_Count];
 
 #if 0
@@ -109,31 +102,36 @@ struct assets
 #endif
 };
 
-internal inline u32
-GetType(asset_slot* Slot)
+internal inline bool32
+IsLocked(asset* Asset)
 {
-  u32 Result = Slot->State & AssetState_TypeMask;
+  bool32 Result = (Asset->State & AssetState_Lock);
   return(Result);
 }
 
 internal inline u32
-GetState(asset_slot* Slot)
+GetState(asset* Asset)
 {
-  u32 Result = Slot->State & AssetState_StateMask;
+  u32 Result = Asset->State & AssetState_StateMask;
   return(Result);
 }
+
+internal void
+MoveHeaderToFront(assets* Assets, asset* Asset);
 
 internal inline loaded_bitmap*
-GetBitmap(assets* Assets, bitmap_id ID)
+GetBitmap(assets* Assets, bitmap_id ID, bool32 MustBeLocked)
 {
   Assert(ID.Value <= Assets->AssetCount);
-  asset_slot* Slot = Assets->Slots + ID.Value; 
+  asset* Asset = Assets->Assets + ID.Value; 
 
   loaded_bitmap* Result = 0;
-  if(GetState(Slot) >= AssetState_Loaded)
+  if(GetState(Asset) >= AssetState_Loaded)
     {
+      Assert( (!MustBeLocked) || IsLocked(Asset));
       CompletePreviousReadsBeforeFutureReads;
-      Result = &Slot->Bitmap;
+      Result = &Asset->Header->Bitmap;
+      MoveHeaderToFront(Assets, Asset);
     }
   
   return(Result);
@@ -144,12 +142,13 @@ GetSound(assets* Assets, sound_id ID)
 {
   Assert(ID.Value <= Assets->AssetCount);
 
-  asset_slot* Slot = Assets->Slots + ID.Value; 
+  asset* Asset = Assets->Assets + ID.Value; 
   loaded_sound* Result = 0;
-  if(GetState(Slot) >= AssetState_Loaded)
+  if(GetState(Asset) >= AssetState_Loaded)
     {
       CompletePreviousReadsBeforeFutureReads;
-      Result = &Slot->Sound;
+      Result = &Asset->Header->Sound;
+      MoveHeaderToFront(Assets, Asset);
     }
   
   return(Result);
@@ -178,9 +177,9 @@ IsSoundIDValid(sound_id ID)
   return(Result);  
 }
 
-internal void LoadBitmap(assets* Assets, bitmap_id ID);
+internal void LoadBitmap(assets* Assets, bitmap_id ID, bool32 Locked);
 internal void LoadSound(assets* Assets, sound_id ID);
-internal inline void PrefetchBitmap(assets* Assets, bitmap_id ID) {LoadBitmap(Assets, ID);}
+internal inline void PrefetchBitmap(assets* Assets, bitmap_id ID, bool32 Locked) {LoadBitmap(Assets, ID, Locked);}
 internal inline void PrefetchSound(assets* Assets, sound_id ID)   {LoadSound(Assets, ID);}
 
 internal inline sound_id
