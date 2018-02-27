@@ -40,15 +40,29 @@ GetFileHandleFor(assets* Assets, u32 FileIndex)
   return(Result);
 }
 
-internal void*
-AcquireAssetMemory(assets* Assets, memory_index Size)
+internal asset_memory_block*
+InsertBlock(asset_memory_block* Prev, u64 Size, void* Memory)
 {
-  void* Result = Platform.AllocateMemory(Size);
-  if(Result)
-    {
-      Assets->TotalMemoryUsed += Size;
-    }
-  return(Result);
+  Assert(Size > sizeof(asset_memory_block));
+  asset_memory_block* Block = (asset_memory_block*) Memory;
+
+  Block->Flags = 0;
+  Block->Size = Size - sizeof(asset_memory_block);
+  Block->Prev = Prev;
+  Block->Next = Prev->Next;
+  Block->Prev->Next = Block;
+  Block->Next->Prev = Block;
+
+  return(Block);
+}
+
+internal inline void
+RemoveAssetHeaderFromList(asset_memory_header* Header)
+{
+  Header->Prev->Next = Header->Next;
+  Header->Next->Prev = Header->Prev;
+
+  Header->Next = Header->Prev = 0;
 }
 
 internal void
@@ -58,8 +72,127 @@ ReleaseAssetMemory(assets* Assets, memory_index Size, void* Memory)
     {
       Assets->TotalMemoryUsed -= Size;
     }
-  
+#if 0  
   Platform.DeallocateMemory(Memory, Size);
+#else
+  asset_memory_block* Block = (asset_memory_block*) Memory - 1;
+  Block->Flags &= ~AssetMemory_Used;
+
+  
+#endif
+}
+
+internal void
+EvictAsset(assets* Assets, asset_memory_header* Header)
+{
+  u32 AssetIndex = Header->AssetIndex;
+  asset* Asset = Assets->Assets + AssetIndex;
+
+  Assert(GetState(Asset) == AssetState_Loaded);
+  Assert(!IsLocked(Asset));
+
+  RemoveAssetHeaderFromList(Header);
+  ReleaseAssetMemory(Assets, Asset->Header->TotalSize, Asset->Header);
+  Asset->State = AssetState_Unloaded;
+  Asset->Header = 0;
+}
+
+internal void
+FreeAssetsAsNecessary(assets* Assets)
+{
+  while(Assets->TotalMemoryUsed > Assets->TargetMemoryUsed)
+    {
+      asset_memory_header* Header = Assets->LoadedAssetSentinel.Prev;
+      if( (Header != &Assets->LoadedAssetSentinel))
+	{
+	  asset* Asset = Assets->Assets + Header->AssetIndex;
+	  if(GetState(Asset) >= AssetState_Loaded)
+	    {
+	      EvictAsset(Assets, Header);
+	    }
+	}
+      else
+	{
+	  InvalidCodePath;
+	  break;
+	}
+    }
+}
+
+internal asset_memory_block*
+FindBlockforSize(assets* Assets, memory_index Size)
+{
+  asset_memory_block* Result = 0;
+
+  for(asset_memory_block* Block = Assets->MemorySentinel.Next;
+      Block != &Assets->MemorySentinel;
+      Block = Block->Next)
+    {
+      if(!(Block->Flags & AssetMemory_Used))
+	{
+	  if(Block->Size >= Size)
+	    {
+	      Result = Block;
+	      break;
+	    }
+	}
+    }
+  
+  return(Result);
+}
+ 
+internal void*
+AcquireAssetMemory(assets* Assets, memory_index Size)
+{
+  void* Result = 0;
+  
+#if 0
+  FreeAssetsAsNecessary(Assets);
+  Result = Platform.AllocateMemory(Size);
+#else
+  for(;;)
+    {
+      asset_memory_block* Block = FindBlockforSize(Assets, Size);
+      if(Block)
+	{
+	  Block->Flags |= AssetMemory_Used;
+	  
+	  Assert(Size <= Block->Size);
+	  Result = (u8*)(Block + 1);
+
+	  memory_index RemainingSize = Block->Size - Size;
+	  memory_index BlockSplitThreshold = 4096;
+	  if(RemainingSize > BlockSplitThreshold)
+	    {
+	      Block->Size -= RemainingSize;
+	      InsertBlock(Block, RemainingSize, (u8*)Result + Size);
+	    }
+	  
+	  break;    
+	}
+      else
+	{
+	  for(asset_memory_header* Header = Assets->LoadedAssetSentinel.Prev;
+	      Header != &Assets->LoadedAssetSentinel;
+	      Header = Header->Prev)
+	    {
+	      asset* Asset = Assets->Assets + Header->AssetIndex;
+	      if(GetState(Asset) >= AssetState_Loaded)
+		{
+		  EvictAsset(Assets, Header);
+		  //Block = EvictAsset(Assets, Header);
+		  break;
+		}
+	    }
+	}
+    }
+  
+#endif
+  if(Result)
+    {
+      Assets->TotalMemoryUsed += Size;
+    }
+  return(Result);
 }
 
 typedef struct
@@ -91,15 +224,6 @@ AddAssetHeaderToList(assets* Assets, u32 AssetIndex, asset_memory_size Size)
   InsertAssetHeaderAtFront(Assets, Header);
 }
 
-internal inline void
-RemoveAssetHeaderFromList(asset_memory_header* Header)
-{
-  Header->Prev->Next = Header->Next;
-  Header->Next->Prev = Header->Prev;
-
-  Header->Next = Header->Prev = 0;
-}
-
 internal void
 LoadBitmap(assets* Assets, bitmap_id ID, bool32 Locked)
 {
@@ -115,8 +239,8 @@ LoadBitmap(assets* Assets, bitmap_id ID, bool32 Locked)
 	  asset* Asset = Assets->Assets + ID.Value;
 	  hha_bitmap* Info = &Asset->HHA.Bitmap;
 
-	  u32 Width  = SafeTruncateUInt16(Info->Dim[0]);
-	  u32 Height = SafeTruncateUInt16(Info->Dim[1]);
+	  u32 Width  = Info->Dim[0];
+	  u32 Height = Info->Dim[1];
 	  
 	  asset_memory_size Size = {};
 	  Size.Section = 4*Width;
@@ -128,9 +252,9 @@ LoadBitmap(assets* Assets, bitmap_id ID, bool32 Locked)
 	  loaded_bitmap* Bitmap = &Asset->Header->Bitmap;
 	  Bitmap->AlignPercentage = V2(Info->AlignPercentage[0], Info->AlignPercentage[1]);
 	  Bitmap->WidthOverHeight = (r32)Info->Dim[0] / (r32)Info->Dim[1];
-	  Bitmap->Width  = SafeTruncateUInt16(Info->Dim[0]);
-	  Bitmap->Height = SafeTruncateUInt16(Info->Dim[1]);
-	  Bitmap->Pitch = SafeTruncateInt16(Size.Section);
+	  Bitmap->Width  = Info->Dim[0];
+	  Bitmap->Height = Info->Dim[1];
+	  Bitmap->Pitch  = Size.Section;
 	  Bitmap->Memory = (Asset->Header + 1);
 
 	  load_asset_work* Work = PushStruct(&Task->Arena, load_asset_work);
@@ -338,7 +462,13 @@ AllocateGameAssets(memory_arena* Arena, memory_index Size, transient_state* Tran
 {
   assets* Assets = PushStruct(Arena, assets);
 
-  SubArena(&Assets->Arena, Arena, Size, 4);
+  Assets->MemorySentinel.Flags = 0;
+  Assets->MemorySentinel.Size = 0;
+  Assets->MemorySentinel.Prev = &Assets->MemorySentinel;
+  Assets->MemorySentinel.Next = &Assets->MemorySentinel;
+
+  InsertBlock(&Assets->MemorySentinel, Size, PushSize(Arena, Size));
+  
   Assets->TransState = TransState;
   Assets->TotalMemoryUsed = 0;
   Assets->TargetMemoryUsed = Size;
@@ -500,41 +630,3 @@ MoveHeaderToFront(assets* Assets, asset* Asset)
       InsertAssetHeaderAtFront(Assets, Header);
     }
 }
-
-internal void
-EvictAsset(assets* Assets, asset_memory_header* Header)
-{
-  u32 AssetIndex = Header->AssetIndex;
-  asset* Asset = Assets->Assets + AssetIndex;
-
-  Assert(GetState(Asset) == AssetState_Loaded);
-  Assert(!IsLocked(Asset));
-
-  RemoveAssetHeaderFromList(Header);
-  ReleaseAssetMemory(Assets, Asset->Header->TotalSize, Asset->Header);
-  Asset->State = AssetState_Unloaded;
-  Asset->Header = 0;
-}
-
-internal void
-FreeAssetsAsNecessary(assets* Assets)
-{
-  while(Assets->TotalMemoryUsed > Assets->TargetMemoryUsed)
-    {
-      asset_memory_header* Header = Assets->LoadedAssetSentinel.Prev;
-      if( (Header != &Assets->LoadedAssetSentinel))
-	{
-	  asset* Asset = Assets->Assets + Header->AssetIndex;
-	  if(GetState(Asset) >= AssetState_Loaded)
-	    {
-	      EvictAsset(Assets, Header);
-	    }
-	}
-      else
-	{
-	  InvalidCodePath;
-	  break;
-	}
-    }
-}
-

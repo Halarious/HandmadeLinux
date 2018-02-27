@@ -5,9 +5,9 @@ typedef struct
   
   v2 AlignPercentage;
   r32 WidthOverHeight;    
-  s16 Width;
-  s16 Height;
-  s16 Pitch;  
+  s32 Width;
+  s32 Height;
+  s32 Pitch;  
 } loaded_bitmap;
 
 typedef struct

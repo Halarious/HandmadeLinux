@@ -52,9 +52,9 @@ internal loaded_bitmap
 MakeEmptyBitmap(memory_arena* Arena, s32 Width, s32 Height, bool32 ClearToZero)
 {
   loaded_bitmap Result = {};
-  Result.Width  = SafeTruncateUInt16(Width);
-  Result.Height = SafeTruncateUInt16(Height);
-  Result.Pitch  = SafeTruncateUInt16(Width*BITMAP_BYTES_PER_PIXEL);
+  Result.Width  = Width;
+  Result.Height = Height;
+  Result.Pitch  = Width*BITMAP_BYTES_PER_PIXEL;
 
   s32 TotalBitmapSize = Width*Height*4;
   Result.Memory      = PushSizeA(Arena, TotalBitmapSize, 16);
@@ -1171,9 +1171,9 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   
   loaded_bitmap DrawBuffer_ = {};
   loaded_bitmap *DrawBuffer = &DrawBuffer_;
-  DrawBuffer->Width = SafeTruncateUInt16(Buffer->Width);
-  DrawBuffer->Height = SafeTruncateUInt16(Buffer->Height);
-  DrawBuffer->Pitch = SafeTruncateUInt16(Buffer->Pitch);
+  DrawBuffer->Width  = Buffer->Width;
+  DrawBuffer->Height = Buffer->Height;
+  DrawBuffer->Pitch  = Buffer->Pitch;
   DrawBuffer->Memory = Buffer->Memory;
 
 #if 0
@@ -1786,8 +1786,6 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   EndSim(SimRegion, State);
   EndTemporaryMemory(SimMemory);
   EndTemporaryMemory(RenderMemory);
-
-  FreeAssetsAsNecessary(TransState->Assets);
   
   CheckArena(&State->WorldArena);
   CheckArena(&TransState->TransientArena);

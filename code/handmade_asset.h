@@ -67,11 +67,26 @@ typedef struct
   u32 TagBase;
 } asset_file;
 
+typedef enum
+  {
+    AssetMemory_Used = 0x1,
+  } asset_memory_block_flags;
+
+typedef struct asset_memory_block asset_memory_block;
+struct asset_memory_block
+{
+  asset_memory_block* Prev;
+  asset_memory_block* Next;
+  memory_index Flags;
+  memory_index Size;
+};
+
 typedef struct transient_state transient_state;
 struct assets
 {
   transient_state* TransState;  
-  memory_arena Arena;
+
+  asset_memory_block MemorySentinel;
 
   u64 TargetMemoryUsed;
   u64 TotalMemoryUsed;
