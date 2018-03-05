@@ -670,47 +670,49 @@ Linux32MakeQueue(platform_work_queue* Queue, u32 ThreadCount)
 
 typedef struct
 {
-  platform_file_handle H;
-
   int Linux32Handle;
 } linux32_platform_file_handle;
 
 typedef struct
 {
-  platform_file_group H;
-
   DIR* DirectoryStream;
   struct dirent* DirEntry;
-  char Wildcard[32];
+
+  char* Wildcard;
 } linux32_platform_file_group;
 
 internal
 PLATFORM_GET_ALL_FILES_OF_TYPE_BEGIN(Linux32GetAllFilesOfTypeBegin)
 {
+  platform_file_group Result = {};
+
   linux32_platform_file_group* Linux32FileGroup
     = mmap(0, sizeof(linux32_platform_file_group),
 	   PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS,
 	   -1, 0);
-
-  char* DirPath  = "../data";
-  char* TypeAt = Type;
-  Linux32FileGroup->Wildcard[0] = '*';
-  Linux32FileGroup->Wildcard[1] = '.';
-  for(u32 WildcardIndex = 2;
-      WildcardIndex < sizeof(Linux32FileGroup->Wildcard);
-      ++WildcardIndex)
-    {
-      Linux32FileGroup->Wildcard[WildcardIndex] = *TypeAt;
-      if(*TypeAt == 0)
-	{
-	  break;
-	}
-
-      ++TypeAt;
-    }
-  Linux32FileGroup->Wildcard[sizeof(Linux32FileGroup->Wildcard) - 1] = 0;  
+  Result.Platform = Linux32FileGroup;
   
-  Linux32FileGroup->H.FileCount = 0;
+  char* DirPath  = "../data";
+
+  Linux32FileGroup->Wildcard = "*.*";
+  
+  switch(Type)
+    {
+
+    case(PlatformFileType_AssetFile):
+      {
+	Linux32FileGroup->Wildcard = "*.hha";
+      } break;
+
+    case(PlatformFileType_SavedGameFile):
+      {
+	Linux32FileGroup->Wildcard = "*.hhs";
+      } break;
+      
+      InvalidCase;
+    }
+  
+  Result.FileCount = 0;
 
   DIR* DirectoryStream = opendir(DirPath);
   if(DirectoryStream)
@@ -721,7 +723,7 @@ PLATFORM_GET_ALL_FILES_OF_TYPE_BEGIN(Linux32GetAllFilesOfTypeBegin)
 	{
 	  if(!fnmatch(Linux32FileGroup->Wildcard, Entry->d_name, 0))
 	    {
-	      ++Linux32FileGroup->H.FileCount;
+	      ++Result.FileCount;
 	    }
 	}
       closedir(DirectoryStream);
@@ -738,13 +740,13 @@ PLATFORM_GET_ALL_FILES_OF_TYPE_BEGIN(Linux32GetAllFilesOfTypeBegin)
 	}
     }
   
-  return((platform_file_group*)Linux32FileGroup);
+  return(Result);
 }
 
 internal
 PLATFORM_GET_ALL_FILES_OF_TYPE_END(Linux32GetAllFilesOfTypeEnd)
 {
-  linux32_platform_file_group* Linux32FileGroup = (linux32_platform_file_group*) FileGroup;
+  linux32_platform_file_group* Linux32FileGroup = (linux32_platform_file_group*) FileGroup->Platform;
   if(Linux32FileGroup)
     {
       if(Linux32FileGroup->DirectoryStream != 0)
@@ -760,20 +762,22 @@ PLATFORM_GET_ALL_FILES_OF_TYPE_END(Linux32GetAllFilesOfTypeEnd)
 internal
 PLATFORM_OPEN_FILE(Linux32OpenNextFile)
 {
-  linux32_platform_file_group* Linux32FileGroup = (linux32_platform_file_group*) FileGroup; 
-  linux32_platform_file_handle* Result = 0;
+  linux32_platform_file_group* Linux32FileGroup = (linux32_platform_file_group*) FileGroup->Platform; 
+  platform_file_handle Result = {};
 
   if(Linux32FileGroup != 0)
     {
-      Result
+      linux32_platform_file_handle* Linux32Handle
 	= (linux32_platform_file_handle*) mmap(0, sizeof(platform_file_handle),
 					       PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS,
 					       -1, 0);
-      if(Result)
+      Result.Platform = Linux32Handle;
+      
+      if(Linux32Handle)
 	{
 	  char* Filename = Linux32FileGroup->DirEntry->d_name;
-	  Result->Linux32Handle = open(Filename, O_RDONLY);
-	  Result->H.NoErrors = (Result->Linux32Handle != -1);
+	  Linux32Handle->Linux32Handle = open(Filename, O_RDONLY);
+	  Result.NoErrors = (Linux32Handle->Linux32Handle != -1);
 	}
 
       //TODO: I think we dont like this
@@ -795,7 +799,7 @@ PLATFORM_OPEN_FILE(Linux32OpenNextFile)
       
     }
   
-  return((platform_file_handle*)Result);
+  return(Result);
 }
 
 internal
@@ -809,7 +813,7 @@ PLATFORM_READ_DATA_FROM_FILE(Linux32ReadDataFromFile)
 {
   if(PlatformNoFileErrors(Source))
     {
-      linux32_platform_file_handle* Handle = (linux32_platform_file_handle*) Source;
+      linux32_platform_file_handle* Handle = (linux32_platform_file_handle*) Source->Platform;
   
       u32 FileSize32 = SafeTruncateUInt64(Size);
   
@@ -822,7 +826,7 @@ PLATFORM_READ_DATA_FROM_FILE(Linux32ReadDataFromFile)
 	}
       else
 	{
-	  Linux32FileError(&Handle->H, "Read file failed!");
+	  Linux32FileError(Source, "Read file failed!");
 	}
     }
 }

@@ -59,7 +59,7 @@ typedef struct
 
 typedef struct
 {
-  platform_file_handle* Handle;
+  platform_file_handle Handle;
   
   hha_header Header;
   hha_asset_type* AssetTypeArray;
@@ -87,9 +87,6 @@ struct assets
   transient_state* TransState;  
 
   asset_memory_block MemorySentinel;
-
-  u64 TargetMemoryUsed;
-  u64 TotalMemoryUsed;
   asset_memory_header LoadedAssetSentinel;
   
   r32 TagRange[Tag_Count];

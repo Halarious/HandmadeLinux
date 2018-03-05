@@ -25,6 +25,10 @@
     - Day 144; Memory for samples was aligned here, or rather should be when
                we get sound
     - Day 145; Some more fumbling with code that we dont have in linux32_handmade.c
+
+- At day 161 Casey did some UTF16 compatability but we chose to ignore it 
+  for now becasue we need to do research on the Linux API for such crud,
+  and it's not really important at all 
  */
 
 #include "handmade.h"
@@ -1018,7 +1022,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	  SubArena(&Task->Arena, &TransState->TransientArena, Megabytes(1), 16);
 	}
 
-      TransState->Assets = AllocateGameAssets(&TransState->TransientArena, Megabytes(4), TransState);
+      TransState->Assets = AllocateGameAssets(&TransState->TransientArena, Megabytes(16), TransState);
 
       State->Music = PlaySound(&State->AudioState, GetFirstSoundFrom(TransState->Assets, Asset_Music));
       

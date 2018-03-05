@@ -240,22 +240,32 @@ typedef struct
 typedef struct
 {
   bool32 NoErrors;
+  void* Platform;
 } platform_file_handle;
 
 typedef struct
 {
   u32 FileCount;
+  void* Platform;
 } platform_file_group;
+
+typedef enum
+  {
+    PlatformFileType_AssetFile,
+    PlatformFileType_SavedGameFile,
+
+    PlatformFileType_Count,
+  } platform_file_type;
 
 #define PlatformNoFileErrors(Handle) ((Handle)->NoErrors)
 
-#define PLATFORM_GET_ALL_FILES_OF_TYPE_BEGIN(name) platform_file_group* name(char* Type)
+#define PLATFORM_GET_ALL_FILES_OF_TYPE_BEGIN(name) platform_file_group name(platform_file_type Type)
 typedef PLATFORM_GET_ALL_FILES_OF_TYPE_BEGIN(platform_get_all_files_of_type_begin);
 
 #define PLATFORM_GET_ALL_FILES_OF_TYPE_END(name) void name(platform_file_group* FileGroup)
 typedef PLATFORM_GET_ALL_FILES_OF_TYPE_END(platform_get_all_files_of_type_end);
 
-#define PLATFORM_OPEN_FILE(name) platform_file_handle* name(platform_file_group* FileGroup)
+#define PLATFORM_OPEN_FILE(name) platform_file_handle name(platform_file_group* FileGroup)
 typedef PLATFORM_OPEN_FILE(platform_open_next_file);
 
 #define PLATFORM_READ_DATA_FROM_FILE(name) void name(platform_file_handle* Source, u32 Offset, u32 Size, void* Dest)
