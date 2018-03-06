@@ -29,6 +29,9 @@
 - At day 161 Casey did some UTF16 compatability but we chose to ignore it 
   for now becasue we need to do research on the Linux API for such crud,
   and it's not really important at all 
+
+- Day 162 is the start of fonts (or fonce), here we will delve into Xlib
+  again for the prerasterazied fonts
  */
 
 #include "handmade.h"
