@@ -1,5 +1,8 @@
 #include "test_asset_builder.h"
 
+#define STB_TRUETYPE_IMPLEMENTATION 1
+#include "stb_truetype.h"
+
 #pragma pack(push, 1)
 typedef struct
 {
@@ -104,87 +107,6 @@ ReadEntireFile(char* Filename)
       printf("Error, Cannot open file %s", Filename);
     }
     
-  return(Result);
-}
-
-internal loaded_bitmap
-LoadBMP(char* Filename)
-{
-  loaded_bitmap Result = {};
-
-  entire_file ReadResult = ReadEntireFile(Filename);
-  if(ReadResult.ContentsSize != 0)
-    {
-      Result.Free = ReadResult.Contents;
-
-      bitmap_header *Header = (bitmap_header*) ReadResult.Contents;
-      Result.Memory = (u32*)((u8*)ReadResult.Contents + Header->BitmapOffset); 
-      Result.Width  = Header->Width;
-      Result.Height = Header->Height;
-      Result.Pitch  = Result.Width;
-      
-      Assert(Result.Height >= 0);
-      Assert(Header->Compression == 3);
-      
-      u32 RedMask   = Header->RedMask;
-      u32 GreenMask = Header->GreenMask;
-      u32 BlueMask  = Header->BlueMask;
-      u32 AlphaMask = ~(RedMask | GreenMask | BlueMask);
-      
-      bit_scan_result RedScan   = FindLeastSignificantSetBit(RedMask);
-      bit_scan_result GreenScan = FindLeastSignificantSetBit(GreenMask);
-      bit_scan_result BlueScan  = FindLeastSignificantSetBit(BlueMask);
-      bit_scan_result AlphaScan = FindLeastSignificantSetBit(AlphaMask);
-
-      Assert(RedScan.Found);
-      Assert(GreenScan.Found);
-      Assert(BlueScan.Found);
-      Assert(AlphaScan.Found);
-
-      s32 RedShiftDown = (s32)RedScan.Index;
-      s32 GreenShiftDown = (s32)GreenScan.Index;
-      s32 BlueShiftDown = (s32)BlueScan.Index;
-      s32 AlphaShiftDown = (s32)AlphaScan.Index;
-      
-      u32 *SourceDest = Result.Memory;
-      for(s32 Y = 0;
-	  Y < Header->Height;
-	  ++Y)
-	{
-	  for(s32 X = 0;
-	      X < Header->Width;
-	      ++X)
-	    {
-	      u32 Color = *SourceDest;
-
-	      v4 Texel = V4((r32)((Color & RedMask) >> RedShiftDown),
-			    (r32)((Color & GreenMask) >> GreenShiftDown),
-			    (r32)((Color & BlueMask) >> BlueShiftDown),
-			    (r32)((Color & AlphaMask) >> AlphaShiftDown));
-	      Texel = SRGB255ToLinear1(Texel);
-
-#if 1
-	      Texel.rgb = V3MulS(Texel.a, Texel.rgb);
-#endif
-	      Texel = Linear1ToSRGB255(Texel);
-	      
-	      *SourceDest++ = (((u32)(Texel.a + 0.5f) << 24) |
-			       ((u32)(Texel.r + 0.5f) << 16) |
-			       ((u32)(Texel.g + 0.5f) << 8)  |
-			       ((u32)(Texel.b + 0.5f) << 0));
-	    }
-	}
-    }  
-
-  s32 BytesPerPixel = BITMAP_BYTES_PER_PIXEL;
-  Result.Pitch  = Result.Width*BytesPerPixel;
-
-#if 0
-  Result.Memory = ((u8*)Result.Memory +
-		   Result.Pitch*(Result.Height - 1));
-  Result.Pitch  = -Result.Width*BytesPerPixel;
-#endif
-
   return(Result);
 }
 
@@ -364,6 +286,136 @@ LoadWAV(char* Filename, u32 SectionFirstSampleIndex, u32 SectionSampleCount)
   return(Result);
 }
 
+internal loaded_bitmap
+LoadBMP(char* Filename)
+{
+  loaded_bitmap Result = {};
+
+  entire_file ReadResult = ReadEntireFile(Filename);
+  if(ReadResult.ContentsSize != 0)
+    {
+      Result.Free = ReadResult.Contents;
+
+      bitmap_header *Header = (bitmap_header*) ReadResult.Contents;
+      Result.Memory = (u32*)((u8*)ReadResult.Contents + Header->BitmapOffset); 
+      Result.Width  = Header->Width;
+      Result.Height = Header->Height;
+      Result.Pitch  = Result.Width;
+      
+      Assert(Result.Height >= 0);
+      Assert(Header->Compression == 3);
+      
+      u32 RedMask   = Header->RedMask;
+      u32 GreenMask = Header->GreenMask;
+      u32 BlueMask  = Header->BlueMask;
+      u32 AlphaMask = ~(RedMask | GreenMask | BlueMask);
+      
+      bit_scan_result RedScan   = FindLeastSignificantSetBit(RedMask);
+      bit_scan_result GreenScan = FindLeastSignificantSetBit(GreenMask);
+      bit_scan_result BlueScan  = FindLeastSignificantSetBit(BlueMask);
+      bit_scan_result AlphaScan = FindLeastSignificantSetBit(AlphaMask);
+
+      Assert(RedScan.Found);
+      Assert(GreenScan.Found);
+      Assert(BlueScan.Found);
+      Assert(AlphaScan.Found);
+
+      s32 RedShiftDown = (s32)RedScan.Index;
+      s32 GreenShiftDown = (s32)GreenScan.Index;
+      s32 BlueShiftDown = (s32)BlueScan.Index;
+      s32 AlphaShiftDown = (s32)AlphaScan.Index;
+      
+      u32 *SourceDest = Result.Memory;
+      for(s32 Y = 0;
+	  Y < Header->Height;
+	  ++Y)
+	{
+	  for(s32 X = 0;
+	      X < Header->Width;
+	      ++X)
+	    {
+	      u32 Color = *SourceDest;
+
+	      v4 Texel = V4((r32)((Color & RedMask) >> RedShiftDown),
+			    (r32)((Color & GreenMask) >> GreenShiftDown),
+			    (r32)((Color & BlueMask) >> BlueShiftDown),
+			    (r32)((Color & AlphaMask) >> AlphaShiftDown));
+	      Texel = SRGB255ToLinear1(Texel);
+
+#if 1
+	      Texel.rgb = V3MulS(Texel.a, Texel.rgb);
+#endif
+	      Texel = Linear1ToSRGB255(Texel);
+	      
+	      *SourceDest++ = (((u32)(Texel.a + 0.5f) << 24) |
+			       ((u32)(Texel.r + 0.5f) << 16) |
+			       ((u32)(Texel.g + 0.5f) << 8)  |
+			       ((u32)(Texel.b + 0.5f) << 0));
+	    }
+	}
+    }  
+
+  s32 BytesPerPixel = BITMAP_BYTES_PER_PIXEL;
+  Result.Pitch  = Result.Width*BytesPerPixel;
+
+#if 0
+  Result.Memory = ((u8*)Result.Memory +
+		   Result.Pitch*(Result.Height - 1));
+  Result.Pitch  = -Result.Width*BytesPerPixel;
+#endif
+
+  return(Result);
+}
+
+internal loaded_bitmap
+LoadGlyphBitmap(char* Filename, u32 Codepoint)
+{
+  loaded_bitmap Result = {};
+	
+  entire_file TTFFile = ReadEntireFile(Filename);
+  if(TTFFile.ContentsSize != 0)
+    {
+      stbtt_fontinfo Font;
+      stbtt_InitFont(&Font, (u8*)TTFFile.Contents, stbtt_GetFontOffsetForIndex((u8*)TTFFile.Contents, 0));
+      
+      int Width, Height, XOffset, YOffset;
+      u8* MonoBitmap = stbtt_GetCodepointBitmap(&Font, 0, stbtt_ScaleForPixelHeight(&Font, 128.0f),
+						Codepoint, &Width, &Height, &XOffset, &YOffset);
+
+      Result.Width  = Width;
+      Result.Height = Height;
+      Result.Pitch  = Result.Width * BITMAP_BYTES_PER_PIXEL;
+      Result.Memory = malloc(Height * Result.Pitch);
+      Result.Free   = Result.Memory;
+
+      u8* Source = MonoBitmap;
+      u8* DestRow = (u8*)Result.Memory + (Height - 1)*Result.Pitch;
+      for(s32 Y = 0;
+	  Y < Height;
+	  ++Y)
+	{
+	  u32* Dest = (u32*) DestRow;
+	  for(s32 X = 0;
+	      X < Width;
+	      ++X)
+	    {
+	      u8 Alpha = *Source++;
+	      *Dest++ = ((Alpha << 24) |
+			 (Alpha << 16) |
+			 (Alpha <<  8) |
+			 (Alpha <<  0));
+	    }
+	  
+	  DestRow -= Result.Pitch;
+	}
+      
+      stbtt_FreeBitmap(MonoBitmap, 0);
+      free(TTFFile.Contents);
+    }
+  
+  return(Result);
+}
+
 internal void
 BeginAssetType(assets* Assets, asset_type_id TypeID)
 {
@@ -390,6 +442,29 @@ AddBitmapAsset(assets* Assets, char* Filename, r32 AlignPercentageX, r32 AlignPe
 
   Source->Type = AssetType_Bitmap;
   Source->Filename = Filename;
+
+  Assets->AssetIndex = Result.Value;
+  
+  return(Result);
+}
+
+internal bitmap_id
+AddCharacterAsset(assets* Assets, char* FontFile, u32 Codepoint, r32 AlignPercentageX, r32 AlignPercentageY)
+{
+  Assert(Assets->DEBUGAssetType);
+  Assert(Assets->DEBUGAssetType->OnePastLastAssetIndex < ArrayCount(Assets->Assets));
+
+  bitmap_id Result = {Assets->DEBUGAssetType->OnePastLastAssetIndex++};
+  asset_source* Source = Assets->AssetSources + Result.Value;
+  hha_asset* HHA = Assets->Assets + Result.Value;
+  HHA->FirstTagIndex = Assets->TagCount;
+  HHA->OnePastLastTagIndex = HHA->FirstTagIndex;
+  HHA->Bitmap.AlignPercentage[0] = AlignPercentageX;
+  HHA->Bitmap.AlignPercentage[1] = AlignPercentageY;
+
+  Source->Type = AssetType_Font;
+  Source->Filename = FontFile;
+  Source->Codepoint = Codepoint;
 
   Assets->AssetIndex = Result.Value;
   
@@ -494,10 +569,17 @@ WriteHHA(assets* Assets, char* Filename)
 	    }
 	  else
 	    {
-	      Assert(Source->Type == AssetType_Bitmap);
-
-	      loaded_bitmap Bitmap = LoadBMP(Source->Filename);
-
+	      loaded_bitmap Bitmap;
+	      if(Source->Type == AssetType_Font)
+		{
+		  Bitmap = LoadGlyphBitmap(Source->Filename, Source->Codepoint);
+		}
+	      else
+		{
+		  Assert(Source->Type == AssetType_Bitmap);
+		  Bitmap = LoadBMP(Source->Filename);
+		}
+	      
 	      Dest->Bitmap.Dim[0] = Bitmap.Width;
 	      Dest->Bitmap.Dim[1] = Bitmap.Height;
 
@@ -632,6 +714,16 @@ WriteNonHero()
   AddSoundAsset(Assets, "../data/test3/bloop_02.wav", 0, 0);
   AddSoundAsset(Assets, "../data/test3/bloop_03.wav", 0, 0);
   AddSoundAsset(Assets, "../data/test3/bloop_04.wav", 0, 0);
+  EndAssetType(Assets);
+  
+  BeginAssetType(Assets, Asset_Font);
+  for(u32 Character = 'A';
+      Character <= 'Z';
+      ++Character)
+    {
+      AddCharacterAsset(Assets, "/usr/share/fonts/TTF/LiberationMono-Regular.ttf", Character, 0.5f, 0.5f);
+      AddTag(Assets, Tag_UnicodeCodepoint, (r32)Character);
+    }
   EndAssetType(Assets);
 
   WriteHHA(Assets, "test2.hha");

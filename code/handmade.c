@@ -42,9 +42,6 @@
 #include "handmade_asset.c"
 #include "handmade_audio.c"
 
-#define STB_TRUETYPE_IMPLEMENTATION 
-#include "stb_truetype.h"
-
 internal void
 ClearBitmap(loaded_bitmap* Bitmap)
 {
@@ -59,18 +56,21 @@ internal loaded_bitmap
 MakeEmptyBitmap(memory_arena* Arena, s32 Width, s32 Height, bool32 ClearToZero)
 {
   loaded_bitmap Result = {};
+
+  Result.AlignPercentage = V2(0.5f, 0.5f);
+  Result.WidthOverHeight = SafeRatio1((r32)Width, (r32)Height);
   Result.Width  = Width;
   Result.Height = Height;
   Result.Pitch  = Width*BITMAP_BYTES_PER_PIXEL;
 
-  s32 TotalBitmapSize = Width*Height*4;
+  s32 TotalBitmapSize = Width*Height*BITMAP_BYTES_PER_PIXEL;
   Result.Memory      = PushSizeA(Arena, TotalBitmapSize, 16);
   
   if(ClearToZero)
     {
       ClearBitmap(&Result);
     }
-
+  
   return(Result); 
 }
 
@@ -220,88 +220,6 @@ MakePyramidNormalMap(loaded_bitmap* Bitmap, r32 Roughness)
       Row += Bitmap->Pitch;
     }
 }
-
-/*
-  internal glyph_bitmap*
-  MakeEmptyGlyphBitmap(memory_arena* GlyphArena, memory_arena* BitmapArena,
-  s32 Width, s32 Height, s32 XOffset, s32 YOffset,
-  bool32 ClearToZero)
-  {
-  glyph_bitmap* Result = PushStruct(GlyphArena, glyph_bitmap);
-  Result->XOffset = XOffset;
-  Result->YOffset = YOffset;    
-    
-  Result->Bitmap = PushStruct(BitmapArena, loaded_bitmap);
-  Result->Bitmap->Width  = Width;
-  Result->Bitmap->Height = Height;
-  Result->Bitmap->Pitch  = Width*4;
-
-  s32 TotalBitmapSize    = Width*Height*4;
-  Result->Bitmap->Memory = PushSize(BitmapArena, TotalBitmapSize);
-
-  if(ClearToZero)
-  {
-  ClearBitmap(Result->Bitmap);
-  }
-  
-  return(Result); 
-  }
-
-  internal void
-  InitFont(thread_context* Thread, font* FontState, memory_arena* BitmapArena, memory *Memory)
-  {
-  loaded_file FontTTF = Memory->DEBUGPlatformReadEntireFile(Thread, "fonts/LiberationMono-Regular.ttf");
-
-  stbtt_fontinfo Font;
-  stbtt_InitFont(&Font, FontTTF.Contents, stbtt_GetFontOffsetForIndex(FontTTF.Contents, 0));
-
-  r32 ScaleForPixelHeight = stbtt_ScaleForPixelHeight(&Font, 30);
-  int    Ascent, Descent, LineGap;
-  stbtt_GetFontVMetrics(&Font,
-  &Ascent, &Descent, &LineGap);
-  font_metrics* FontMetrics = &FontState->Metrics;
-  FontMetrics->ScaleForPixelHeight = ScaleForPixelHeight;
-  FontMetrics->Ascent  = ScaleForPixelHeight*Ascent;
-  FontMetrics->Descent = ScaleForPixelHeight*Descent;
-  FontMetrics->LineGap = ScaleForPixelHeight*LineGap;
-  FontMetrics->VerticalAdvance = FontMetrics->Ascent -
-  FontMetrics->Descent + FontMetrics->LineGap;
-  for(char codePoint = '!'; codePoint <= 'z'; ++codePoint)
-  {
-  s32 BitmapWidth, BitmapHeight,
-  XOffset, YOffset;
-  u8* STBCharacterBitmap = stbtt_GetCodepointBitmap(&Font, 0, ScaleForPixelHeight,
-  codePoint, &BitmapWidth, &BitmapHeight, &XOffset, &YOffset);
-  glyph_bitmap* Glyph = MakeEmptyGlyphBitmap(&FontState->GlyphArena, BitmapArena, BitmapWidth, BitmapHeight, XOffset, YOffset, true);
-
-  u8* SourceRow = STBCharacterBitmap;
-  u8* DestRow   = Glyph->Bitmap->Memory;
-  for(int Y = 0;
-  Y < BitmapHeight;
-  ++Y)
-  {
-  u8*  Source = SourceRow;
-  u32* Dest   = (u32*)DestRow;
-  for(int X = 0;
-  X < BitmapWidth;
-  ++X)
-  {
-  u8 Alpha = *Source;
-  *Dest = ((Alpha << 24)|
-  (Alpha << 16)|
-  (Alpha << 8) |
-  (Alpha << 0)); 	      
-  ++Dest;
-  ++Source;
-  }
-  SourceRow += BitmapWidth;
-  DestRow   += Glyph->Bitmap->Pitch;
-  }
-
-  stbtt_FreeBitmap(STBCharacterBitmap, 0);
-  }
-  }
-*/
 
 typedef struct
 {
@@ -799,6 +717,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       
       InitializeArena(&State->WorldArena, Memory->PermanentStorageSize - sizeof(state),
 		      (u8*)Memory->PermanentStorage + sizeof(state));
+
       InitializeAudioState(&State->AudioState, &State->WorldArena);
       
       AddLowEntity(State, EntityType_Null, NullPosition());
@@ -1501,6 +1420,17 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 					 RandomBetween(&State->EffectsEntropy, 0.75f, 1.0f),
 					 1.0f);
 		    Particle->dColor = V4(0.0f, 0.0f, 0.0f, -0.5f);
+
+		    asset_vector MatchVector  = {};
+		    asset_vector WeightVector = {};
+
+		    char Nothings[] = "NOTHINGS";
+		    
+		    MatchVector.E[Tag_UnicodeCodepoint]  = (r32) Nothings[RandomChoice(&State->EffectsEntropy, ArrayCount(Nothings))];
+		    WeightVector.E[Tag_UnicodeCodepoint] = 1.0f;
+
+		    Particle->BitmapID = GetBestMatchBitmapFrom(TransState->Assets, Asset_Font, &MatchVector, &WeightVector);
+		    //Particle->BitmapID = GetRandomBitmapFrom(TransState->Assets, Asset_Font, &State->EffectsEntropy);
 		  }
 
 		ZeroStruct(State->ParticleCells);
@@ -1617,8 +1547,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 			Color.a = 0.9f * Clamp01MapToRange(1.0f, Color.a, 0.9f);
 		      }
 		    
-		    PushBitmapByID(RenderGroup, GetFirstBitmapFrom(TransState->Assets, Asset_Head),
-				   Particle->P, 1.0f, Color);
+		    PushBitmapByID(RenderGroup, Particle->BitmapID,
+				   Particle->P, 0.2f, Color);
 		  }
 		
 	      } break;

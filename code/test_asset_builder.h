@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <memory.h>
 #include "handmade_platform.h"
-#include "handmade_asset_type_id.h"
 #include "handmade_file_formats.h"
 #include "handmade_intrinsics.h"
 #include "handmade_math.h"
@@ -12,13 +11,18 @@ typedef enum
   {
     AssetType_Sound,
     AssetType_Bitmap,
+    AssetType_Font,
   } asset_type;
 
 typedef struct
 {
   asset_type Type;
   char* Filename;
-  u32 FirstSampleIndex;
+  union
+  {
+    u32 FirstSampleIndex;
+    u32 Codepoint;
+  };
 } asset_source;
 
 typedef struct

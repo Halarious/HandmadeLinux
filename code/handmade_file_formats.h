@@ -1,4 +1,43 @@
 
+typedef enum
+  {
+    Tag_Smoothness,
+    Tag_Flatness,
+    Tag_FacingDirection,
+    Tag_UnicodeCodepoint,
+    
+    Tag_Count,
+  } asset_tag_id;
+
+typedef enum
+  {
+    Asset_None,
+    
+    Asset_Shadow,
+    Asset_Tree,
+    Asset_Sword,
+    Asset_Rock,
+
+    Asset_Grass,
+    Asset_Tuft,
+    Asset_Stone,
+
+    Asset_Head,
+    Asset_Cape,
+    Asset_Torso,
+
+    Asset_Font,
+    
+    Asset_Bloop,
+    Asset_Crack,
+    Asset_Drop,
+    Asset_Glide,
+    Asset_Music,
+    Asset_Puhp,
+    
+    Asset_Count,
+  } asset_type_id;
+
 #define HHA_CODE(a, b, c, d) (((u32)a << 0) | ((u32)b << 8) | ((u32)c << 16) | ((u32)d << 24))
 
 #pragma pack(push, 1)

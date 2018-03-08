@@ -181,7 +181,6 @@ Copy(memory_index Size, void* SourceInit, void* DestInit)
 #include "handmade_entity.h"
 #include "handmade_render_group.h"
 #include "handmade_file_formats.h"
-#include "handmade_asset_type_id.h"
 #include "handmade_asset.h"
 #include "handmade_random.h"
 #include "handmade_audio.h"
@@ -237,6 +236,8 @@ typedef struct
   v3 ddP;
   v4 Color;
   v4 dColor;
+
+  bitmap_id BitmapID;
 } particle;
 
 typedef struct
@@ -273,7 +274,7 @@ typedef struct
   
   loaded_bitmap TestDiffuse;
   loaded_bitmap TestNormal;
-
+  
   random_series EffectsEntropy;
   r32 tSine;
 
