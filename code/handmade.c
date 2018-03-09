@@ -1403,7 +1403,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		DrawHitpoints(Entity, RenderGroup);
 
 		for(u32 ParticleSpawnIndex = 0;
-		    ParticleSpawnIndex < 2;
+		    ParticleSpawnIndex < 3;
 		    ++ParticleSpawnIndex)
 		  {
 		    particle* Particle = State->Particles + State->NextParticle++;
@@ -1413,20 +1413,20 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		      }
 		    
 		    Particle->P = V3(RandomBetween(&State->EffectsEntropy, -0.05f, 0.05f), 0.0f, 0.0f);
-		    Particle->dP = V3(RandomBetween(&State->EffectsEntropy, -0.01f, 0.01f), 5.0f * RandomBetween(&State->EffectsEntropy, 0.7f, 1.0f), 0.0f);
+		    Particle->dP = V3(RandomBetween(&State->EffectsEntropy, -0.01f, 0.01f), 7.0f * RandomBetween(&State->EffectsEntropy, 0.7f, 1.0f), 0.0f);
 		    Particle->ddP = V3(0.0f, -9.8f, 0.0f);
 		    Particle->Color = V4(RandomBetween(&State->EffectsEntropy, 0.75f, 1.0f),
 					 RandomBetween(&State->EffectsEntropy, 0.75f, 1.0f),
 					 RandomBetween(&State->EffectsEntropy, 0.75f, 1.0f),
 					 1.0f);
-		    Particle->dColor = V4(0.0f, 0.0f, 0.0f, -0.5f);
+		    Particle->dColor = V4(0.0f, 0.0f, 0.0f, -0.25f);
 
 		    asset_vector MatchVector  = {};
 		    asset_vector WeightVector = {};
 
 		    char Nothings[] = "NOTHINGS";
 		    
-		    MatchVector.E[Tag_UnicodeCodepoint]  = (r32) Nothings[RandomChoice(&State->EffectsEntropy, ArrayCount(Nothings))];
+		    MatchVector.E[Tag_UnicodeCodepoint]  = (r32) Nothings[RandomChoice(&State->EffectsEntropy, ArrayCount(Nothings) - 1)];
 		    WeightVector.E[Tag_UnicodeCodepoint] = 1.0f;
 
 		    Particle->BitmapID = GetBestMatchBitmapFrom(TransState->Assets, Asset_Font, &MatchVector, &WeightVector);
@@ -1435,9 +1435,9 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
 		ZeroStruct(State->ParticleCells);
 
-		r32 GridScale = 0.5f;
+		r32 GridScale = 0.25f;
 		r32 InvGridScale = 1.0f / GridScale;
-		v3 GridOrigin = {-5.0f*GridScale*PARTICLE_CELL_DIM, 0.0f, 0.0f};
+		v3 GridOrigin = {-0.5f*GridScale*PARTICLE_CELL_DIM, 0.0f, 0.0f};
 		for(u32 ParticleIndex = 0;
 		    ParticleIndex < ArrayCount(State->Particles);
 		    ++ParticleIndex)
@@ -1461,7 +1461,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		    Cell->VelocityTimesDensity = V3Add(Cell->VelocityTimesDensity,
 						       V3MulS(Density, Particle->dP));
 		  }
-
+#if 0
 		for(u32 Y = 0;
 		    Y < PARTICLE_CELL_DIM;
 		    ++Y)
@@ -1473,13 +1473,13 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 			particle_cell* Cell = &State->ParticleCells[Y][X];
 			r32 Alpha = Clamp01(0.1f * Cell->Density);
 			PushRect(RenderGroup, V3Add(V3MulS(GridScale,
-							   V3(X, Y, 0)),
+							   V3((r32)X, (r32)Y, 0)),
 						    GridOrigin),
 				 V2MulS(GridScale, V2(1.0f, 1.0f)),
 				 V4(Alpha, Alpha, Alpha, 1.0f));
 		      }
 		  }
-		
+#endif		
 		for(u32 ParticleIndex = 0;
 		    ParticleIndex < ArrayCount(State->Particles);
 		    ++ParticleIndex)
@@ -1526,7 +1526,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		    Particle->Color = V4Add(Particle->Color,
 					    V4MulS(Input->dtForFrame, Particle->dColor));
 
-		    if(Particle->P.y < 0)
+		    if(Particle->P.y < 0.0f)
 		      {
 			r32 CoefficientOfRestitution = 0.3f;
 			r32 CoefficientOfFriction = 0.7f;
