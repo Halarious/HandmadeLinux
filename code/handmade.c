@@ -1403,7 +1403,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		DrawHitpoints(Entity, RenderGroup);
 
 		for(u32 ParticleSpawnIndex = 0;
-		    ParticleSpawnIndex < 3;
+		    ParticleSpawnIndex < 1;
 		    ++ParticleSpawnIndex)
 		  {
 		    particle* Particle = State->Particles + State->NextParticle++;
@@ -1425,6 +1425,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		    asset_vector WeightVector = {};
 
 		    char Nothings[] = "NOTHINGS";
+		    //char Nothings[] = "A";
 		    
 		    MatchVector.E[Tag_UnicodeCodepoint]  = (r32) Nothings[RandomChoice(&State->EffectsEntropy, ArrayCount(Nothings) - 1)];
 		    WeightVector.E[Tag_UnicodeCodepoint] = 1.0f;
@@ -1548,7 +1549,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		      }
 		    
 		    PushBitmapByID(RenderGroup, Particle->BitmapID,
-				   Particle->P, 0.2f, Color);
+				   Particle->P, 1.0f, Color);
 		  }
 		
 	      } break;

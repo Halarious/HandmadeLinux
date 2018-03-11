@@ -283,7 +283,7 @@ typedef struct
 
 #define PARTICLE_CELL_DIM 16
   u32 NextParticle;
-  particle Particles[256];
+  particle Particles[128]; //256
   particle_cell ParticleCells[PARTICLE_CELL_DIM][PARTICLE_CELL_DIM];
 } state;
 

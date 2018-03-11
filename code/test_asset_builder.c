@@ -1,8 +1,14 @@
 #include "test_asset_builder.h"
 
+#define USE_FONTS_FROM_LINUX 1
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#if USE_FONTS_FROM_LINUX
+
+#else
 #define STB_TRUETYPE_IMPLEMENTATION 1
 #include "stb_truetype.h"
-
+#endif
 #pragma pack(push, 1)
 typedef struct
 {
@@ -368,10 +374,144 @@ LoadBMP(char* Filename)
 }
 
 internal loaded_bitmap
-LoadGlyphBitmap(char* Filename, u32 Codepoint)
+LoadGlyphBitmap(char* Filename, char* Fontname, u32 Codepoint)
 {
   loaded_bitmap Result = {};
-	
+
+#if USE_FONTS_FROM_LINUX
+  Display* Display = XOpenDisplay(0);
+  int Screen = DefaultScreen(Display);
+  GC GraphicsContext = DefaultGC(Display, Screen);
+
+  Pixmap Pixmap = XCreatePixmap(Display,
+				DefaultRootWindow(Display),
+				1024,
+				1024,
+				DefaultDepth(Display, Screen));
+
+  XSetBackground(Display, GraphicsContext, BlackPixel(Display, Screen));
+  
+  XFontStruct* FontStruct = XLoadQueryFont( Display, Fontname);
+  
+  wchar_t CheesePoint  = (wchar_t) Codepoint;
+  XChar2b XCheesePoint = {Codepoint << 8, Codepoint };
+  
+  int Dir, Asc, Dsc;
+  XCharStruct CharInfo;
+  XTextExtents16(FontStruct, &XCheesePoint, 1,
+		 &Dir,
+		 &Asc,
+		 &Dsc,
+		 &CharInfo);
+  
+  int Height = CharInfo.ascent + CharInfo.descent + 1;
+  int Width  = CharInfo.width;
+  
+  XSetForeground(Display, GraphicsContext, BlackPixel(Display, Screen));  
+  XFillRectangle(Display, Pixmap, GraphicsContext, 0, 0, Width, Height);
+
+  XSetForeground(Display, GraphicsContext, WhitePixel(Display, Screen));
+  XDrawImageString16(Display, Pixmap, GraphicsContext,
+		     FontStruct->max_bounds.lbearing + 0, //NOTE: For some reason Xlib ALWAYS draws chars 1 pixel to the left?
+		     Asc - (Asc - CharInfo.ascent) + 0,
+		     &XCheesePoint, 1);
+
+  XImage* GlyphMemory = XGetImage(Display, Pixmap,
+				  0,
+				  0,
+				  Width,
+				  Height,
+				  0xffffffffffffffffL,
+				  ZPixmap);
+#if 1
+  s32 MinX = 10000;
+  s32 MinY = 10000;
+  s32 MaxX = -10000;
+  s32 MaxY = -10000;
+  for(s32 Y = 0;
+      Y < Height;
+      ++Y)
+    {
+      for(s32 X = 0;
+	  X < Width;
+	  ++X)
+	{
+	  u32 Pixel = XGetPixel(GlyphMemory, X, Y);
+
+	  if(Pixel != 0)
+	    {
+
+	      if(MinX > X)
+		{
+		  MinX = X;
+		}
+
+	      if(MinY > Y)
+		{
+		  MinY = Y;
+		}
+	      
+	      if(MaxX < X)
+		{
+		  MaxX = X;
+		}
+
+	      if(MaxY < Y)
+		{
+		  MaxY = Y;
+		}
+	    }
+	}
+    }   
+
+  if(MinX <= MaxX)
+#else
+    u32 MinX = 0;
+  u32 MinY = 0;
+  u32 MaxX = Width;
+  u32 MaxY = Height;
+#endif
+    {
+  --MinX;
+  --MinY;
+  ++MaxX;
+  ++MaxY;
+  
+      Width  = (MaxX - MinX) + 1;
+      Height = (MaxY - MinY) + 1;
+      
+      Result.Width  = Width;
+      Result.Height = Height;
+      Result.Pitch  = Result.Width * BITMAP_BYTES_PER_PIXEL;
+      Result.Memory = malloc(Height * Result.Pitch);
+      Result.Free   = Result.Memory;
+
+      u8* DestRow = (u8*)Result.Memory + (Height - 1)*Result.Pitch;
+      for(s32 Y = MinY;
+	  Y < MaxY;
+	  ++Y)
+	{
+	  u32* Dest = (u32*) DestRow;
+	  for(s32 X = MinX;
+	      X < MaxX;
+	      ++X)
+	    {
+	      unsigned long Pixel = XGetPixel(GlyphMemory, X, Y);
+	      u8 Grey  = (u8)(Pixel & 0xFF);
+	      u8 Alpha = 0xFF;
+	      *Dest++ = ((Alpha << 24) |
+			 (Grey << 16) |
+			 (Grey <<  8) |
+			 (Grey <<  0));
+	    }
+	  
+	  DestRow -= Result.Pitch;
+	}
+    }  
+
+    XUnloadFont(Display, FontStruct->fid);
+#else  
+
   entire_file TTFFile = ReadEntireFile(Filename);
   if(TTFFile.ContentsSize != 0)
     {
@@ -412,7 +552,7 @@ LoadGlyphBitmap(char* Filename, u32 Codepoint)
       stbtt_FreeBitmap(MonoBitmap, 0);
       free(TTFFile.Contents);
     }
-  
+#endif  
   return(Result);
 }
 
@@ -449,7 +589,7 @@ AddBitmapAsset(assets* Assets, char* Filename, r32 AlignPercentageX, r32 AlignPe
 }
 
 internal bitmap_id
-AddCharacterAsset(assets* Assets, char* FontFile, u32 Codepoint, r32 AlignPercentageX, r32 AlignPercentageY)
+AddCharacterAsset(assets* Assets, char* FontFile, char* Fontname, u32 Codepoint, r32 AlignPercentageX, r32 AlignPercentageY)
 {
   Assert(Assets->DEBUGAssetType);
   Assert(Assets->DEBUGAssetType->OnePastLastAssetIndex < ArrayCount(Assets->Assets));
@@ -465,6 +605,7 @@ AddCharacterAsset(assets* Assets, char* FontFile, u32 Codepoint, r32 AlignPercen
   Source->Type = AssetType_Font;
   Source->Filename = FontFile;
   Source->Codepoint = Codepoint;
+  Source->Fontname = Fontname;
 
   Assets->AssetIndex = Result.Value;
   
@@ -572,7 +713,7 @@ WriteHHA(assets* Assets, char* Filename)
 	      loaded_bitmap Bitmap;
 	      if(Source->Type == AssetType_Font)
 		{
-		  Bitmap = LoadGlyphBitmap(Source->Filename, Source->Codepoint);
+		  Bitmap = LoadGlyphBitmap(Source->Filename, Source->Fontname, Source->Codepoint);
 		}
 	      else
 		{
@@ -721,7 +862,8 @@ WriteNonHero()
       Character <= 'Z';
       ++Character)
     {
-      AddCharacterAsset(Assets, "/usr/share/fonts/TTF/LiberationMono-Regular.ttf", Character, 0.5f, 0.5f);
+      AddCharacterAsset(Assets, "/usr/share/fonts/TTF/LiberationSans-Regular.ttf", "-misc-liberation serif-medium-r-normal--0-0-0-0-p-0-ascii-0", Character, 0.5f, 0.5f);
+      //AddCharacterAsset(Assets, "/usr/share/fonts/TTF/LiberationSans-Regular.ttf", "-adobe-courier-medium-o-normal--0-0-75-75-m-0-iso8859-1", Character, 0.5f, 0.5f);
       AddTag(Assets, Tag_UnicodeCodepoint, (r32)Character);
     }
   EndAssetType(Assets);

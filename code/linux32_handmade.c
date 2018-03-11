@@ -922,7 +922,7 @@ main(int ArgCount, char** Arguments)
 	     sizeof(LockFullPath),     LockFullPath);  
   
   DisplayInfo DisplayInfo = {};
-  DisplayInfo.Display         = XOpenDisplay(NULL);
+  DisplayInfo.Display         = XOpenDisplay(0);
   DisplayInfo.Screen          = DefaultScreen(DisplayInfo.Display);
   s32 w = 960;//DisplayWidth(DisplayInfo.Display, DisplayInfo.Screen)/2;
   s32 h = 540;//DisplayHeight(DisplayInfo.Display, DisplayInfo.Screen)/2;

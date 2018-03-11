@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CommonCompilerFlags="-g -O2 -ffast-math -Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-value -Wno-missing-braces -arch i386 -DHANDMADE_INTERNAL=1" 
+CommonCompilerFlags="-g -O0 -ffast-math -Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-value -Wno-missing-braces -arch i386 -DHANDMADE_INTERNAL=1" 
 CommonLinkerFlags="-ldl -lX11 -lXrandr -lm -lpthread" 
 
 mkdir ../build -p > /dev/null

@@ -23,6 +23,8 @@ typedef struct
     u32 FirstSampleIndex;
     u32 Codepoint;
   };
+
+  char* Fontname;
 } asset_source;
 
 typedef struct
