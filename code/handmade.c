@@ -1549,7 +1549,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		      }
 		    
 		    PushBitmapByID(RenderGroup, Particle->BitmapID,
-				   Particle->P, 1.0f, Color);
+				   Particle->P, 0.4f, Color);
 		  }
 		
 	      } break;

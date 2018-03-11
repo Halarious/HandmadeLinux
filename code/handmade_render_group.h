@@ -101,8 +101,6 @@ typedef struct
   u8* PushBufferBase;
 
   u32 MissingResourceCount;
-
-  bool32 AssetsShouldBeLocked;
 } render_group;
 
 

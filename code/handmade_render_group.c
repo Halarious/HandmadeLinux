@@ -1190,7 +1190,6 @@ AllocateRenderGroup(assets* Assets, memory_arena *Arena, u32 MaxPushBufferSize, 
   Result->Transform.Scale = 1.0f;
 
   Result->MissingResourceCount = 0;
-  Result->AssetsShouldBeLocked = AssetsShouldBeLocked;  
   return(Result);
 }
 
@@ -1333,14 +1332,14 @@ PushBitmap(render_group *Group, loaded_bitmap* Bitmap, v3 Offset, r32 Height, v4
 internal inline void
 PushBitmapByID(render_group *Group, bitmap_id ID, v3 Offset, r32 Height, v4 Color)
 {
-  loaded_bitmap* Bitmap = GetBitmap(Group->Assets, ID, Group->AssetsShouldBeLocked);
+  loaded_bitmap* Bitmap = GetBitmap(Group->Assets, ID);
   if(Bitmap)
     {
       PushBitmap(Group, Bitmap, Offset, Height, Color);
     }
   else
     {
-      LoadBitmap(Group->Assets, ID, Group->AssetsShouldBeLocked);
+      LoadBitmap(Group->Assets, ID);
       ++Group->MissingResourceCount;
     }
 }

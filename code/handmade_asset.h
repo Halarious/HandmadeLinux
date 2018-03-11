@@ -28,9 +28,7 @@ typedef enum
     AssetState_Unloaded,
     AssetState_Queued,
     AssetState_Loaded,
-    AssetState_StateMask = 0xfff,
-
-    AssetState_Lock = 0x10000,
+    AssetState_Operating,
   } asset_state;
 
 typedef struct asset_memory_header asset_memory_header;
@@ -41,6 +39,7 @@ struct asset_memory_header
 
   u32 AssetIndex;
   u32 TotalSize;
+  u32 GenerationID;
   union
   {
     loaded_bitmap Bitmap;
@@ -101,50 +100,54 @@ struct assets
   asset* Assets;
     
   asset_type AssetTypes[Asset_Count];
-
-#if 0
-  u8* HHAContents;
-
-  //hero_bitmaps HeroBitmaps[4];
-
-  u32 DEBUGUsedAssetCount;
-  u32 DEBUGUsedTagCount;
-  asset_type* DEBUGAssetType;
-  asset* DEBUGAsset;
-#endif
 };
-
-internal inline bool32
-IsLocked(asset* Asset)
-{
-  bool32 Result = (Asset->State & AssetState_Lock);
-  return(Result);
-}
-
-internal inline u32
-GetState(asset* Asset)
-{
-  u32 Result = Asset->State & AssetState_StateMask;
-  return(Result);
-}
 
 internal void
 MoveHeaderToFront(assets* Assets, asset* Asset);
 
-internal inline loaded_bitmap*
-GetBitmap(assets* Assets, bitmap_id ID, bool32 MustBeLocked)
+internal inline asset_memory_header*
+GetAsset(assets* Assets, u32 ID)
 {
-  Assert(ID.Value <= Assets->AssetCount);
-  asset* Asset = Assets->Assets + ID.Value; 
+  Assert(ID <= Assets->AssetCount);
+  asset* Asset = Assets->Assets + ID; 
 
-  loaded_bitmap* Result = 0;
-  if(GetState(Asset) >= AssetState_Loaded)
+  asset_memory_header* Result = 0;
+  for(;;)
     {
-      Assert( (!MustBeLocked) || IsLocked(Asset));
-      CompletePreviousReadsBeforeFutureReads;
-      Result = &Asset->Header->Bitmap;
-      MoveHeaderToFront(Assets, Asset);
+      u32 State = Asset->State;
+      if(State == AssetState_Loaded)
+	{
+	  if(AtomicCompareExchangeUInt32(&Asset->State, AssetState_Operating, State) == State)
+	    {
+	      Result = Asset->Header;
+	      MoveHeaderToFront(Assets, Asset);
+#if 0
+	      if(Asset->Header->GenerationID < GenerationID)
+		{
+		  Asset->Header->GenerationID = GenerationID;
+		}
+#endif	      
+	      CompletePreviousWritesBeforeFutureWrites;
+
+	      Asset->State = State;
+
+	      break;
+	    }
+	}
+      else if(State != AssetState_Operating)
+	{
+	  break;
+	}
     }
+  
+  return(Result);  
+}
+
+internal inline loaded_bitmap*
+GetBitmap(assets* Assets, bitmap_id ID)
+{
+  asset_memory_header* Header = GetAsset(Assets, ID.Value);
+  loaded_bitmap* Result = Header ? &Header->Bitmap : 0;
   
   return(Result);
 }
@@ -152,16 +155,8 @@ GetBitmap(assets* Assets, bitmap_id ID, bool32 MustBeLocked)
 internal inline loaded_sound*
 GetSound(assets* Assets, sound_id ID)
 {
-  Assert(ID.Value <= Assets->AssetCount);
-
-  asset* Asset = Assets->Assets + ID.Value; 
-  loaded_sound* Result = 0;
-  if(GetState(Asset) >= AssetState_Loaded)
-    {
-      CompletePreviousReadsBeforeFutureReads;
-      Result = &Asset->Header->Sound;
-      MoveHeaderToFront(Assets, Asset);
-    }
+  asset_memory_header* Header = GetAsset(Assets, ID.Value);
+  loaded_sound* Result = Header ? &Header->Sound : 0;
   
   return(Result);
 }
@@ -189,9 +184,9 @@ IsSoundIDValid(sound_id ID)
   return(Result);  
 }
 
-internal void LoadBitmap(assets* Assets, bitmap_id ID, bool32 Locked);
+internal void LoadBitmap(assets* Assets, bitmap_id ID);
 internal void LoadSound(assets* Assets, sound_id ID);
-internal inline void PrefetchBitmap(assets* Assets, bitmap_id ID, bool32 Locked) {LoadBitmap(Assets, ID, Locked);}
+internal inline void PrefetchBitmap(assets* Assets, bitmap_id ID) {LoadBitmap(Assets, ID);}
 internal inline void PrefetchSound(assets* Assets, sound_id ID)   {LoadSound(Assets, ID);}
 
 internal inline sound_id
