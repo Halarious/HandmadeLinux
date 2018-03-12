@@ -28,7 +28,6 @@ typedef enum
     AssetState_Unloaded,
     AssetState_Queued,
     AssetState_Loaded,
-    AssetState_Operating,
   } asset_state;
 
 typedef struct asset_memory_header asset_memory_header;
@@ -83,6 +82,8 @@ struct asset_memory_block
 typedef struct transient_state transient_state;
 struct assets
 {
+  u32 NextGenerationID;
+
   transient_state* TransState;  
 
   asset_memory_block MemorySentinel;
@@ -100,62 +101,95 @@ struct assets
   asset* Assets;
     
   asset_type AssetTypes[Asset_Count];
+
+  u32 OperationLock;
+
+  u32 InFlightGenerationCount;
+  u32 InFlightGenerations[16];
 };
 
-internal void
-MoveHeaderToFront(assets* Assets, asset* Asset);
+internal inline void
+BeginAssetLock(assets* Assets)
+{
+  for(;;)
+    {
+      if(AtomicCompareExchangeUInt32(&Assets->OperationLock, 1, 0) == 0)
+	{
+	  break;
+	}
+    }
+}
+
+internal inline void
+EndAssetLock(assets* Assets)
+{
+  CompletePreviousWritesBeforeFutureWrites;
+  Assets->OperationLock = 0;
+}
+
+internal inline void
+InsertAssetHeaderAtFront(assets* Assets, asset_memory_header* Header)
+{
+  asset_memory_header* Sentinel = &Assets->LoadedAssetSentinel;
+
+  Header->Prev = Sentinel;
+  Header->Next = Sentinel->Next;
+
+  Header->Next->Prev = Header;
+  Header->Prev->Next = Header;
+}
+
+internal inline void
+RemoveAssetHeaderFromList(asset_memory_header* Header)
+{
+  Header->Prev->Next = Header->Next;
+  Header->Next->Prev = Header->Prev;
+
+  Header->Next = Header->Prev = 0;
+}
 
 internal inline asset_memory_header*
-GetAsset(assets* Assets, u32 ID)
+GetAsset(assets* Assets, u32 ID, u32 GenerationID)
 {
   Assert(ID <= Assets->AssetCount);
   asset* Asset = Assets->Assets + ID; 
 
   asset_memory_header* Result = 0;
-  for(;;)
+  BeginAssetLock(Assets);
+
+  if(Asset->State == AssetState_Loaded)
     {
-      u32 State = Asset->State;
-      if(State == AssetState_Loaded)
-	{
-	  if(AtomicCompareExchangeUInt32(&Asset->State, AssetState_Operating, State) == State)
-	    {
-	      Result = Asset->Header;
-	      MoveHeaderToFront(Assets, Asset);
-#if 0
-	      if(Asset->Header->GenerationID < GenerationID)
-		{
-		  Asset->Header->GenerationID = GenerationID;
-		}
-#endif	      
-	      CompletePreviousWritesBeforeFutureWrites;
+      Result = Asset->Header;
+            
+      RemoveAssetHeaderFromList(Result);
+      InsertAssetHeaderAtFront(Assets, Result);
 
-	      Asset->State = State;
-
-	      break;
-	    }
-	}
-      else if(State != AssetState_Operating)
+      if(Asset->Header->GenerationID < GenerationID)
 	{
-	  break;
+	  Asset->Header->GenerationID = GenerationID;
 	}
+
+      CompletePreviousWritesBeforeFutureWrites;
     }
+
+  EndAssetLock(Assets);
   
   return(Result);  
 }
 
 internal inline loaded_bitmap*
-GetBitmap(assets* Assets, bitmap_id ID)
+GetBitmap(assets* Assets, bitmap_id ID, u32 GenerationID)
 {
-  asset_memory_header* Header = GetAsset(Assets, ID.Value);
+  asset_memory_header* Header = GetAsset(Assets, ID.Value, GenerationID);
   loaded_bitmap* Result = Header ? &Header->Bitmap : 0;
   
   return(Result);
 }
 
 internal inline loaded_sound*
-GetSound(assets* Assets, sound_id ID)
+GetSound(assets* Assets, sound_id ID, u32 GenerationID)
 {
-  asset_memory_header* Header = GetAsset(Assets, ID.Value);
+  asset_memory_header* Header = GetAsset(Assets, ID.Value, GenerationID);
   loaded_sound* Result = Header ? &Header->Sound : 0;
   
   return(Result);
@@ -184,9 +218,9 @@ IsSoundIDValid(sound_id ID)
   return(Result);  
 }
 
-internal void LoadBitmap(assets* Assets, bitmap_id ID);
+internal void LoadBitmap(assets* Assets, bitmap_id ID, bool32 Immediate);
 internal void LoadSound(assets* Assets, sound_id ID);
-internal inline void PrefetchBitmap(assets* Assets, bitmap_id ID) {LoadBitmap(Assets, ID);}
+internal inline void PrefetchBitmap(assets* Assets, bitmap_id ID) {LoadBitmap(Assets, ID, false);}
 internal inline void PrefetchSound(assets* Assets, sound_id ID)   {LoadSound(Assets, ID);}
 
 internal inline sound_id
@@ -217,3 +251,37 @@ GetNextSoundInChain(assets* Assets, sound_id ID)
 
   return(Result);
 }
+
+internal inline u32
+BeginGeneration(assets* Assets)
+{
+  BeginAssetLock(Assets);
+
+  Assert(Assets->InFlightGenerationCount < ArrayCount(Assets->InFlightGenerations));
+  u32 Result = Assets->NextGenerationID++;
+  Assets->InFlightGenerations[Assets->InFlightGenerationCount++] = Result;
+
+  EndAssetLock(Assets);
+
+  return(Result);
+}
+
+internal inline void
+EndGeneration(assets* Assets, u32 GenerationID)
+{
+  BeginAssetLock(Assets);  
+
+  for(u32 Index = 0;
+      Index < Assets->InFlightGenerationCount;
+      ++Index)
+    {
+      if(Assets->InFlightGenerations[Index] == GenerationID)
+	{
+	  Assets->InFlightGenerations[Index] = Assets->InFlightGenerations[--Assets->InFlightGenerationCount];
+	  break;
+	}
+    }
+  
+  EndAssetLock(Assets);
+}
+

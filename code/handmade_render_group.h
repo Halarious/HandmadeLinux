@@ -90,8 +90,9 @@ typedef struct assets assets;
 typedef struct
 {
   assets* Assets;
-
   r32 GlobalAlpha;
+
+  u32 GenerationID;
 
   v2  MonitorHalfDimInMeters;
   render_transform Transform;  
@@ -101,6 +102,8 @@ typedef struct
   u8* PushBufferBase;
 
   u32 MissingResourceCount;
+  bool32 RendersInBackground;
+  
 } render_group;
 
 

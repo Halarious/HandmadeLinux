@@ -565,7 +565,8 @@ PLATFORM_WORK_QUEUE_CALLBACK(FillGroundChunkWork)
   fill_ground_chunk_work* Work = (fill_ground_chunk_work*) Data;
 
   RenderGroupToOutput2(Work->RenderGroup, Work->Buffer);
-  
+  FinishRenderGroup(Work->RenderGroup);
+    
   EndTaskWithMemory(Work->Task);
 }
 
@@ -671,16 +672,10 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
 	    }
 	}
 
-      if(AllResourcesPresent(RenderGroup))
-	{
-	  GroundBuffer->P = *ChunkP;
-
-	  Platform.AddEntry(TransState->LowPriorityQueue, FillGroundChunkWork, Work);
-	}
-      else
-	{
-	  EndTaskWithMemory(Work->Task);
-	}
+      Assert(AllResourcesPresent(RenderGroup));
+	
+      GroundBuffer->P = *ChunkP;
+      Platform.AddEntry(TransState->LowPriorityQueue, FillGroundChunkWork, Work);
     }
 }
 
@@ -1720,7 +1715,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 #endif
   
   TiledRenderGroupToOutput(TransState->HighPriorityQueue, RenderGroup, DrawBuffer);
-    
+  FinishRenderGroup(RenderGroup);
+
   EndSim(SimRegion, State);
   EndTemporaryMemory(SimMemory);
   EndTemporaryMemory(RenderMemory);

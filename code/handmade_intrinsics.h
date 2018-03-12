@@ -7,6 +7,7 @@
 #define CompletePreviousReadsBeforeFutureReads _ReadBarrier() ; 
 #define CompletePreviousWritesBeforeFutureWrites _WriteBarrier() 
 
+internal inline u32
 AtomicCompareExchangeUInt32(u32 volatile* Value, u32 New, u32 Expected)
 {
   u32 Result = _InterlockedCompareExchange((long*)Value,
