@@ -32,6 +32,12 @@
 
 - Day 162 is the start of fonts (or fonce), here we will delve into Xlib
   again for the prerasterazied fonts
+
+- Day 167 has Win specific font stuff which is not really applicable for 
+  our Xlib setup. That being said we still at this point have to deal a 
+  bit more with extracting fonts through X because it's not really amazing
+  now. But for the future we will just switch to stb_truetype to not waste
+  time, this is more of a homework type situation
  */
 
 #include "handmade.h"
@@ -553,8 +559,11 @@ EndTaskWithMemory(task_with_memory* Task)
 
 typedef struct
 {
-  render_group* RenderGroup;
-  loaded_bitmap* Buffer;
+  transient_state* TransState;
+  state* State;
+  ground_buffer* GroundBuffer;
+  world_position ChunkP;
+  
   task_with_memory* Task;
   
 } fill_ground_chunk_work;
@@ -564,8 +573,97 @@ PLATFORM_WORK_QUEUE_CALLBACK(FillGroundChunkWork)
 {
   fill_ground_chunk_work* Work = (fill_ground_chunk_work*) Data;
 
-  RenderGroupToOutput2(Work->RenderGroup, Work->Buffer);
-  FinishRenderGroup(Work->RenderGroup);
+  loaded_bitmap *Buffer = &Work->GroundBuffer->Bitmap;
+  Buffer->AlignPercentage = V2(0.5f, 0.5f);
+  Buffer->WidthOverHeight = 1.0f;
+  
+  r32 Width  = Work->State->World->ChunkDimInMeters.x;
+  r32 Height = Work->State->World->ChunkDimInMeters.y;  
+  Assert(Width == Height);
+  v2 HalfDim = V2MulS(0.5f, V2(Width, Height));
+
+  render_group* RenderGroup = AllocateRenderGroup(Work->TransState->Assets, &Work->Task->Arena, 0, true);
+  Orthographic(RenderGroup, Buffer->Width, Buffer->Height,
+	       (Buffer->Width - 2) / Width);
+
+  Clear(RenderGroup, V4(1.0f, 0.0f, 1.0f, 1.0f));
+  
+  for(s32 ChunkOffsetY = -1;
+      ChunkOffsetY <= 1;
+      ++ChunkOffsetY)
+    {
+      for(s32 ChunkOffsetX = -1;
+	  ChunkOffsetX <= 1;
+	  ++ChunkOffsetX)
+	{
+	  s32 ChunkX = Work->ChunkP.ChunkX + ChunkOffsetX;
+	  s32 ChunkY = Work->ChunkP.ChunkY + ChunkOffsetY;
+	  s32 ChunkZ = Work->ChunkP.ChunkZ;
+  
+	  random_series Series = Seed(139*ChunkX + 593*ChunkY + 329*ChunkZ);
+#if 0
+	  v4 Color = V4(1, 0, 0, 1);
+	  if((ChunkX % 2) == (ChunkY % 2))
+	    {
+	      Color = V4(0, 0, 1, 1);
+	    }
+#else
+	  v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f);
+#endif 	  	  
+	  v2 Center = V2(ChunkOffsetX*Width, ChunkOffsetY*Height);
+
+	  for(u32 GrassIndex = 0;
+	      GrassIndex < 100;
+	      ++GrassIndex)
+	    {
+	      bitmap_id Stamp = GetRandomBitmapFrom(Work->TransState->Assets,
+						    RandomChoice(&Series, 2) ? Asset_Grass : Asset_Stone,
+						    &Series);
+		    
+	      v2 Offset = V2Hadamard(HalfDim, V2(RandomBilateral(&Series), RandomBilateral(&Series)));
+	      v2 P = V2Add(Center, Offset);
+      
+	      PushBitmapByID(RenderGroup, Stamp, ToV3(P, 0.0f),
+			     2.0f, Color);
+	    }
+	}
+    }
+  
+  for(s32 ChunkOffsetY = -1;
+      ChunkOffsetY <= 1;
+      ++ChunkOffsetY)
+    {
+      for(s32 ChunkOffsetX = -1;
+	  ChunkOffsetX <= 1;
+	  ++ChunkOffsetX)
+	{
+	  s32 ChunkX = Work->ChunkP.ChunkX + ChunkOffsetX;
+	  s32 ChunkY = Work->ChunkP.ChunkY + ChunkOffsetY;
+	  s32 ChunkZ = Work->ChunkP.ChunkZ;
+  
+	  random_series Series = Seed(139*ChunkX + 593*ChunkY + 329*ChunkZ);
+	  
+	  v2 Center = V2(ChunkOffsetX*Width, ChunkOffsetY*Height);
+
+	  for(u32 TuftIndex = 0;
+	      TuftIndex < 50;
+	      ++TuftIndex)
+	    {
+	      bitmap_id Stamp = GetRandomBitmapFrom(Work->TransState->Assets, Asset_Tuft, &Series);
+		  
+	      v2 Offset = V2Hadamard(HalfDim, V2(RandomBilateral(&Series), RandomBilateral(&Series)));
+	      v2 P = V2Add(Center, Offset);
+      
+	      PushBitmapByID(RenderGroup, Stamp, ToV3(P, 0.0f),
+			     0.1f, V4(1.0f, 1.0f, 1.0f, 1.0f));
+	    }
+	}
+    }
+
+  Assert(AllResourcesPresent(RenderGroup));
+
+  RenderGroupToOutput2(RenderGroup, Buffer);
+  FinishRenderGroup(RenderGroup);
     
   EndTaskWithMemory(Work->Task);
 }
@@ -578,102 +676,12 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
   if(Task)
     {
       fill_ground_chunk_work* Work = PushStruct(&Task->Arena, fill_ground_chunk_work); 
-
-      loaded_bitmap *Buffer = &GroundBuffer->Bitmap;
-      Buffer->AlignPercentage = V2(0.5f, 0.5f);
-      Buffer->WidthOverHeight = 1.0f;
-  
-      r32 Width  = State->World->ChunkDimInMeters.x;
-      r32 Height = State->World->ChunkDimInMeters.y;  
-      Assert(Width == Height);
-      v2 HalfDim = V2MulS(0.5f, V2(Width, Height));
-
-      render_group* RenderGroup = AllocateRenderGroup(TransState->Assets, &Task->Arena, 0, true);
-      Orthographic(RenderGroup, Buffer->Width, Buffer->Height,
-		   (Buffer->Width - 2) / Width);
-
-      Clear(RenderGroup, V4(1.0f, 0.0f, 1.0f, 1.0f));
-
-      Work->RenderGroup = RenderGroup;
-      Work->Buffer = Buffer;
       Work->Task = Task;
-
-      //HalfDim = V2MulS(0.5f, HalfDim);
-  
-      for(s32 ChunkOffsetY = -1;
-	  ChunkOffsetY <= 1;
-	  ++ChunkOffsetY)
-	{
-	  for(s32 ChunkOffsetX = -1;
-	      ChunkOffsetX <= 1;
-	      ++ChunkOffsetX)
-	    {
-	      s32 ChunkX = ChunkP->ChunkX + ChunkOffsetX;
-	      s32 ChunkY = ChunkP->ChunkY + ChunkOffsetY;
-	      s32 ChunkZ = ChunkP->ChunkZ;
-  
-	      random_series Series = Seed(139*ChunkX + 593*ChunkY + 329*ChunkZ);
-#if 0
-	      v4 Color = V4(1, 0, 0, 1);
-	      if((ChunkX % 2) == (ChunkY % 2))
-		{
-		  Color = V4(0, 0, 1, 1);
-		}
-#else
-	      v4 Color = V4(1.0f, 1.0f, 1.0f, 1.0f);
-#endif 	  	  
-	      v2 Center = V2(ChunkOffsetX*Width, ChunkOffsetY*Height);
-
-	      for(u32 GrassIndex = 0;
-		  GrassIndex < 100;
-		  ++GrassIndex)
-		{
-		  bitmap_id Stamp = GetRandomBitmapFrom(TransState->Assets,
-							RandomChoice(&Series, 2) ? Asset_Grass : Asset_Stone,
-							&Series);
-		    
-		  v2 Offset = V2Hadamard(HalfDim, V2(RandomBilateral(&Series), RandomBilateral(&Series)));
-		  v2 P = V2Add(Center, Offset);
+      Work->TransState = TransState;
+      Work->State = State;
+      Work->GroundBuffer = GroundBuffer;
+      Work->ChunkP = *ChunkP;
       
-		  PushBitmapByID(RenderGroup, Stamp, ToV3(P, 0.0f),
-		  		 2.0f, Color);
-		}
-	    }
-	}
-  
-      for(s32 ChunkOffsetY = -1;
-	  ChunkOffsetY <= 1;
-	  ++ChunkOffsetY)
-	{
-	  for(s32 ChunkOffsetX = -1;
-	      ChunkOffsetX <= 1;
-	      ++ChunkOffsetX)
-	    {
-	      s32 ChunkX = ChunkP->ChunkX + ChunkOffsetX;
-	      s32 ChunkY = ChunkP->ChunkY + ChunkOffsetY;
-	      s32 ChunkZ = ChunkP->ChunkZ;
-  
-	      random_series Series = Seed(139*ChunkX + 593*ChunkY + 329*ChunkZ);
-	  
-	      v2 Center = V2(ChunkOffsetX*Width, ChunkOffsetY*Height);
-
-	      for(u32 TuftIndex = 0;
-		  TuftIndex < 50;
-		  ++TuftIndex)
-		{
-		  bitmap_id Stamp = GetRandomBitmapFrom(TransState->Assets, Asset_Tuft, &Series);
-		  
-		  v2 Offset = V2Hadamard(HalfDim, V2(RandomBilateral(&Series), RandomBilateral(&Series)));
-		  v2 P = V2Add(Center, Offset);
-      
-		  PushBitmapByID(RenderGroup, Stamp, ToV3(P, 0.0f),
-				 0.1f, V4(1.0f, 1.0f, 1.0f, 1.0f));
-		}
-	    }
-	}
-
-      Assert(AllResourcesPresent(RenderGroup));
-	
       GroundBuffer->P = *ChunkP;
       Platform.AddEntry(TransState->LowPriorityQueue, FillGroundChunkWork, Work);
     }

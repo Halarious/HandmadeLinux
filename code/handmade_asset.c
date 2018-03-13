@@ -214,64 +214,73 @@ LoadBitmap(assets* Assets, bitmap_id ID, bool32 Immediate)
 {
   asset* Asset = Assets->Assets + ID.Value;
 
-  if(ID.Value &&
-     (AtomicCompareExchangeUInt32((u32*)&Asset->State, AssetState_Queued, AssetState_Unloaded) ==
-      AssetState_Unloaded))
-    {      
-      task_with_memory* Task = 0;
+  if(ID.Value)
+    {
+      if(AtomicCompareExchangeUInt32((u32*)&Asset->State, AssetState_Queued, AssetState_Unloaded) ==
+	 AssetState_Unloaded)
+	{      
+	  task_with_memory* Task = 0;
 
-      if(!Immediate)
-	{
-	  Task = BeginTaskWithMemory(Assets->TransState);
-	}
-      
-      if(Immediate || Task)
-	{
-	  asset* Asset = Assets->Assets + ID.Value;
-	  hha_bitmap* Info = &Asset->HHA.Bitmap;
-
-	  u32 Width  = Info->Dim[0];
-	  u32 Height = Info->Dim[1];
-	  
-	  asset_memory_size Size = {};
-	  Size.Section = 4*Width;
-	  Size.Data = Height * Size.Section;
-	  Size.Total = Size.Data + sizeof(asset_memory_header);
-
-	  Asset->Header = AcquireAssetMemory(Assets, Size.Total, ID.Value);
-	  
-	  loaded_bitmap* Bitmap = &Asset->Header->Bitmap;
-	  Bitmap->AlignPercentage = V2(Info->AlignPercentage[0], Info->AlignPercentage[1]);
-	  Bitmap->WidthOverHeight = (r32)Info->Dim[0] / (r32)Info->Dim[1];
-	  Bitmap->Width  = Info->Dim[0];
-	  Bitmap->Height = Info->Dim[1];
-	  Bitmap->Pitch  = Size.Section;
-	  Bitmap->Memory = (Asset->Header + 1);
-
-	  load_asset_work Work;
-	  Work.Task = Task;
-	  Work.Asset = Assets->Assets + ID.Value;
-	  Work.Handle = GetFileHandleFor(Assets, Asset->FileIndex);
-	  Work.Offset = Asset->HHA.DataOffset;
-	  Work.Size = Size.Data;
-	  Work.Destination = Bitmap->Memory;
-	  Work.FinalState = AssetState_Loaded;
-	      
-	  if(Task)
+	  if(!Immediate)
 	    {
-	      load_asset_work* TaskWork = PushStruct(&Task->Arena, load_asset_work);
-	      *TaskWork = Work;
+	      Task = BeginTaskWithMemory(Assets->TransState);
+	    }
+      
+	  if(Immediate || Task)
+	    {
+	      asset* Asset = Assets->Assets + ID.Value;
+	      hha_bitmap* Info = &Asset->HHA.Bitmap;
 
-	      Platform.AddEntry(Assets->TransState->LowPriorityQueue, LoadAssetWork, TaskWork);
+	      u32 Width  = Info->Dim[0];
+	      u32 Height = Info->Dim[1];
+	  
+	      asset_memory_size Size = {};
+	      Size.Section = 4*Width;
+	      Size.Data = Height * Size.Section;
+	      Size.Total = Size.Data + sizeof(asset_memory_header);
+
+	      Asset->Header = AcquireAssetMemory(Assets, Size.Total, ID.Value);
+	  
+	      loaded_bitmap* Bitmap = &Asset->Header->Bitmap;
+	      Bitmap->AlignPercentage = V2(Info->AlignPercentage[0], Info->AlignPercentage[1]);
+	      Bitmap->WidthOverHeight = (r32)Info->Dim[0] / (r32)Info->Dim[1];
+	      Bitmap->Width  = Info->Dim[0];
+	      Bitmap->Height = Info->Dim[1];
+	      Bitmap->Pitch  = Size.Section;
+	      Bitmap->Memory = (Asset->Header + 1);
+
+	      load_asset_work Work;
+	      Work.Task = Task;
+	      Work.Asset = Assets->Assets + ID.Value;
+	      Work.Handle = GetFileHandleFor(Assets, Asset->FileIndex);
+	      Work.Offset = Asset->HHA.DataOffset;
+	      Work.Size = Size.Data;
+	      Work.Destination = Bitmap->Memory;
+	      Work.FinalState = AssetState_Loaded;
+	      
+	      if(Task)
+		{
+		  load_asset_work* TaskWork = PushStruct(&Task->Arena, load_asset_work);
+		  *TaskWork = Work;
+
+		  Platform.AddEntry(Assets->TransState->LowPriorityQueue, LoadAssetWork, TaskWork);
+		}
+	      else
+		{
+		  LoadAssetWorkDirectly(&Work);
+		}
 	    }
 	  else
 	    {
-	      LoadAssetWorkDirectly(&Work);
+	      Asset->State = AssetState_Unloaded;
 	    }
 	}
-      else
+      else if(Immediate)
 	{
-	  Asset->State = AssetState_Unloaded;
+	  asset_state volatile* State = (asset_state volatile*)&Asset->State; 
+	  while(*State == AssetState_Queued)
+	    {
+	    }
 	}
     }
 }
