@@ -1,6 +1,6 @@
 #include "test_asset_builder.h"
 
-#define USE_FONTS_FROM_LINUX 1
+#define USE_FONTS_FROM_LINUX 0
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #if USE_FONTS_FROM_LINUX
@@ -858,8 +858,9 @@ WriteNonHero()
   EndAssetType(Assets);
   
   BeginAssetType(Assets, Asset_Font);
-  for(u32 Character = 'A';
-      Character <= 'Z';
+
+  for(u32 Character = '!';
+      Character <= '~';
       ++Character)
     {
       AddCharacterAsset(Assets, "/usr/share/fonts/TTF/LiberationSans-Regular.ttf", "-misc-liberation serif-medium-r-normal--0-0-0-0-p-0-ascii-0", Character, 0.5f, 0.5f);

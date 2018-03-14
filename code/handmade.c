@@ -583,6 +583,8 @@ PLATFORM_WORK_QUEUE_CALLBACK(FillGroundChunkWork)
   v2 HalfDim = V2MulS(0.5f, V2(Width, Height));
 
   render_group* RenderGroup = AllocateRenderGroup(Work->TransState->Assets, &Work->Task->Arena, 0, true);
+  BeginRender(RenderGroup);
+
   Orthographic(RenderGroup, Buffer->Width, Buffer->Height,
 	       (Buffer->Width - 2) / Width);
 
@@ -663,7 +665,7 @@ PLATFORM_WORK_QUEUE_CALLBACK(FillGroundChunkWork)
   Assert(AllResourcesPresent(RenderGroup));
 
   RenderGroupToOutput2(RenderGroup, Buffer);
-  FinishRenderGroup(RenderGroup);
+  EndRender(RenderGroup);
     
   EndTaskWithMemory(Work->Task);
 }
@@ -685,6 +687,93 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
       GroundBuffer->P = *ChunkP;
       Platform.AddEntry(TransState->LowPriorityQueue, FillGroundChunkWork, Work);
     }
+}
+
+global_variable render_group* DEBUGRenderGroup;
+global_variable r32 LeftEdge;
+global_variable r32 AtY;
+global_variable r32 FontScale;
+
+internal void
+DEBUGReset(u32 Width, u32 Height)
+{
+  FontScale = 20.0f;
+  Orthographic(DEBUGRenderGroup, Width, Height, 1.0f);
+  
+  AtY =  0.5f * (r32)Height - 0.5f*FontScale;
+  LeftEdge = -0.5f * (r32)Width  + 0.5f*FontScale;
+}
+
+internal void
+DEBUGTextLine(char* String)
+{
+  if(DEBUGRenderGroup)
+    {
+      render_group* RenderGroup = DEBUGRenderGroup;
+
+      asset_vector MatchVector  = {};
+      asset_vector WeightVector = {};
+      WeightVector.E[Tag_UnicodeCodepoint] = 1.0f;
+
+      r32 AtX = LeftEdge;
+      for(char* At = String;
+	  *At;
+	  ++At)
+	{
+	  if(*At != ' ')
+	    {
+	      MatchVector.E[Tag_UnicodeCodepoint]  = *At;
+
+	      bitmap_id BitmapID
+		= GetBestMatchBitmapFrom(RenderGroup->Assets,
+					 Asset_Font,
+					 &MatchVector, &WeightVector);
+
+	      PushBitmapByID(RenderGroup, BitmapID,
+			     V3(AtX, AtY, 0.0f),
+			     FontScale,
+			     V4(1.0f, 1.0, 1.0f, 1.0f));
+	    }
+	  AtX += FontScale;
+	}
+      AtY -= 1.2f*FontScale;
+    }
+}
+
+internal void
+OverlayCycleCounters(memory* Memory)
+{
+  char* NameTable[] =
+    {
+      "UpdateAndRender",
+      "RenderGroupToOutput",
+      "DrawRectangleSlowly",
+      "DrawRectangleQuickly",
+      "ProcessPixel",
+    };
+  
+#if HANDMADE_INTERNAL
+  DEBUGTextLine("DEBUG CYCLE COUNTS: ");
+  for(s32 CounterIndex = 0;
+      CounterIndex < ArrayCount(Memory->Counters);
+      ++CounterIndex)
+    {
+      debug_cycle_counter* Counter = Memory->Counters + CounterIndex;
+
+      if(Counter->HitCount)
+	{
+#if 0
+	  printf("\t%d: %luc %uh %luc/h\n",
+		 CounterIndex,
+		 Counter->CycleCount,
+		 Counter->HitCount,
+		 Counter->CycleCount / Counter->HitCount);
+#else
+	  DEBUGTextLine(NameTable[CounterIndex]);
+#endif
+	}
+    }
+#endif
 }
 
 #if HANDMADE_INTERNAL
@@ -933,7 +1022,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
     {
       InitializeArena(&TransState->TransientArena, Memory->TransientStorageSize - sizeof(transient_state),
 		      (u8*)Memory->TransientStorage + sizeof(transient_state));
-      
+
       TransState->HighPriorityQueue = Memory->HighPriorityQueue;
       TransState->LowPriorityQueue = Memory->LowPriorityQueue;
       
@@ -949,6 +1038,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
       TransState->Assets = AllocateGameAssets(&TransState->TransientArena, Megabytes(16), TransState);
 
+      DEBUGRenderGroup = AllocateRenderGroup(TransState->Assets, &TransState->TransientArena, Megabytes(16), false);
+      
       State->Music = PlaySound(&State->AudioState, GetFirstSoundFrom(TransState->Assets, Asset_Music));
       
       TransState->GroundBufferCount = 256;
@@ -1000,6 +1091,12 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       TransState->IsInitialized = true;
     }
 
+  if(DEBUGRenderGroup)
+    {
+      BeginRender(DEBUGRenderGroup);
+      DEBUGReset(Buffer->Width, Buffer->Height);
+    }
+  
 #if 0
   if(Input->ExecutableReloaded)
     {
@@ -1110,6 +1207,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   DrawBuffer->Height = 719;
 #endif
   render_group* RenderGroup = AllocateRenderGroup(TransState->Assets, &TransState->TransientArena, Megabytes(4), false);
+  BeginRender(RenderGroup);
+
   r32 WidthOfMonitor = 0.635f;
   r32 MetersToPixels = (r32)DrawBuffer->Width * WidthOfMonitor;
   r32 FocalLength = 0.6f;
@@ -1723,7 +1822,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 #endif
   
   TiledRenderGroupToOutput(TransState->HighPriorityQueue, RenderGroup, DrawBuffer);
-  FinishRenderGroup(RenderGroup);
+  EndRender(RenderGroup);
 
   EndSim(SimRegion, State);
   EndTemporaryMemory(SimMemory);
@@ -1733,6 +1832,14 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   CheckArena(&TransState->TransientArena);
 
   END_TIMED_BLOCK(UpdateAndRender);
+  
+  OverlayCycleCounters(Memory);
+  if(DEBUGRenderGroup)
+    {
+      TiledRenderGroupToOutput(TransState->HighPriorityQueue,
+			       DEBUGRenderGroup, DrawBuffer);
+      EndRender(DEBUGRenderGroup);
+    }
 }
 
 GET_SOUND_SAMPLES(GetSoundSamples)

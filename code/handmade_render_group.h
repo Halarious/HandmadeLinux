@@ -103,7 +103,8 @@ typedef struct
 
   u32 MissingResourceCount;
   bool32 RendersInBackground;
-  
+
+  bool32 InsideRender;
 } render_group;
 
 
