@@ -759,9 +759,9 @@ DEBUGTextLine(char* String)
 		  
 		  hha_bitmap* Info = GetBitmapInfo(RenderGroup->Assets, BitmapID);
 
-		  CharDim = CharScale * (r32)Info->Dim[0];
+		  CharDim = CharScale * ((r32)Info->Dim[0] + 2);
 		  PushBitmapByID(RenderGroup, BitmapID,
-				 V3(AtX + 50, AtY - 50, 0.0f),
+				 V3(AtX, AtY, 0.0f),
 				 CharScale * (r32)Info->Dim[1],
 				 Color);
 		}

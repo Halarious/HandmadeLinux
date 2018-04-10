@@ -353,6 +353,7 @@ LoadBMP(char* Filename)
 			    (r32)((Color & GreenMask) >> GreenShiftDown),
 			    (r32)((Color & BlueMask) >> BlueShiftDown),
 			    (r32)((Color & AlphaMask) >> AlphaShiftDown));
+
 	      Texel = SRGB255ToLinear1(Texel);
 
 #if 1
@@ -391,10 +392,12 @@ LoadGlyphBitmap(char* Filename, char* Fontname, u32 Codepoint,
   int Screen = DefaultScreen(Display);
   GC GraphicsContext = DefaultGC(Display, Screen);
 
+  int MaxWidth  = 1024;
+  int MaxHeight = 1024;
   Pixmap Pixmap = XCreatePixmap(Display,
 				DefaultRootWindow(Display),
-				1024,
-				1024,
+				MaxWidth,
+				MaxHeight,
 				DefaultDepth(Display, Screen));
 
   XSetBackground(Display, GraphicsContext, BlackPixel(Display, Screen));
@@ -408,7 +411,7 @@ LoadGlyphBitmap(char* Filename, char* Fontname, u32 Codepoint,
   XftFont* Font = XftFontOpen(Display,
 			      Screen,
 			      XFT_FAMILY,     XftTypeString, "Liberation Serif",
-			      XFT_PIXEL_SIZE, XftTypeDouble, 80.0,
+			      XFT_PIXEL_SIZE, XftTypeDouble, 128.0,
 			      XFT_ANTIALIAS,  XftTypeBool, true,
 			      NULL);
 
@@ -421,17 +424,17 @@ LoadGlyphBitmap(char* Filename, char* Fontname, u32 Codepoint,
   XGlyphInfo XftCharInfo;
   XftTextExtents16(Display, Font, &XftCheesePoint, 1, &XftCharInfo);
 
-  int Width  = XftCharInfo.width  + 0;
+  int BoundWidth  = XftCharInfo.width  + 0;
   //TODO: Figure out why this +1 has to be here 
-  int Height = XftCharInfo.height + 1;
+  int BoundHeight = XftCharInfo.height + 0;
   
   XftColor XBackgroundColor = {BlackPixel(Display, Screen), {0x0, 0x0, 0x0, 0xffff} };
   XftColor XForegroundColor = {WhitePixel(Display, Screen), {0xffff, 0xffff, 0xffff, 0xffff} };
   
   XftDrawRect    (Bitmap, &XBackgroundColor,
-		  FudgeX - 1,
-		  FudgeY - 1,
-		  Width + 1, Height + 1);
+		  0,
+		  0,
+		  MaxWidth, MaxHeight);
   XftDrawString16(Bitmap, &XForegroundColor, Font,
 		  FudgeX + XftCharInfo.x,
 		  FudgeY + XftCharInfo.y,
@@ -470,10 +473,10 @@ LoadGlyphBitmap(char* Filename, char* Fontname, u32 Codepoint,
 #endif
   
   XImage* GlyphMemory = XGetImage(Display, Pixmap,
-				  FudgeX - 1,
-				  FudgeY - 1,
-				  Width  + 1,
-				  Height + 1,
+				  FudgeX,
+				  FudgeY,
+				  BoundWidth,
+				  BoundHeight,
 				  AllPlanes,
 				  ZPixmap);
 
@@ -482,11 +485,11 @@ LoadGlyphBitmap(char* Filename, char* Fontname, u32 Codepoint,
   s32 MaxX = -10000;
   s32 MaxY = -10000;
   for(s32 Y = 0;
-      Y < Height;
+      Y < BoundHeight;
       ++Y)
     {
       for(s32 X = 0;
-	  X < Width;
+	  X < BoundWidth;
 	  ++X)
 	{
 	  u32 Pixel = XGetPixel(GlyphMemory, X, Y);
@@ -519,23 +522,18 @@ LoadGlyphBitmap(char* Filename, char* Fontname, u32 Codepoint,
 
   if(MinX <= MaxX)
     {
-      --MinX;
-      --MinY;
-      ++MaxX;
-      ++MaxY;
+      int Width  = (MaxX - MinX) + 1;
+      int Height = (MaxY - MinY) + 1;
       
-      Width  = (MaxX - MinX) + 1;
-      Height = (MaxY - MinY) + 1;
-      
-      Result.Width  = Width;
-      Result.Height = Height;
+      Result.Width  = Width + 2;
+      Result.Height = Height + 2;
       Result.Pitch  = Result.Width * BITMAP_BYTES_PER_PIXEL;
       Result.Memory = malloc(Height * Result.Pitch);
       Result.Free   = Result.Memory;
 
       memset(Result.Memory, 0, Height * Result.Pitch);
       
-      u8* DestRow = (u8*)Result.Memory + (Height - 1)*Result.Pitch;
+      u8* DestRow = (u8*)Result.Memory + (Height - 1 - 1)*Result.Pitch;
       for(s32 Y = MinY;
 	  Y < MaxY;
 	  ++Y)
@@ -546,19 +544,26 @@ LoadGlyphBitmap(char* Filename, char* Fontname, u32 Codepoint,
 	      ++X)
 	    {
 	      unsigned long Pixel = XGetPixel(GlyphMemory, X, Y);
-	      u8 Grey  = (u8)(Pixel & 0xFF);
-	      u8 Alpha = Grey;
-	      *Dest++ = ((Alpha << 24) |
-			 (Grey << 16) |
-			 (Grey <<  8) |
-			 (Grey <<  0));
+
+	      r32 Grey = (r32)(Pixel & 0xFF);
+	      v4 Texel = V4(255.0f, 255.0f, 255.0f, Grey);
+
+	      Texel = SRGB255ToLinear1(Texel);
+	      Texel.rgb = V3MulS(Texel.a, Texel.rgb);
+	      Texel = Linear1ToSRGB255(Texel);
+	      
+	      *Dest++ = (((u32)(Texel.a + 0.5f) << 24) |
+			 ((u32)(Texel.r + 0.5f) << 16) |
+			 ((u32)(Texel.g + 0.5f) << 8)  |
+			 ((u32)(Texel.b + 0.5f) << 0));
+	      
 	    }
 	  
 	  DestRow -= Result.Pitch;
 	}
 
       Asset->Bitmap.AlignPercentage[0] = 1.0f / (r32)Result.Width;
-      Asset->Bitmap.AlignPercentage[1] = 0.5f;
+      Asset->Bitmap.AlignPercentage[1] = (1.0f + (MaxY - (BoundHeight - Font->descent))) / (r32)Result.Height;
     }
     
 #else  
