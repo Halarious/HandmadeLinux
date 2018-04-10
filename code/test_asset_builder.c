@@ -1,9 +1,16 @@
 #include "test_asset_builder.h"
 
-#define USE_FONTS_FROM_LINUX 0
+#define USE_FONTS_FROM_LINUX 1
+#if USE_FONTS_FROM_LINUX
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
-#if USE_FONTS_FROM_LINUX
+
+#define USE_FTLIB 1
+#if USE_FTLIB
+#undef internal
+#include <X11/Xft/Xft.h>
+#endif
+#define internal static
 
 #else
 #define STB_TRUETYPE_IMPLEMENTATION 1
@@ -374,7 +381,8 @@ LoadBMP(char* Filename)
 }
 
 internal loaded_bitmap
-LoadGlyphBitmap(char* Filename, char* Fontname, u32 Codepoint)
+LoadGlyphBitmap(char* Filename, char* Fontname, u32 Codepoint,
+		hha_asset* Asset)
 {
   loaded_bitmap Result = {};
 
@@ -390,11 +398,52 @@ LoadGlyphBitmap(char* Filename, char* Fontname, u32 Codepoint)
 				DefaultDepth(Display, Screen));
 
   XSetBackground(Display, GraphicsContext, BlackPixel(Display, Screen));
-  
-  XFontStruct* FontStruct = XLoadQueryFont( Display, Fontname);
-  
+
   wchar_t CheesePoint  = (wchar_t) Codepoint;
-  XChar2b XCheesePoint = {Codepoint << 8, Codepoint };
+
+  int FudgeX = 10;
+  int FudgeY = 10;
+
+#if USE_FTLIB
+  XftFont* Font = XftFontOpen(Display,
+			      Screen,
+			      XFT_FAMILY,     XftTypeString, "Liberation Serif",
+			      XFT_PIXEL_SIZE, XftTypeDouble, 80.0,
+			      XFT_ANTIALIAS,  XftTypeBool, true,
+			      NULL);
+
+  XftDraw* Bitmap = XftDrawCreate(Display, Pixmap,
+				  DefaultVisual(Display, Screen),
+				  DefaultColormap(Display, Screen));
+  
+  XftChar16 XftCheesePoint = (XftChar16) Codepoint;
+
+  XGlyphInfo XftCharInfo;
+  XftTextExtents16(Display, Font, &XftCheesePoint, 1, &XftCharInfo);
+
+  int Width  = XftCharInfo.width  + 0;
+  //TODO: Figure out why this +1 has to be here 
+  int Height = XftCharInfo.height + 1;
+  
+  XftColor XBackgroundColor = {BlackPixel(Display, Screen), {0x0, 0x0, 0x0, 0xffff} };
+  XftColor XForegroundColor = {WhitePixel(Display, Screen), {0xffff, 0xffff, 0xffff, 0xffff} };
+  
+  XftDrawRect    (Bitmap, &XBackgroundColor,
+		  FudgeX - 1,
+		  FudgeY - 1,
+		  Width + 1, Height + 1);
+  XftDrawString16(Bitmap, &XForegroundColor, Font,
+		  FudgeX + XftCharInfo.x,
+		  FudgeY + XftCharInfo.y,
+		  &XftCheesePoint, 1);
+
+  XftDrawDestroy(Bitmap);
+  XftFontClose(Display, Font);
+#else    
+  XFontStruct* FontStruct = XLoadQueryFont(Display, Fontname);
+  XSetFont(Display, GraphicsContext, FontStruct->fid);
+
+  XChar2b XCheesePoint = {(u8)(Codepoint << 8), (u8) Codepoint };
   
   int Dir, Asc, Dsc;
   XCharStruct CharInfo;
@@ -404,26 +453,30 @@ LoadGlyphBitmap(char* Filename, char* Fontname, u32 Codepoint)
 		 &Dsc,
 		 &CharInfo);
   
-  int Height = CharInfo.ascent + CharInfo.descent + 1;
-  int Width  = CharInfo.width;
+  int Height = CharInfo.ascent   + CharInfo.descent + 1;
+  int Width  = CharInfo.rbearing - CharInfo.lbearing + 1;
   
   XSetForeground(Display, GraphicsContext, BlackPixel(Display, Screen));  
-  XFillRectangle(Display, Pixmap, GraphicsContext, 0, 0, Width, Height);
+  XFillRectangle(Display, Pixmap, GraphicsContext, FudgeX, FudgeY, Width, Height);
 
   XSetForeground(Display, GraphicsContext, WhitePixel(Display, Screen));
   XDrawImageString16(Display, Pixmap, GraphicsContext,
-		     FontStruct->max_bounds.lbearing + 0, //NOTE: For some reason Xlib ALWAYS draws chars 1 pixel to the left?
-		     Asc - (Asc - CharInfo.ascent) + 0,
+		     -CharInfo.lbearing            + FudgeX,
+		     Asc - (Asc - CharInfo.ascent) + FudgeY + 1,
 		     &XCheesePoint, 1);
 
+  XUnloadFont(Display, FontStruct->fid);
+
+#endif
+  
   XImage* GlyphMemory = XGetImage(Display, Pixmap,
-				  0,
-				  0,
-				  Width,
-				  Height,
-				  0xffffffffffffffffL,
+				  FudgeX - 1,
+				  FudgeY - 1,
+				  Width  + 1,
+				  Height + 1,
+				  AllPlanes,
 				  ZPixmap);
-#if 1
+
   s32 MinX = 10000;
   s32 MinY = 10000;
   s32 MaxX = -10000;
@@ -465,18 +518,12 @@ LoadGlyphBitmap(char* Filename, char* Fontname, u32 Codepoint)
     }   
 
   if(MinX <= MaxX)
-#else
-    u32 MinX = 0;
-  u32 MinY = 0;
-  u32 MaxX = Width;
-  u32 MaxY = Height;
-#endif
     {
-  --MinX;
-  --MinY;
-  ++MaxX;
-  ++MaxY;
-  
+      --MinX;
+      --MinY;
+      ++MaxX;
+      ++MaxY;
+      
       Width  = (MaxX - MinX) + 1;
       Height = (MaxY - MinY) + 1;
       
@@ -486,6 +533,8 @@ LoadGlyphBitmap(char* Filename, char* Fontname, u32 Codepoint)
       Result.Memory = malloc(Height * Result.Pitch);
       Result.Free   = Result.Memory;
 
+      memset(Result.Memory, 0, Height * Result.Pitch);
+      
       u8* DestRow = (u8*)Result.Memory + (Height - 1)*Result.Pitch;
       for(s32 Y = MinY;
 	  Y < MaxY;
@@ -498,7 +547,7 @@ LoadGlyphBitmap(char* Filename, char* Fontname, u32 Codepoint)
 	    {
 	      unsigned long Pixel = XGetPixel(GlyphMemory, X, Y);
 	      u8 Grey  = (u8)(Pixel & 0xFF);
-	      u8 Alpha = 0xFF;
+	      u8 Alpha = Grey;
 	      *Dest++ = ((Alpha << 24) |
 			 (Grey << 16) |
 			 (Grey <<  8) |
@@ -507,9 +556,11 @@ LoadGlyphBitmap(char* Filename, char* Fontname, u32 Codepoint)
 	  
 	  DestRow -= Result.Pitch;
 	}
-    }  
 
-    XUnloadFont(Display, FontStruct->fid);
+      Asset->Bitmap.AlignPercentage[0] = 1.0f / (r32)Result.Width;
+      Asset->Bitmap.AlignPercentage[1] = 0.5f;
+    }
+    
 #else  
 
   entire_file TTFFile = ReadEntireFile(Filename);
@@ -519,7 +570,7 @@ LoadGlyphBitmap(char* Filename, char* Fontname, u32 Codepoint)
       stbtt_InitFont(&Font, (u8*)TTFFile.Contents, stbtt_GetFontOffsetForIndex((u8*)TTFFile.Contents, 0));
       
       int Width, Height, XOffset, YOffset;
-      u8* MonoBitmap = stbtt_GetCodepointBitmap(&Font, 0, stbtt_ScaleForPixelHeight(&Font, 128.0f),
+      u8* MonoBitmap = stbtt_GetCodepointBitmap(&Font, 0, stbtt_ScaleForPixelHeight(&Font, 64.0f),
 						Codepoint, &Width, &Height, &XOffset, &YOffset);
 
       Result.Width  = Width;
@@ -713,7 +764,9 @@ WriteHHA(assets* Assets, char* Filename)
 	      loaded_bitmap Bitmap;
 	      if(Source->Type == AssetType_Font)
 		{
-		  Bitmap = LoadGlyphBitmap(Source->Filename, Source->Fontname, Source->Codepoint);
+		  Bitmap = LoadGlyphBitmap(Source->Filename,
+					   Source->Fontname,
+					   Source->Codepoint, Dest);
 		}
 	      else
 		{
@@ -723,7 +776,7 @@ WriteHHA(assets* Assets, char* Filename)
 	      
 	      Dest->Bitmap.Dim[0] = Bitmap.Width;
 	      Dest->Bitmap.Dim[1] = Bitmap.Height;
-
+	      	      
 	      Assert((Bitmap.Width*4) == Bitmap.Pitch);
 	      fwrite(Bitmap.Memory, Bitmap.Width*Bitmap.Height*4, 1, Out);
 	      
@@ -865,6 +918,7 @@ WriteNonHero()
     {
       AddCharacterAsset(Assets, "/usr/share/fonts/TTF/LiberationSans-Regular.ttf", "-misc-liberation serif-medium-r-normal--0-0-0-0-p-0-ascii-0", Character, 0.5f, 0.5f);
       //AddCharacterAsset(Assets, "/usr/share/fonts/TTF/LiberationSans-Regular.ttf", "-adobe-courier-medium-o-normal--0-0-75-75-m-0-iso8859-1", Character, 0.5f, 0.5f);
+      //AddCharacterAsset(Assets, "/usr/share/fonts/TTF/times.ttf", "-adobe-times-medium-r-normal--0-0-75-75-p-0-iso8859-1", Character, 0.5f, 0.5f);
       AddTag(Assets, Tag_UnicodeCodepoint, (r32)Character);
     }
   EndAssetType(Assets);

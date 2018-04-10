@@ -186,6 +186,15 @@ GetBitmap(assets* Assets, bitmap_id ID, u32 GenerationID)
   return(Result);
 }
 
+internal inline hha_bitmap*
+GetBitmapInfo(assets* Assets, bitmap_id ID)
+{
+  Assert(ID.Value <= Assets->AssetCount);
+  
+  hha_bitmap* Result = &Assets->Assets[ID.Value].HHA.Bitmap;
+  return(Result);
+}
+
 internal inline loaded_sound*
 GetSound(assets* Assets, sound_id ID, u32 GenerationID)
 {

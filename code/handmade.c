@@ -38,6 +38,9 @@
   bit more with extracting fonts through X because it's not really amazing
   now. But for the future we will just switch to stb_truetype to not waste
   time, this is more of a homework type situation
+
+- Day 169 continues the Win path for fonts in the test asset builder,
+  and the stb path may be addressed later?
  */
 
 #include "handmade.h"
@@ -697,7 +700,7 @@ global_variable r32 FontScale;
 internal void
 DEBUGReset(u32 Width, u32 Height)
 {
-  FontScale = 20.0f;
+  FontScale = 1.0f;
   Orthographic(DEBUGRenderGroup, Width, Height, 1.0f);
   
   AtY =  0.5f * (r32)Height - 0.5f*FontScale;
@@ -715,28 +718,59 @@ DEBUGTextLine(char* String)
       asset_vector WeightVector = {};
       WeightVector.E[Tag_UnicodeCodepoint] = 1.0f;
 
+      r32 CharScale = FontScale;
+      v4 Color = V4(1.0f, 1.0, 1.0f, 1.0f);
       r32 AtX = LeftEdge;
       for(char* At = String;
-	  *At;
-	  ++At)
+	  *At;)
 	{
-	  if(*At != ' ')
+	  if( (At[0] == '\\') &&
+	      (At[1] == '#')  &&
+	      (At[2] != 0)    &&
+	      (At[3] != 0)    &&
+	      (At[4] != 0))
 	    {
-	      MatchVector.E[Tag_UnicodeCodepoint]  = *At;
-
-	      bitmap_id BitmapID
-		= GetBestMatchBitmapFrom(RenderGroup->Assets,
-					 Asset_Font,
-					 &MatchVector, &WeightVector);
-
-	      PushBitmapByID(RenderGroup, BitmapID,
-			     V3(AtX, AtY, 0.0f),
-			     FontScale,
-			     V4(1.0f, 1.0, 1.0f, 1.0f));
+	      r32 CScale = 1.0f / 9.0f;
+	      Color = V4(Clamp01(CScale * (r32)(At[2] - '0')),
+			 Clamp01(CScale * (r32)(At[3] - '0')),
+			 Clamp01(CScale * (r32)(At[4] - '0')),
+			 1.0f);
+	      At += 5;
 	    }
-	  AtX += FontScale;
+	  else if( (At[0] == '\\') &&
+		   (At[1] == '^')  &&
+		   (At[2] != 0))
+	    {
+	      r32 CScale = 1.0f / 9.0f;
+	      CharScale = FontScale * Clamp01(CScale * (r32)(At[2] - '0'));
+	      At += 3;
+	    }
+	  else
+	    {
+	      r32 CharDim = CharScale * 10.0f;
+	      if(*At != ' ')
+		{
+		  MatchVector.E[Tag_UnicodeCodepoint]  = *At;
+	      
+		  bitmap_id BitmapID
+		    = GetBestMatchBitmapFrom(RenderGroup->Assets,
+					     Asset_Font,
+					     &MatchVector, &WeightVector);
+		  
+		  hha_bitmap* Info = GetBitmapInfo(RenderGroup->Assets, BitmapID);
+
+		  CharDim = CharScale * (r32)Info->Dim[0];
+		  PushBitmapByID(RenderGroup, BitmapID,
+				 V3(AtX + 50, AtY - 50, 0.0f),
+				 CharScale * (r32)Info->Dim[1],
+				 Color);
+		}
+	      AtX += CharDim;
+
+	      ++At;
+	    }
 	}
-      AtY -= 1.2f*FontScale;
+      AtY -= 1.2f*80.0f*FontScale;
     }
 }
 
@@ -753,7 +787,7 @@ OverlayCycleCounters(memory* Memory)
     };
   
 #if HANDMADE_INTERNAL
-  DEBUGTextLine("DEBUG CYCLE COUNTS: ");
+  DEBUGTextLine("\\#900DEBUG \\#090CYCLE \\#990\\^5COUNTS: ");
   for(s32 CounterIndex = 0;
       CounterIndex < ArrayCount(Memory->Counters);
       ++CounterIndex)
@@ -1651,7 +1685,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		      }
 		    
 		    PushBitmapByID(RenderGroup, Particle->BitmapID,
-				   Particle->P, 0.4f, Color);
+				   Particle->P, 1.0f, Color);
 		  }
 		
 	      } break;
