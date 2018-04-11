@@ -8,6 +8,13 @@ typedef struct
 
 typedef struct
 {
+  bitmap_id* CodePoints;
+  r32* HorizontalAdvance;
+
+} loaded_font;
+
+typedef struct
+{
   r32 E[Tag_Count];
 } asset_vector;
 
@@ -43,6 +50,7 @@ struct asset_memory_header
   {
     loaded_bitmap Bitmap;
     loaded_sound Sound;
+    loaded_font Font;
   };
 };
 
@@ -210,6 +218,24 @@ GetSoundInfo(assets* Assets, sound_id ID)
   Assert(ID.Value <= Assets->AssetCount);
   
   hha_sound* Result = &Assets->Assets[ID.Value].HHA.Sound;
+  return(Result);
+}
+
+internal inline loaded_font*
+GetFont(assets* Assets, font_id ID, u32 GenerationID)
+{
+  asset_memory_header* Header = GetAsset(Assets, ID.Value, GenerationID);
+  loaded_font* Result = Header ? &Header->Font : 0;
+
+  return(Result);
+}
+
+internal inline hha_font*
+GetFontInfo(assets* Assets, font_id ID)
+{
+  Assert(ID.Value <= Assets->AssetCount);
+  
+  hha_font* Result = &Assets->Assets[ID.Value].HHA.Font;
   return(Result);
 }
 

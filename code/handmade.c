@@ -717,60 +717,69 @@ DEBUGTextLine(char* String)
       asset_vector MatchVector  = {};
       asset_vector WeightVector = {};
       WeightVector.E[Tag_UnicodeCodepoint] = 1.0f;
+      font_id FontID
+	= GetBestMatchFontFrom(RenderGroup->Assets,
+			       Asset_Font,
+			       &MatchVector, &WeightVector);
+      loaded_font* Font = GetFont(RenderGroup->Assets, FontID,
+				  RenderGroup->GenerationID);
 
-      r32 CharScale = FontScale;
-      v4 Color = V4(1.0f, 1.0, 1.0f, 1.0f);
-      r32 AtX = LeftEdge;
-      for(char* At = String;
-	  *At;)
+      if(Font)
 	{
-	  if( (At[0] == '\\') &&
-	      (At[1] == '#')  &&
-	      (At[2] != 0)    &&
-	      (At[3] != 0)    &&
-	      (At[4] != 0))
+	  hha_font* Info = GetFontInfo(RenderGroup->Assets, FontID);
+
+	  u32 PrevCodePoint = 0;
+	  r32 CharScale = FontScale;
+	  v4 Color = V4(1.0f, 1.0, 1.0f, 1.0f);
+	  r32 AtX = LeftEdge;
+	  for(char* At = String;
+	      *At;)
 	    {
-	      r32 CScale = 1.0f / 9.0f;
-	      Color = V4(Clamp01(CScale * (r32)(At[2] - '0')),
-			 Clamp01(CScale * (r32)(At[3] - '0')),
-			 Clamp01(CScale * (r32)(At[4] - '0')),
-			 1.0f);
-	      At += 5;
-	    }
-	  else if( (At[0] == '\\') &&
-		   (At[1] == '^')  &&
-		   (At[2] != 0))
-	    {
-	      r32 CScale = 1.0f / 9.0f;
-	      CharScale = FontScale * Clamp01(CScale * (r32)(At[2] - '0'));
-	      At += 3;
-	    }
-	  else
-	    {
-	      r32 CharDim = CharScale * 10.0f;
-	      if(*At != ' ')
+	      if( (At[0] == '\\') &&
+		  (At[1] == '#')  &&
+		  (At[2] != 0)    &&
+		  (At[3] != 0)    &&
+		  (At[4] != 0))
 		{
-		  MatchVector.E[Tag_UnicodeCodepoint]  = *At;
-	      
-		  bitmap_id BitmapID
-		    = GetBestMatchBitmapFrom(RenderGroup->Assets,
-					     Asset_Font,
-					     &MatchVector, &WeightVector);
-		  
-		  hha_bitmap* Info = GetBitmapInfo(RenderGroup->Assets, BitmapID);
-
-		  CharDim = CharScale * ((r32)Info->Dim[0] + 2);
-		  PushBitmapByID(RenderGroup, BitmapID,
-				 V3(AtX, AtY, 0.0f),
-				 CharScale * (r32)Info->Dim[1],
-				 Color);
+		  r32 CScale = 1.0f / 9.0f;
+		  Color = V4(Clamp01(CScale * (r32)(At[2] - '0')),
+			     Clamp01(CScale * (r32)(At[3] - '0')),
+			     Clamp01(CScale * (r32)(At[4] - '0')),
+			     1.0f);
+		  At += 5;
 		}
-	      AtX += CharDim;
+	      else if( (At[0] == '\\') &&
+		       (At[1] == '^')  &&
+		       (At[2] != 0))
+		{
+		  r32 CScale = 1.0f / 9.0f;
+		  CharScale = FontScale * Clamp01(CScale * (r32)(At[2] - '0'));
+		  At += 3;
+		}
+	      else
+		{
+		  u32 CodePoint = *At;
+		  r32 AdvanceX = CharScale * GetHorizontalAdvanceForPair(Info, Font, PrevCodePoint, CodePoint);
+		  AtX += AdvanceX;
 
-	      ++At;
+		  if(CodePoint != ' ')
+		    {
+		      bitmap_id BitmapID = GetBitmapForGlyph(RenderGroup->Assets, Info, Font, CodePoint);
+		      hha_bitmap* Info = GetBitmapInfo(RenderGroup->Assets, BitmapID);
+
+		      PushBitmapByID(RenderGroup, BitmapID,
+				     V3(AtX, AtY, 0.0f),
+				     CharScale * (r32)Info->Dim[1],
+				     Color);
+		    }
+	      
+		  PrevCodePoint = CodePoint;
+		  ++At;
+		}
 	    }
+
+	  AtY -= GetLineAdvanceFor(Info, Font)*FontScale;
 	}
-      AtY -= 1.2f*80.0f*FontScale;
     }
 }
 
@@ -1537,7 +1546,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		PushBitmapByID(RenderGroup, HeroBitmaps.Cape,  V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 		PushBitmapByID(RenderGroup, HeroBitmaps.Head,  V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));	
 		DrawHitpoints(Entity, RenderGroup);
-
+#if 0
 		for(u32 ParticleSpawnIndex = 0;
 		    ParticleSpawnIndex < 1;
 		    ++ParticleSpawnIndex)
@@ -1561,8 +1570,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		    asset_vector WeightVector = {};
 
 		    char Nothings[] = "NOTHINGS";
-		    //char Nothings[] = "A";
-		    
+		    		    
 		    MatchVector.E[Tag_UnicodeCodepoint]  = (r32) Nothings[RandomChoice(&State->EffectsEntropy, ArrayCount(Nothings) - 1)];
 		    WeightVector.E[Tag_UnicodeCodepoint] = 1.0f;
 
@@ -1687,7 +1695,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		    PushBitmapByID(RenderGroup, Particle->BitmapID,
 				   Particle->P, 1.0f, Color);
 		  }
-		
+#endif
 	      } break;
 
 	    case EntityType_Wall:

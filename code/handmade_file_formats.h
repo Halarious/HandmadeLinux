@@ -27,6 +27,7 @@ typedef enum
     Asset_Torso,
 
     Asset_Font,
+    Asset_FontGlyph,
     
     Asset_Bloop,
     Asset_Crack,
@@ -51,6 +52,11 @@ typedef struct
 {
   u32 Value;
 } sound_id;
+
+typedef struct
+{
+  u32 Value;
+} font_id;
 
 typedef struct
 {
@@ -104,6 +110,12 @@ typedef struct
 
 typedef struct
 {
+  u32 CodePointCount;
+  r32 LineAdvance;
+} hha_font;
+
+typedef struct
+{
   u64 DataOffset;
   u32 FirstTagIndex;
   u32 OnePastLastTagIndex;
@@ -111,6 +123,7 @@ typedef struct
   {
     hha_bitmap Bitmap;
     hha_sound Sound;
+    hha_font Font;
   };
 } hha_asset; 
 
