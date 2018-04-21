@@ -5,6 +5,14 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 
+#define MAX_FONT_WIDTH  1024
+#define MAX_FONT_HEIGHT 1024
+
+global_variable Display* OpenDisplay = 0;
+global_variable Pixmap   FontPixmap;
+global_variable int      DefaultScreen;
+global_variable GC       DefaultGC;
+
 #define USE_FTLIB 1
 #if USE_FTLIB
 #undef internal
@@ -91,6 +99,16 @@ typedef struct
 
   void* Free;
 } loaded_bitmap;
+
+struct loaded_font
+{
+  XftFont* Linux32Handle;
+  u32 CodePointCount;
+  r32 LineAdvance;
+
+  bitmap_id* BitmapIDs;
+  r32* HorizontalAdvance;
+};
 
 typedef struct
 {
@@ -381,72 +399,97 @@ LoadBMP(char* Filename)
   return(Result);
 }
 
+internal loaded_font*
+LoadFont(char* FileName, char* FontName, u32 CodePointCount)
+{
+  loaded_font* Result = (loaded_font*) malloc(sizeof(loaded_font));
+
+  Result->Linux32Handle = XftFontOpen(OpenDisplay,
+				      DefaultScreen(OpenDisplay),
+				      XFT_FAMILY,     XftTypeString, "Liberation Serif",
+				      XFT_PIXEL_SIZE, XftTypeDouble, 128.0,
+				      XFT_ANTIALIAS,  XftTypeBool, true,
+				      NULL);
+  
+  Result->LineAdvance = (r32)Result->Linux32Handle->height;
+  Result->CodePointCount = CodePointCount;
+  Result->BitmapIDs = (bitmap_id*) malloc(sizeof(bitmap_id) * CodePointCount);
+  Result->HorizontalAdvance = (r32*) malloc(sizeof(r32) * CodePointCount * CodePointCount);
+  
+  return(Result);
+}
+
+internal void
+FreeFont(loaded_font* Font)
+{
+  free(Font);
+  //TODO: Implement this for both paths 
+
+}
+
+internal void
+InitializeFontContext()
+{
+  OpenDisplay = XOpenDisplay(0);
+
+  DefaultScreen = DefaultScreen(OpenDisplay);
+  DefaultGC     = DefaultGC(OpenDisplay, DefaultScreen);
+      
+  FontPixmap = XCreatePixmap(OpenDisplay,
+			     DefaultRootWindow(OpenDisplay),
+			     MAX_FONT_WIDTH,
+			     MAX_FONT_HEIGHT,
+			     DefaultDepth(OpenDisplay, DefaultScreen));
+
+  XSetBackground(OpenDisplay, DefaultGC, BlackPixel(OpenDisplay, DefaultScreen));
+}
+
 internal loaded_bitmap
-LoadGlyphBitmap(char* Filename, char* Fontname, u32 Codepoint,
+LoadGlyphBitmap(loaded_font* Font, u32 CodePoint,
 		hha_asset* Asset)
 {
   loaded_bitmap Result = {};
 
 #if USE_FONTS_FROM_LINUX
-  Display* Display = XOpenDisplay(0);
-  int Screen = DefaultScreen(Display);
-  GC GraphicsContext = DefaultGC(Display, Screen);
-
-  int MaxWidth  = 1024;
-  int MaxHeight = 1024;
-  Pixmap Pixmap = XCreatePixmap(Display,
-				DefaultRootWindow(Display),
-				MaxWidth,
-				MaxHeight,
-				DefaultDepth(Display, Screen));
-
-  XSetBackground(Display, GraphicsContext, BlackPixel(Display, Screen));
-
-  wchar_t CheesePoint  = (wchar_t) Codepoint;
 
   int FudgeX = 10;
   int FudgeY = 10;
 
-#if USE_FTLIB
-  XftFont* Font = XftFontOpen(Display,
-			      Screen,
-			      XFT_FAMILY,     XftTypeString, "Liberation Serif",
-			      XFT_PIXEL_SIZE, XftTypeDouble, 128.0,
-			      XFT_ANTIALIAS,  XftTypeBool, true,
-			      NULL);
+  wchar_t CheesePoint  = (wchar_t) CodePoint;
 
-  XftDraw* Bitmap = XftDrawCreate(Display, Pixmap,
-				  DefaultVisual(Display, Screen),
-				  DefaultColormap(Display, Screen));
+#if USE_FTLIB
+
+  XftDraw* Bitmap = XftDrawCreate(OpenDisplay, FontPixmap,
+				  DefaultVisual(OpenDisplay, DefaultScreen),
+				  DefaultColormap(OpenDisplay, DefaultScreen));
   
-  XftChar16 XftCheesePoint = (XftChar16) Codepoint;
+  XftChar16 XftCheesePoint = (XftChar16) CodePoint;
 
   XGlyphInfo XftCharInfo;
-  XftTextExtents16(Display, Font, &XftCheesePoint, 1, &XftCharInfo);
+  XftTextExtents16(OpenDisplay, Font->Linux32Handle, &XftCheesePoint, 1, &XftCharInfo);
 
   int BoundWidth  = XftCharInfo.width  + 0;
   //TODO: Figure out why this +1 has to be here 
   int BoundHeight = XftCharInfo.height + 0;
   
-  XftColor XBackgroundColor = {BlackPixel(Display, Screen), {0x0, 0x0, 0x0, 0xffff} };
-  XftColor XForegroundColor = {WhitePixel(Display, Screen), {0xffff, 0xffff, 0xffff, 0xffff} };
+  XftColor XBackgroundColor = {BlackPixel(OpenDisplay, DefaultScreen), {0x0, 0x0, 0x0, 0xffff} };
+  XftColor XForegroundColor = {WhitePixel(OpenDisplay, DefaultScreen), {0xffff, 0xffff, 0xffff, 0xffff} };
   
   XftDrawRect    (Bitmap, &XBackgroundColor,
 		  0,
 		  0,
-		  MaxWidth, MaxHeight);
-  XftDrawString16(Bitmap, &XForegroundColor, Font,
+		  MAX_FONT_WIDTH, MAX_FONT_HEIGHT);
+  XftDrawString16(Bitmap, &XForegroundColor, Font->Linux32Handle,
 		  FudgeX + XftCharInfo.x,
 		  FudgeY + XftCharInfo.y,
 		  &XftCheesePoint, 1);
 
   XftDrawDestroy(Bitmap);
-  XftFontClose(Display, Font);
 #else    
   XFontStruct* FontStruct = XLoadQueryFont(Display, Fontname);
   XSetFont(Display, GraphicsContext, FontStruct->fid);
 
-  XChar2b XCheesePoint = {(u8)(Codepoint << 8), (u8) Codepoint };
+  XChar2b XCheesePoint = {(u8)(CodePoint << 8), (u8) CodePoint };
   
   int Dir, Asc, Dsc;
   XCharStruct CharInfo;
@@ -472,7 +515,7 @@ LoadGlyphBitmap(char* Filename, char* Fontname, u32 Codepoint,
 
 #endif
   
-  XImage* GlyphMemory = XGetImage(Display, Pixmap,
+  XImage* GlyphMemory = XGetImage(OpenDisplay, FontPixmap,
 				  FudgeX,
 				  FudgeY,
 				  BoundWidth,
@@ -563,9 +606,16 @@ LoadGlyphBitmap(char* Filename, char* Fontname, u32 Codepoint,
 	}
 
       Asset->Bitmap.AlignPercentage[0] = 1.0f / (r32)Result.Width;
-      Asset->Bitmap.AlignPercentage[1] = (1.0f + (MaxY - (BoundHeight - Font->descent))) / (r32)Result.Height;
+      Asset->Bitmap.AlignPercentage[1] = (1.0f + (MaxY - (BoundHeight - Font->Linux32Handle->descent))) / (r32)Result.Height;
+
+      for(u32 OtherCodePointIndex = 0;
+	  OtherCodePointIndex < Font->CodePointCount;
+	  ++OtherCodePointIndex)
+	{
+	  Font->HorizontalAdvance[CodePoint*Font->CodePointCount + OtherCodePointIndex] = (r32)Result.Width;
+	}
     }
-    
+
 #else  
 
   entire_file TTFFile = ReadEntireFile(Filename);
@@ -576,7 +626,7 @@ LoadGlyphBitmap(char* Filename, char* Fontname, u32 Codepoint,
       
       int Width, Height, XOffset, YOffset;
       u8* MonoBitmap = stbtt_GetCodepointBitmap(&Font, 0, stbtt_ScaleForPixelHeight(&Font, 64.0f),
-						Codepoint, &Width, &Height, &XOffset, &YOffset);
+						CodePoint, &Width, &Height, &XOffset, &YOffset);
 
       Result.Width  = Width;
       Result.Height = Height;
@@ -622,72 +672,93 @@ BeginAssetType(assets* Assets, asset_type_id TypeID)
   Assets->DEBUGAssetType->OnePastLastAssetIndex = Assets->DEBUGAssetType->FirstAssetIndex;
 }
 
-internal bitmap_id
-AddBitmapAsset(assets* Assets, char* Filename, r32 AlignPercentageX, r32 AlignPercentageY)
+typedef struct
+{
+  u32 ID;
+  hha_asset* HHA;
+  asset_source* Source;
+} added_asset;
+
+internal added_asset
+AddAsset(assets* Assets)
 {
   Assert(Assets->DEBUGAssetType);
   Assert(Assets->DEBUGAssetType->OnePastLastAssetIndex < ArrayCount(Assets->Assets));
 
-  bitmap_id Result = {Assets->DEBUGAssetType->OnePastLastAssetIndex++};
-  asset_source* Source = Assets->AssetSources + Result.Value;
-  hha_asset* HHA = Assets->Assets + Result.Value;
+  u32 Index = Assets->DEBUGAssetType->OnePastLastAssetIndex++;
+  asset_source* Source = Assets->AssetSources + Index;
+  hha_asset* HHA = Assets->Assets + Index;
   HHA->FirstTagIndex = Assets->TagCount;
   HHA->OnePastLastTagIndex = HHA->FirstTagIndex;
-  HHA->Bitmap.AlignPercentage[0] = AlignPercentageX;
-  HHA->Bitmap.AlignPercentage[1] = AlignPercentageY;
 
-  Source->Type = AssetType_Bitmap;
-  Source->Filename = Filename;
+  Assets->AssetIndex = Index;
 
-  Assets->AssetIndex = Result.Value;
-  
+  added_asset Result;
+  Result.ID  = Index;
+  Result.HHA = HHA;
+  Result.Source = Source;
   return(Result);
 }
 
 internal bitmap_id
-AddCharacterAsset(assets* Assets, char* FontFile, char* Fontname, u32 Codepoint, r32 AlignPercentageX, r32 AlignPercentageY)
+AddBitmapAsset(assets* Assets, char* Filename, r32 AlignPercentageX, r32 AlignPercentageY)
 {
-  Assert(Assets->DEBUGAssetType);
-  Assert(Assets->DEBUGAssetType->OnePastLastAssetIndex < ArrayCount(Assets->Assets));
+  added_asset Asset = AddAsset(Assets);
 
-  bitmap_id Result = {Assets->DEBUGAssetType->OnePastLastAssetIndex++};
-  asset_source* Source = Assets->AssetSources + Result.Value;
-  hha_asset* HHA = Assets->Assets + Result.Value;
-  HHA->FirstTagIndex = Assets->TagCount;
-  HHA->OnePastLastTagIndex = HHA->FirstTagIndex;
-  HHA->Bitmap.AlignPercentage[0] = AlignPercentageX;
-  HHA->Bitmap.AlignPercentage[1] = AlignPercentageY;
+  Asset.HHA->Bitmap.AlignPercentage[0] = AlignPercentageX;
+  Asset.HHA->Bitmap.AlignPercentage[1] = AlignPercentageY;
 
-  Source->Type = AssetType_Font;
-  Source->Filename = FontFile;
-  Source->Codepoint = Codepoint;
-  Source->Fontname = Fontname;
+  Asset.Source->Type = AssetType_Bitmap;
+  Asset.Source->Bitmap.Filename = Filename;
 
-  Assets->AssetIndex = Result.Value;
-  
+  bitmap_id Result = {Asset.ID};
+  return(Result);
+}
+
+internal bitmap_id
+AddCharacterAsset(assets* Assets, loaded_font* Font, u32 CodePoint, r32 AlignPercentageX, r32 AlignPercentageY)
+{
+  added_asset Asset = AddAsset(Assets);
+
+  Asset.HHA->Bitmap.AlignPercentage[0] = AlignPercentageX;
+  Asset.HHA->Bitmap.AlignPercentage[1] = AlignPercentageY;
+
+  Asset.Source->Type = AssetType_Font;
+  Asset.Source->Glyph.Font = Font;
+  Asset.Source->Glyph.CodePoint = CodePoint;
+
+  bitmap_id Result = {Asset.ID};  
   return(Result);
 }
 
 internal sound_id
 AddSoundAsset(assets* Assets, char* Filename, u32 FirstSampleIndex, u32 SampleCount)
 {
-  Assert(Assets->DEBUGAssetType);
-  Assert(Assets->DEBUGAssetType->OnePastLastAssetIndex < ArrayCount(Assets->Assets));
+  added_asset Asset = AddAsset(Assets);
 
-  sound_id Result = {Assets->DEBUGAssetType->OnePastLastAssetIndex++};
-  asset_source* Source = Assets->AssetSources + Result.Value;
-  hha_asset* HHA = Assets->Assets + Result.Value;
-  HHA->FirstTagIndex = Assets->TagCount;
-  HHA->OnePastLastTagIndex = HHA->FirstTagIndex;
-  HHA->Sound.SampleCount = SampleCount;
-  HHA->Sound.Chain = HHASoundChain_None;
+  Asset.HHA->Sound.SampleCount = SampleCount;
+  Asset.HHA->Sound.Chain = HHASoundChain_None;
   
-  Source->Type = AssetType_Sound;
-  Source->Filename = Filename;
-  Source->FirstSampleIndex = FirstSampleIndex;
+  Asset.Source->Type = AssetType_Sound;
+  Asset.Source->Sound.Filename = Filename;
+  Asset.Source->Sound.FirstSampleIndex = FirstSampleIndex;
 
-  Assets->AssetIndex = Result.Value;
-    
+  sound_id Result = {Asset.ID};      
+  return(Result);
+}
+
+internal font_id
+AddFontAsset(assets* Assets, loaded_font* Font)
+{
+  added_asset Asset = AddAsset(Assets);
+
+  Asset.HHA->Font.CodePointCount = Font->CodePointCount;
+  Asset.HHA->Font.LineAdvance    = Font->LineAdvance;
+  
+  Asset.Source->Type = AssetType_Font;
+  Asset.Source->Font.Font = Font;
+
+  font_id Result = {Asset.ID};      
   return(Result);
 }
 
@@ -748,8 +819,8 @@ WriteHHA(assets* Assets, char* Filename)
 	  Dest->DataOffset = ftell(Out);
 	  if(Source->Type == AssetType_Sound)
 	    {
-	      loaded_sound WAV = LoadWAV(Source->Filename,
-					 Source->FirstSampleIndex,
+	      loaded_sound WAV = LoadWAV(Source->Sound.Filename,
+					 Source->Sound.FirstSampleIndex,
 					 Dest->Sound.SampleCount);
 	      
 	      Dest->Sound.SampleCount  = WAV.SampleCount;
@@ -764,19 +835,28 @@ WriteHHA(assets* Assets, char* Filename)
 	      	      
 	      free(WAV.Free);
 	    }
+	  else if(Source->Type == AssetType_Font)
+	    {
+	      loaded_font* Font = Source->Font.Font;
+	      u32 HorizontalAdvanceSize = sizeof(r32) * Font->CodePointCount* Font->CodePointCount;
+	      u32 CodePointsSize = Font->CodePointCount*sizeof(bitmap_id);
+
+	      fwrite(Font->BitmapIDs, CodePointsSize, 1, Out);
+	      fwrite(Font->HorizontalAdvance, HorizontalAdvanceSize, 1, Out);
+	    }
 	  else
 	    {
 	      loaded_bitmap Bitmap;
-	      if(Source->Type == AssetType_Font)
+	      if(Source->Type == AssetType_FontGlyph)
 		{
-		  Bitmap = LoadGlyphBitmap(Source->Filename,
-					   Source->Fontname,
-					   Source->Codepoint, Dest);
+		  Bitmap = LoadGlyphBitmap(Source->Glyph.Font,
+					   Source->Glyph.CodePoint,
+					   Dest);
 		}
 	      else
 		{
 		  Assert(Source->Type == AssetType_Bitmap);
-		  Bitmap = LoadBMP(Source->Filename);
+		  Bitmap = LoadBMP(Source->Bitmap.Filename);
 		}
 	      
 	      Dest->Bitmap.Dim[0] = Bitmap.Width;
@@ -914,17 +994,21 @@ WriteNonHero()
   AddSoundAsset(Assets, "../data/test3/bloop_03.wav", 0, 0);
   AddSoundAsset(Assets, "../data/test3/bloop_04.wav", 0, 0);
   EndAssetType(Assets);
+
+  loaded_font* DebugFont = LoadFont("/usr/share/fonts/TTF/LiberationSans-Regular.ttf", "-misc-liberation serif-medium-r-normal--0-0-0-0-p-0-ascii-0", ('~' + 1));
   
   BeginAssetType(Assets, Asset_Font);
+  AddFontAsset(Assets, DebugFont);
+  EndAssetType(Assets);
 
-  for(u32 Character = '!';
+  BeginAssetType(Assets, Asset_FontGlyph);
+    for(u32 Character = '!';
       Character <= '~';
       ++Character)
     {
-      AddCharacterAsset(Assets, "/usr/share/fonts/TTF/LiberationSans-Regular.ttf", "-misc-liberation serif-medium-r-normal--0-0-0-0-p-0-ascii-0", Character, 0.5f, 0.5f);
+      DebugFont->BitmapIDs[Character] = AddCharacterAsset(Assets, DebugFont, Character, 0.5f, 0.5f);
       //AddCharacterAsset(Assets, "/usr/share/fonts/TTF/LiberationSans-Regular.ttf", "-adobe-courier-medium-o-normal--0-0-75-75-m-0-iso8859-1", Character, 0.5f, 0.5f);
       //AddCharacterAsset(Assets, "/usr/share/fonts/TTF/times.ttf", "-adobe-times-medium-r-normal--0-0-75-75-p-0-iso8859-1", Character, 0.5f, 0.5f);
-      AddTag(Assets, Tag_UnicodeCodepoint, (r32)Character);
     }
   EndAssetType(Assets);
 
@@ -982,6 +1066,8 @@ WriteSounds()
 int
 main(int ArgC, char** Args)
 {
+  InitializeFontContext();
+  
   WriteNonHero();
   WriteHero();
   WriteSounds();

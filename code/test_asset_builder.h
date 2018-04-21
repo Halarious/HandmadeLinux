@@ -12,27 +12,43 @@ typedef enum
     AssetType_Sound,
     AssetType_Bitmap,
     AssetType_Font,
+    AssetType_FontGlyph,
   } asset_type;
+
+typedef struct loaded_font loaded_font;
+typedef struct
+{
+  loaded_font* Font;
+} asset_source_font;
+
+typedef struct
+{
+  loaded_font* Font;
+  u32 CodePoint;
+} asset_source_font_glyph;
+
+typedef struct
+{
+    char* Filename;
+}asset_source_bitmap;
+
+typedef struct
+{
+  char* Filename;
+  u32 FirstSampleIndex;
+} asset_source_sound;
 
 typedef struct
 {
   asset_type Type;
-  char* Filename;
   union
   {
-    u32 FirstSampleIndex;
-    u32 Codepoint;
+    asset_source_bitmap Bitmap;
+    asset_source_sound Sound;
+    asset_source_font Font;
+    asset_source_font_glyph Glyph;    
   };
-
-  char* Fontname;
 } asset_source;
-
-typedef struct
-{
-  char* Filename;
-  r32 Alignment[2];
-  
-} bitmap_asset;
 
 #define VERY_LARGE_NUMBER 4096
 

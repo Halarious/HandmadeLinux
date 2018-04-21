@@ -10,7 +10,7 @@ typedef struct
 {
   bitmap_id* CodePoints;
   r32* HorizontalAdvance;
-
+  u32 BitmapIDOffset;
 } loaded_font;
 
 typedef struct
@@ -71,6 +71,7 @@ typedef struct
   hha_asset_type* AssetTypeArray;
 
   u32 TagBase;
+  s32 FontBitmapIDOffset;
 } asset_file;
 
 typedef enum
