@@ -721,8 +721,7 @@ DEBUGTextLine(char* String)
 	= GetBestMatchFontFrom(RenderGroup->Assets,
 			       Asset_Font,
 			       &MatchVector, &WeightVector);
-      loaded_font* Font = GetFont(RenderGroup->Assets, FontID,
-				  RenderGroup->GenerationID);
+      loaded_font* Font = PushFont(RenderGroup, FontID);
 
       if(Font)
 	{
@@ -817,6 +816,7 @@ OverlayCycleCounters(memory* Memory)
 	}
     }
 #endif
+  DEBUGTextLine("AVA WA Ta");
 }
 
 #if HANDMADE_INTERNAL

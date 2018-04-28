@@ -17,6 +17,8 @@ global_variable GC       DefaultGC;
 #if USE_FTLIB
 #undef internal
 #include <X11/Xft/Xft.h>
+#include <freetype/freetype.h>
+#include <freetype/fttypes.h>
 #endif
 #define internal static
 
@@ -103,6 +105,7 @@ typedef struct
 struct loaded_font
 {
   XftFont* Linux32Handle;
+  FT_Face Metrics;
   u32 CodePointCount;
   r32 LineAdvance;
 
@@ -402,26 +405,75 @@ LoadBMP(char* Filename)
 internal loaded_font*
 LoadFont(char* FileName, char* FontName, u32 CodePointCount)
 {
-  loaded_font* Result = (loaded_font*) malloc(sizeof(loaded_font));
+  loaded_font* Font = (loaded_font*) malloc(sizeof(loaded_font));
 
-  Result->Linux32Handle = XftFontOpen(OpenDisplay,
+  Font->Linux32Handle = XftFontOpen(OpenDisplay,
 				      DefaultScreen(OpenDisplay),
-				      XFT_FAMILY,     XftTypeString, "Liberation Serif",
-				      XFT_PIXEL_SIZE, XftTypeDouble, 128.0,
+				      XFT_FAMILY,     XftTypeString, "Liberation Sans",
+				      XFT_PIXEL_SIZE, XftTypeDouble, 64.0,
 				      XFT_ANTIALIAS,  XftTypeBool, true,
 				      NULL);
+
+  Font->Metrics = XftLockFace(Font->Linux32Handle);
+
+  //NOTE: This gives us the same result as the height in the XftFont struct (but in 26.6 pixel format(?))
+  //u32 LineAdvance = FT_MulFix(Font->Metrics->height, Font->Metrics->size->metrics.x_scale ); 
   
-  Result->LineAdvance = (r32)Result->Linux32Handle->height;
-  Result->CodePointCount = CodePointCount;
-  Result->BitmapIDs = (bitmap_id*) malloc(sizeof(bitmap_id) * CodePointCount);
-  Result->HorizontalAdvance = (r32*) malloc(sizeof(r32) * CodePointCount * CodePointCount);
+  Font->LineAdvance = (r32)Font->Linux32Handle->height;
+  Font->CodePointCount = CodePointCount;
+  Font->BitmapIDs = (bitmap_id*) malloc(sizeof(bitmap_id) * CodePointCount);
+  Font->HorizontalAdvance = (r32*) malloc(sizeof(r32) * CodePointCount * CodePointCount);
   
-  return(Result);
+  for(u32 CodePointIndex = 0;
+      CodePointIndex < Font->CodePointCount;
+      ++CodePointIndex)
+    {
+#if USE_FTLIB
+      FT_UInt CodePoint = XftCharIndex(OpenDisplay, Font->Linux32Handle, CodePointIndex);
+      
+      XGlyphInfo XftCharInfo = {};
+      XftGlyphExtents(OpenDisplay, Font->Linux32Handle, &CodePoint, 1, &XftCharInfo);
+#else
+#endif
+      for(u32 OtherCodePointIndex = 0;
+	  OtherCodePointIndex < Font->CodePointCount;
+	  ++OtherCodePointIndex)
+	{
+	  Font->HorizontalAdvance[CodePointIndex*Font->CodePointCount + OtherCodePointIndex] = (r32)XftCharInfo.xOff;
+	}
+    }
+  
+  for(u32 CodePointIndex = 0;
+      CodePointIndex < Font->CodePointCount;
+      ++CodePointIndex)
+    {
+      FT_UInt CodePoint = XftCharIndex(OpenDisplay, Font->Linux32Handle, CodePointIndex);
+      for(u32 OtherCodePointIndex = 0;
+	  OtherCodePointIndex < Font->CodePointCount;
+	  ++OtherCodePointIndex)
+	{
+	  FT_UInt OtherCodePoint = XftCharIndex(OpenDisplay, Font->Linux32Handle, OtherCodePointIndex);
+#if 0
+	  Font->HorizontalAdvance[CodePointIndex*Font->CodePointCount + OtherCodePointIndex] = (r32)Font->Linux32Handle->max_advance_width;
+#else
+	  FT_Vector akerning = {};
+	  FT_Get_Kerning(Font->Metrics,
+			 (FT_UInt)CodePoint,
+			 (FT_UInt)OtherCodePoint,
+			 FT_KERNING_DEFAULT,
+			 &akerning );
+	  Font->HorizontalAdvance[CodePointIndex*Font->CodePointCount + OtherCodePointIndex] += (r32)(akerning.x / 64.0f);
+#endif
+	}
+    }
+  
+  return(Font);
 }
 
 internal void
 FreeFont(loaded_font* Font)
 {
+  XftUnlockFace(Font->Linux32Handle);
   free(Font);
   //TODO: Implement this for both paths 
 
@@ -452,13 +504,13 @@ LoadGlyphBitmap(loaded_font* Font, u32 CodePoint,
 
 #if USE_FONTS_FROM_LINUX
 
-  int FudgeX = 10;
-  int FudgeY = 10;
+  int FudgeX = 100;
+  int FudgeY = 100;
 
   wchar_t CheesePoint  = (wchar_t) CodePoint;
 
 #if USE_FTLIB
-
+  
   XftDraw* Bitmap = XftDrawCreate(OpenDisplay, FontPixmap,
 				  DefaultVisual(OpenDisplay, DefaultScreen),
 				  DefaultColormap(OpenDisplay, DefaultScreen));
@@ -468,16 +520,14 @@ LoadGlyphBitmap(loaded_font* Font, u32 CodePoint,
   XGlyphInfo XftCharInfo;
   XftTextExtents16(OpenDisplay, Font->Linux32Handle, &XftCheesePoint, 1, &XftCharInfo);
 
-  int BoundWidth  = XftCharInfo.width  + 0;
-  //TODO: Figure out why this +1 has to be here 
-  int BoundHeight = XftCharInfo.height + 0;
+  int BoundWidth  = XftCharInfo.width  + FudgeX;
+  int BoundHeight = XftCharInfo.height + FudgeY;
   
-  XftColor XBackgroundColor = {BlackPixel(OpenDisplay, DefaultScreen), {0x0, 0x0, 0x0, 0xffff} };
+  XftColor XBackgroundColor = {BlackPixel(OpenDisplay, DefaultScreen), {0x0, 0x0, 0x0, 0x0} };
   XftColor XForegroundColor = {WhitePixel(OpenDisplay, DefaultScreen), {0xffff, 0xffff, 0xffff, 0xffff} };
   
   XftDrawRect    (Bitmap, &XBackgroundColor,
-		  0,
-		  0,
+		  0, 0,
 		  MAX_FONT_WIDTH, MAX_FONT_HEIGHT);
   XftDrawString16(Bitmap, &XForegroundColor, Font->Linux32Handle,
 		  FudgeX + XftCharInfo.x,
@@ -516,8 +566,8 @@ LoadGlyphBitmap(loaded_font* Font, u32 CodePoint,
 #endif
   
   XImage* GlyphMemory = XGetImage(OpenDisplay, FontPixmap,
-				  FudgeX,
-				  FudgeY,
+				  0,
+				  0,
 				  BoundWidth,
 				  BoundHeight,
 				  AllPlanes,
@@ -571,19 +621,19 @@ LoadGlyphBitmap(loaded_font* Font, u32 CodePoint,
       Result.Width  = Width + 2;
       Result.Height = Height + 2;
       Result.Pitch  = Result.Width * BITMAP_BYTES_PER_PIXEL;
-      Result.Memory = malloc(Height * Result.Pitch);
+      Result.Memory = malloc(Result.Height * Result.Pitch);
       Result.Free   = Result.Memory;
 
-      memset(Result.Memory, 0, Height * Result.Pitch);
+      memset(Result.Memory, 0, Result.Height * Result.Pitch);
       
-      u8* DestRow = (u8*)Result.Memory + (Height - 1 - 1)*Result.Pitch;
+      u8* DestRow = (u8*)Result.Memory + (Result.Height - 1 - 1)*Result.Pitch;
       for(s32 Y = MinY;
-	  Y < MaxY;
+	  Y <= MaxY;
 	  ++Y)
 	{
 	  u32* Dest = (u32*) DestRow;
 	  for(s32 X = MinX;
-	      X < MaxX;
+	      X <= MaxX;
 	      ++X)
 	    {
 	      unsigned long Pixel = XGetPixel(GlyphMemory, X, Y);
@@ -604,16 +654,12 @@ LoadGlyphBitmap(loaded_font* Font, u32 CodePoint,
 	  
 	  DestRow -= Result.Pitch;
 	}
+    
+      Asset->Bitmap.AlignPercentage[0] = (1.0f + XftCharInfo.x) / (r32)Result.Width;
+      Asset->Bitmap.AlignPercentage[1] = (1.0f + (XftCharInfo.height - XftCharInfo.y)) / (r32)Result.Height;
+      //Asset->Bitmap.AlignPercentage[1] = (1.0f + (MaxY - (BoundHeight - Font->Linux32Handle->descent))) / (r32)Result.Height;
 
-      Asset->Bitmap.AlignPercentage[0] = 1.0f / (r32)Result.Width;
-      Asset->Bitmap.AlignPercentage[1] = (1.0f + (MaxY - (BoundHeight - Font->Linux32Handle->descent))) / (r32)Result.Height;
-
-      for(u32 OtherCodePointIndex = 0;
-	  OtherCodePointIndex < Font->CodePointCount;
-	  ++OtherCodePointIndex)
-	{
-	  Font->HorizontalAdvance[CodePoint*Font->CodePointCount + OtherCodePointIndex] = (r32)Result.Width;
-	}
+      u32 Break = 0;
     }
 
 #else  
@@ -720,10 +766,10 @@ AddCharacterAsset(assets* Assets, loaded_font* Font, u32 CodePoint, r32 AlignPer
 {
   added_asset Asset = AddAsset(Assets);
 
-  Asset.HHA->Bitmap.AlignPercentage[0] = AlignPercentageX;
-  Asset.HHA->Bitmap.AlignPercentage[1] = AlignPercentageY;
+  Asset.HHA->Bitmap.AlignPercentage[0] = 0.0f;
+  Asset.HHA->Bitmap.AlignPercentage[1] = 0.0f;
 
-  Asset.Source->Type = AssetType_Font;
+  Asset.Source->Type = AssetType_FontGlyph;
   Asset.Source->Glyph.Font = Font;
   Asset.Source->Glyph.CodePoint = CodePoint;
 
@@ -893,6 +939,34 @@ Initialize(assets* Assets)
 }
 
 internal void
+WriteFonts()
+{
+  assets Assets_;
+  assets* Assets = &Assets_;
+
+  Initialize(Assets);
+
+  loaded_font* DebugFont = LoadFont("/usr/share/fonts/TTF/LiberationSans-Regular.ttf", "-misc-liberation serif-medium-r-normal--0-0-0-0-p-0-ascii-0", ('~' + 1));
+  
+  BeginAssetType(Assets, Asset_Font);
+  AddFontAsset(Assets, DebugFont);
+  EndAssetType(Assets);
+
+  BeginAssetType(Assets, Asset_FontGlyph);
+    for(u32 Character = '!';
+      Character <= '~';
+      ++Character)
+    {
+      DebugFont->BitmapIDs[Character] = AddCharacterAsset(Assets, DebugFont, Character, 0.5f, 0.5f);
+      //AddCharacterAsset(Assets, "/usr/share/fonts/TTF/LiberationSans-Regular.ttf", "-adobe-courier-medium-o-normal--0-0-75-75-m-0-iso8859-1", Character, 0.5f, 0.5f);
+      //AddCharacterAsset(Assets, "/usr/share/fonts/TTF/times.ttf", "-adobe-times-medium-r-normal--0-0-75-75-p-0-iso8859-1", Character, 0.5f, 0.5f);
+    }
+  EndAssetType(Assets);
+
+  WriteHHA(Assets, "testfonts.hha");
+}
+
+internal void
 WriteHero()
 {
   assets Assets_;
@@ -987,31 +1061,6 @@ WriteNonHero()
   AddBitmapAsset(Assets, "../data/test2/tuft02.bmp", 0.5f, 0.5f);
   EndAssetType(Assets);
 
-  BeginAssetType(Assets, Asset_Bloop);
-  AddSoundAsset(Assets, "../data/test3/bloop_00.wav", 0, 0);
-  AddSoundAsset(Assets, "../data/test3/bloop_01.wav", 0, 0);
-  AddSoundAsset(Assets, "../data/test3/bloop_02.wav", 0, 0);
-  AddSoundAsset(Assets, "../data/test3/bloop_03.wav", 0, 0);
-  AddSoundAsset(Assets, "../data/test3/bloop_04.wav", 0, 0);
-  EndAssetType(Assets);
-
-  loaded_font* DebugFont = LoadFont("/usr/share/fonts/TTF/LiberationSans-Regular.ttf", "-misc-liberation serif-medium-r-normal--0-0-0-0-p-0-ascii-0", ('~' + 1));
-  
-  BeginAssetType(Assets, Asset_Font);
-  AddFontAsset(Assets, DebugFont);
-  EndAssetType(Assets);
-
-  BeginAssetType(Assets, Asset_FontGlyph);
-    for(u32 Character = '!';
-      Character <= '~';
-      ++Character)
-    {
-      DebugFont->BitmapIDs[Character] = AddCharacterAsset(Assets, DebugFont, Character, 0.5f, 0.5f);
-      //AddCharacterAsset(Assets, "/usr/share/fonts/TTF/LiberationSans-Regular.ttf", "-adobe-courier-medium-o-normal--0-0-75-75-m-0-iso8859-1", Character, 0.5f, 0.5f);
-      //AddCharacterAsset(Assets, "/usr/share/fonts/TTF/times.ttf", "-adobe-times-medium-r-normal--0-0-75-75-p-0-iso8859-1", Character, 0.5f, 0.5f);
-    }
-  EndAssetType(Assets);
-
   WriteHHA(Assets, "test2.hha");
 }
 
@@ -1022,7 +1071,15 @@ WriteSounds()
   assets* Assets = &Assets_;
 
   Initialize(Assets);
-    
+  
+  BeginAssetType(Assets, Asset_Bloop);
+  AddSoundAsset(Assets, "../data/test3/bloop_00.wav", 0, 0);
+  AddSoundAsset(Assets, "../data/test3/bloop_01.wav", 0, 0);
+  AddSoundAsset(Assets, "../data/test3/bloop_02.wav", 0, 0);
+  AddSoundAsset(Assets, "../data/test3/bloop_03.wav", 0, 0);
+  AddSoundAsset(Assets, "../data/test3/bloop_04.wav", 0, 0);
+  EndAssetType(Assets);
+
   BeginAssetType(Assets, Asset_Crack);
   AddSoundAsset(Assets, "../data/test3/crack_00.wav", 0, 0);
   EndAssetType(Assets);
@@ -1067,7 +1124,8 @@ int
 main(int ArgC, char** Args)
 {
   InitializeFontContext();
-  
+
+  WriteFonts();
   WriteNonHero();
   WriteHero();
   WriteSounds();
