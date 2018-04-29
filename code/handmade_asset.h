@@ -8,9 +8,10 @@ typedef struct
 
 typedef struct
 {
-  bitmap_id* CodePoints;
+  hha_font_glyph* Glyphs;
   r32* HorizontalAdvance;
   u32 BitmapIDOffset;
+  u16* UnicodeMap;
 } loaded_font;
 
 typedef struct

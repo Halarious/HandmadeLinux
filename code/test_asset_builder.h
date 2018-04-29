@@ -7,12 +7,13 @@
 #include "handmade_intrinsics.h"
 #include "handmade_math.h"
 
+#define ONE_PAST_MAX_FONT_CODEPOINT (0x10ffff + 1)
+
 #define USE_FONTS_FROM_LINUX 1
 #if USE_FONTS_FROM_LINUX
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 
-#define ONE_PAST_MAX_FONT_CODEPOINT (0x10ffff + 1)
 #define MAX_FONT_WIDTH  1024
 #define MAX_FONT_HEIGHT 1024
 
@@ -60,6 +61,7 @@ typedef struct
   u32 MaxGlyphCount;
   u32 GlyphCount;
 
+  u32 OnePastHighestCodePoint;
   u32* GlyphIndexFromCodePoint;
 } loaded_font;
 

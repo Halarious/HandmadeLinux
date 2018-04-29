@@ -155,6 +155,7 @@ SubArena(memory_arena* Result, memory_arena* Arena, memory_index Size, memory_in
 }
 
 #define ZeroStruct(Instance) ZeroSize(sizeof(Instance), &(Instance))
+#define ZeroArray(Count, Pointer) ZeroSize(Count*sizeof((Pointer)[0]), Pointer)
 internal inline void
 ZeroSize(memory_index Size, void *Ptr)
 {

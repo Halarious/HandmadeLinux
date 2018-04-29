@@ -385,6 +385,12 @@ LoadFont(char* FileName, char* FontName)
   size_t HorizontalAdvanceSize = sizeof(r32)*Font->MaxGlyphCount*Font->MaxGlyphCount;
   Font->HorizontalAdvance = (r32*) malloc(HorizontalAdvanceSize);
   memset(Font->HorizontalAdvance, 0, HorizontalAdvanceSize);
+
+  Font->OnePastHighestCodePoint = 0;
+  
+  Font->GlyphCount = 1;
+  Font->Glyphs[0].UnicodeCodePoint = 0;
+  Font->Glyphs[0].BitmapID.Value = 0;  
   
   return(Font);
 }
@@ -403,20 +409,22 @@ FinalizeFontKerning(loaded_font* Font)
 	  ++OtherCodePointIndex)
 	{
 	  u32 Second = Font->GlyphIndexFromCodePoint[OtherCodePointIndex];
-
-	  FT_UInt OtherCodePoint = XftCharIndex(OpenDisplay, Font->Linux32Handle, OtherCodePointIndex);
+	  if( (First != 0) && (Second != 0))
+	    {
+	      FT_UInt OtherCodePoint = XftCharIndex(OpenDisplay, Font->Linux32Handle, OtherCodePointIndex);
 #if 0
-	  Font->HorizontalAdvance[CodePointIndex*Font->MaxGlyphCount + OtherCodePointIndex] = (r32)Font->Linux32Handle->max_advance_width;
+	      Font->HorizontalAdvance[CodePointIndex*Font->MaxGlyphCount + OtherCodePointIndex] = (r32)Font->Linux32Handle->max_advance_width;
 #else
-	  FT_Vector akerning = {};
-	  FT_Get_Kerning(Font->Metrics,
-			 CodePoint,
-			 OtherCodePoint,
-			 FT_KERNING_DEFAULT,
-			 &akerning);
+	      FT_Vector akerning = {};
+	      FT_Get_Kerning(Font->Metrics,
+			     CodePoint,
+			     OtherCodePoint,
+			     FT_KERNING_DEFAULT,
+			     &akerning);
 
-	  Font->HorizontalAdvance[CodePointIndex*Font->MaxGlyphCount + OtherCodePointIndex] += (r32)(akerning.x / 64.0f);
+	      Font->HorizontalAdvance[CodePointIndex*Font->MaxGlyphCount + OtherCodePointIndex] += (r32)(akerning.x / 64.0f);
 #endif
+	    }
 	}
     }
 }
@@ -758,6 +766,11 @@ AddCharacterAsset(assets* Assets, loaded_font* Font, u32 CodePoint)
   Glyph->UnicodeCodePoint = CodePoint;
   Glyph->BitmapID = Result;
   Font->GlyphIndexFromCodePoint[CodePoint] = GlyphIndex;
+
+  if(Font->OnePastHighestCodePoint <= CodePoint)
+    {
+      Font->OnePastHighestCodePoint = CodePoint + 1;
+    }
   
   return(Result);
 }
@@ -784,10 +797,11 @@ AddFontAsset(assets* Assets, loaded_font* Font)
   added_asset Asset = AddAsset(Assets);
 
   Asset.HHA->Font.GlyphCount = Font->GlyphCount;
+  Asset.HHA->Font.OnePastHighestCodePoint = (r32)Font->OnePastHighestCodePoint;
   Asset.HHA->Font.AscenderHeight  = (r32)Font->Linux32Handle->ascent;
   Asset.HHA->Font.DescenderHeight = (r32)Font->Linux32Handle->descent;
   Asset.HHA->Font.ExternalLeading = (r32)Font->Linux32Handle->height - (Asset.HHA->Font.AscenderHeight + Asset.HHA->Font.DescenderHeight);
-  
+    
   Asset.Source->Type = AssetType_Font;
   Asset.Source->Font.Font = Font;
 

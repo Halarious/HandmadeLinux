@@ -110,6 +110,7 @@ typedef struct
 
 typedef struct
 {
+  u32 OnePastHighestCodePoint;
   u32 GlyphCount;
   r32 AscenderHeight;
   r32 DescenderHeight;

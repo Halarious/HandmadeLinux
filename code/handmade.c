@@ -723,6 +723,35 @@ DEBUGReset(assets* Assets, u32 Width, u32 Height)
   AtY = 0.5f * (r32)Height - FontScale*GetStartingBaselineY(Info);    
 }
 
+inline internal bool32
+IsHex(char Char)
+{
+  bool32 Result = (((Char >= '0') && (Char <= '9')) ||
+		   ((Char >= 'A') && (Char <= 'F')) ||
+		   ((Char >= 'a') && (Char <= 'f')));
+  return(Result);
+}
+
+inline internal bool32
+GetHex(char Char)
+{
+  u32 Result = 0;
+  if((Char >= '0') && (Char <= '9'))
+    {
+      Result = Char - '0';
+    }
+  else if ((Char >= 'A') && (Char <= 'F'))
+    {
+      Result = 0xa + (Char - 'A');
+    }
+  else if((Char >= 'a') && (Char <= 'f'))
+    {
+      Result = 0xa + (Char - 'a');      
+    }
+  
+  return(Result);
+}
+
 internal void
 DEBUGTextLine(char* String)
 {
@@ -766,6 +795,21 @@ DEBUGTextLine(char* String)
 	      else
 		{
 		  u32 CodePoint = *At;
+
+		  if( (At[0] == '\\') &&
+		      (IsHex(At[1]))  &&
+		      (IsHex(At[2]))  &&
+		      (IsHex(At[3]))  &&
+		      (IsHex(At[4])))
+		    {
+		      CodePoint = ((GetHex(At[1]) << 12) |
+				   (GetHex(At[2]) << 8)  |
+				   (GetHex(At[3]) << 4)  |
+				   (GetHex(At[4]) << 0));
+
+		      At += 4;
+		    }		  
+
 		  r32 AdvanceX = CharScale * GetHorizontalAdvanceForPair(Info, Font, PrevCodePoint, CodePoint);
 		  AtX += AdvanceX;
 
@@ -802,6 +846,7 @@ OverlayCycleCounters(memory* Memory)
       "ProcessPixel",
     };
   
+  DEBUGTextLine("\\5c0f\\8033\\6728\\514e");  
 #if HANDMADE_INTERNAL
   DEBUGTextLine("\\#900DEBUG \\#090CYCLE \\#990\\^5COUNTS: ");
   for(s32 CounterIndex = 0;
