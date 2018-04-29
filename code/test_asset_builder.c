@@ -1,31 +1,5 @@
 #include "test_asset_builder.h"
 
-#define USE_FONTS_FROM_LINUX 1
-#if USE_FONTS_FROM_LINUX
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-
-#define MAX_FONT_WIDTH  1024
-#define MAX_FONT_HEIGHT 1024
-
-global_variable Display* OpenDisplay = 0;
-global_variable Pixmap   FontPixmap;
-global_variable int      DefaultScreen;
-global_variable GC       DefaultGC;
-
-#define USE_FTLIB 1
-#if USE_FTLIB
-#undef internal
-#include <X11/Xft/Xft.h>
-#include <freetype/freetype.h>
-#include <freetype/fttypes.h>
-#endif
-#define internal static
-
-#else
-#define STB_TRUETYPE_IMPLEMENTATION 1
-#include "stb_truetype.h"
-#endif
 #pragma pack(push, 1)
 typedef struct
 {
@@ -90,28 +64,6 @@ typedef struct
 } WAVE_fmt;
 
 #pragma pack(pop)
-
-
-typedef struct
-{
-  int Width;
-  int Height;
-  int Pitch;
-  void* Memory;
-
-  void* Free;
-} loaded_bitmap;
-
-struct loaded_font
-{
-  XftFont* Linux32Handle;
-  FT_Face Metrics;
-  u32 CodePointCount;
-  r32 LineAdvance;
-
-  bitmap_id* BitmapIDs;
-  r32* HorizontalAdvance;
-};
 
 typedef struct
 {
@@ -403,10 +355,10 @@ LoadBMP(char* Filename)
 }
 
 internal loaded_font*
-LoadFont(char* FileName, char* FontName, u32 CodePointCount)
-{
+LoadFont(char* FileName, char* FontName)
+{  
   loaded_font* Font = (loaded_font*) malloc(sizeof(loaded_font));
-
+  
   Font->Linux32Handle = XftFontOpen(OpenDisplay,
 				      DefaultScreen(OpenDisplay),
 				      XFT_FAMILY,     XftTypeString, "Liberation Sans",
@@ -419,24 +371,42 @@ LoadFont(char* FileName, char* FontName, u32 CodePointCount)
   //NOTE: This gives us the same result as the height in the XftFont struct (but in 26.6 pixel format(?))
   //u32 LineAdvance = FT_MulFix(Font->Metrics->height, Font->Metrics->size->metrics.x_scale ); 
   
-  Font->CodePointCount = CodePointCount;
-  Font->BitmapIDs = (bitmap_id*) malloc(sizeof(bitmap_id) * CodePointCount);
-  size_t HorizontalAdvanceSize = sizeof(r32)*CodePointCount*CodePointCount;
+  Font->MinCodePoint = INT_MAX;
+  Font->MaxCodePoint = 0;
+  
+  Font->MaxGlyphCount = 5000;
+  Font->GlyphCount    = 0;
+
+  u32 GlyphIndexFromCodePointSize = ONE_PAST_MAX_FONT_CODEPOINT*sizeof(u32);
+  Font->GlyphIndexFromCodePoint = (u32*) malloc(GlyphIndexFromCodePointSize);
+  memset(Font->GlyphIndexFromCodePoint, 0, GlyphIndexFromCodePointSize);
+  
+  Font->Glyphs = (hha_font_glyph*) malloc(sizeof(hha_font_glyph) * Font->MaxGlyphCount);
+  size_t HorizontalAdvanceSize = sizeof(r32)*Font->MaxGlyphCount*Font->MaxGlyphCount;
   Font->HorizontalAdvance = (r32*) malloc(HorizontalAdvanceSize);
   memset(Font->HorizontalAdvance, 0, HorizontalAdvanceSize);
   
+  return(Font);
+}
+
+internal void
+FinalizeFontKerning(loaded_font* Font)
+{
   for(u32 CodePointIndex = 0;
-      CodePointIndex < Font->CodePointCount;
+      CodePointIndex < Font->MaxGlyphCount;
       ++CodePointIndex)
     {
+      u32 First = Font->GlyphIndexFromCodePoint[CodePointIndex];
       FT_UInt CodePoint = XftCharIndex(OpenDisplay, Font->Linux32Handle, CodePointIndex);
       for(u32 OtherCodePointIndex = 0;
-	  OtherCodePointIndex < Font->CodePointCount;
+	  OtherCodePointIndex < Font->MaxGlyphCount;
 	  ++OtherCodePointIndex)
 	{
+	  u32 Second = Font->GlyphIndexFromCodePoint[OtherCodePointIndex];
+
 	  FT_UInt OtherCodePoint = XftCharIndex(OpenDisplay, Font->Linux32Handle, OtherCodePointIndex);
 #if 0
-	  Font->HorizontalAdvance[CodePointIndex*Font->CodePointCount + OtherCodePointIndex] = (r32)Font->Linux32Handle->max_advance_width;
+	  Font->HorizontalAdvance[CodePointIndex*Font->MaxGlyphCount + OtherCodePointIndex] = (r32)Font->Linux32Handle->max_advance_width;
 #else
 	  FT_Vector akerning = {};
 	  FT_Get_Kerning(Font->Metrics,
@@ -445,21 +415,25 @@ LoadFont(char* FileName, char* FontName, u32 CodePointCount)
 			 FT_KERNING_DEFAULT,
 			 &akerning);
 
-	  Font->HorizontalAdvance[CodePointIndex*Font->CodePointCount + OtherCodePointIndex] += (r32)(akerning.x / 64.0f);
+	  Font->HorizontalAdvance[CodePointIndex*Font->MaxGlyphCount + OtherCodePointIndex] += (r32)(akerning.x / 64.0f);
 #endif
 	}
     }
-  
-  return(Font);
 }
 
 internal void
 FreeFont(loaded_font* Font)
 {
-  XftUnlockFace(Font->Linux32Handle);
-  free(Font);
   //TODO: Implement this for both paths 
-
+  if(Font)
+    {
+      XftUnlockFace(Font->Linux32Handle);
+  
+      free(Font->Glyphs);
+      free(Font->HorizontalAdvance);
+      free(Font->GlyphIndexFromCodePoint);
+      free(Font);
+    }
 }
 
 internal void
@@ -480,11 +454,12 @@ InitializeFontContext()
 }
 
 internal loaded_bitmap
-LoadGlyphBitmap(loaded_font* Font, u32 CodePoint,
+LoadGlyphBitmap(loaded_font* Font, u32 CodePoint, 
 		hha_asset* Asset)
 {
   loaded_bitmap Result = {};
 
+  u32 GlyphIndex = Font->GlyphIndexFromCodePoint[CodePoint]; 
 #if USE_FONTS_FROM_LINUX
 
   int PrestepX = 128;
@@ -604,6 +579,7 @@ LoadGlyphBitmap(loaded_font* Font, u32 CodePoint,
 	}
     }   
 
+  r32 KerningChange = 0;
   if(MinX <= MaxX)
     {
       int Width  = (MaxX - MinX) + 1;
@@ -646,23 +622,23 @@ LoadGlyphBitmap(loaded_font* Font, u32 CodePoint,
 	  DestRow -= Result.Pitch;
 	}
       
-      r32 CharAdvance   = XftCharInfo.xOff;
-      r32 KerningChange = -XftCharInfo.x;
-      for(u32 OtherCodePointIndex = 0;
-	  OtherCodePointIndex < Font->CodePointCount;
-	  ++OtherCodePointIndex)
-	{
-	  Font->HorizontalAdvance[CodePoint*Font->CodePointCount + OtherCodePointIndex] += CharAdvance - KerningChange;
-	  if(OtherCodePointIndex != 0)
-	    {
-	      Font->HorizontalAdvance[OtherCodePointIndex*Font->CodePointCount + CodePoint] += KerningChange;
-	    }
-	}
-      
       Asset->Bitmap.AlignPercentage[0] = (1.0f) / (r32)Result.Width;
       Asset->Bitmap.AlignPercentage[1] = (1.0f + (XftCharInfo.height - XftCharInfo.y)) / (r32)Result.Height;
-    }
 
+      KerningChange = -XftCharInfo.x;
+    }
+      
+  r32 CharAdvance   = XftCharInfo.xOff;
+  for(u32 OtherGlyphIndex = 0;
+      OtherGlyphIndex < Font->MaxGlyphCount;
+      ++OtherGlyphIndex)
+    {
+      Font->HorizontalAdvance[GlyphIndex*Font->MaxGlyphCount + OtherGlyphIndex] += CharAdvance - KerningChange;
+      if(OtherGlyphIndex != 0)
+	{
+	  Font->HorizontalAdvance[OtherGlyphIndex*Font->MaxGlyphCount + GlyphIndex] += KerningChange;
+	}
+    }
 #else  
 
   entire_file TTFFile = ReadEntireFile(Filename);
@@ -763,7 +739,7 @@ AddBitmapAsset(assets* Assets, char* Filename, r32 AlignPercentageX, r32 AlignPe
 }
 
 internal bitmap_id
-AddCharacterAsset(assets* Assets, loaded_font* Font, u32 CodePoint, r32 AlignPercentageX, r32 AlignPercentageY)
+AddCharacterAsset(assets* Assets, loaded_font* Font, u32 CodePoint)
 {
   added_asset Asset = AddAsset(Assets);
 
@@ -774,7 +750,15 @@ AddCharacterAsset(assets* Assets, loaded_font* Font, u32 CodePoint, r32 AlignPer
   Asset.Source->Glyph.Font = Font;
   Asset.Source->Glyph.CodePoint = CodePoint;
 
-  bitmap_id Result = {Asset.ID};  
+  bitmap_id Result = {Asset.ID};
+    
+  Assert(Font->GlyphCount < Font->MaxGlyphCount);
+  u32 GlyphIndex = Font->GlyphCount++;
+  hha_font_glyph* Glyph = Font->Glyphs + GlyphIndex;
+  Glyph->UnicodeCodePoint = CodePoint;
+  Glyph->BitmapID = Result;
+  Font->GlyphIndexFromCodePoint[CodePoint] = GlyphIndex;
+  
   return(Result);
 }
 
@@ -799,7 +783,7 @@ AddFontAsset(assets* Assets, loaded_font* Font)
 {
   added_asset Asset = AddAsset(Assets);
 
-  Asset.HHA->Font.CodePointCount = Font->CodePointCount;
+  Asset.HHA->Font.GlyphCount = Font->GlyphCount;
   Asset.HHA->Font.AscenderHeight  = (r32)Font->Linux32Handle->ascent;
   Asset.HHA->Font.DescenderHeight = (r32)Font->Linux32Handle->descent;
   Asset.HHA->Font.ExternalLeading = (r32)Font->Linux32Handle->height - (Asset.HHA->Font.AscenderHeight + Asset.HHA->Font.DescenderHeight);
@@ -885,13 +869,23 @@ WriteHHA(assets* Assets, char* Filename)
 	      free(WAV.Free);
 	    }
 	  else if(Source->Type == AssetType_Font)
-	    {
+	    { 
 	      loaded_font* Font = Source->Font.Font;
-	      u32 HorizontalAdvanceSize = sizeof(r32) * Font->CodePointCount* Font->CodePointCount;
-	      u32 CodePointsSize = Font->CodePointCount*sizeof(bitmap_id);
 
-	      fwrite(Font->BitmapIDs, CodePointsSize, 1, Out);
-	      fwrite(Font->HorizontalAdvance, HorizontalAdvanceSize, 1, Out);
+	      FinalizeFontKerning(Font);
+
+	      u32 GlyphsSize = Font->GlyphCount*sizeof(hha_font_glyph);
+	      fwrite(Font->Glyphs, GlyphsSize, 1, Out);
+
+	      u8* HorizontalAdvance = (u8*) Font->HorizontalAdvance;
+	      for(u32 GlyphIndex = 0;
+		  GlyphIndex < Font->GlyphCount;
+		  ++GlyphIndex)
+		{
+		  u32 HorizontalAdvanceSliceSize = sizeof(r32)*Font->GlyphCount;
+		  fwrite(HorizontalAdvance, HorizontalAdvanceSliceSize, 1, Out);
+		  HorizontalAdvance += sizeof(r32)*Font->MaxGlyphCount;
+		}
 	    }
 	  else
 	    {
@@ -946,20 +940,26 @@ WriteFonts()
 {
   assets Assets_;
   assets* Assets = &Assets_;
-
+  
   Initialize(Assets);
-
-  loaded_font* DebugFont = LoadFont("/usr/share/fonts/TTF/LiberationSans-Regular.ttf", "-misc-liberation serif-medium-r-normal--0-0-0-0-p-0-ascii-0", ('~' + 1));
-
+  
+  loaded_font* DebugFont = LoadFont("/usr/share/fonts/TTF/LiberationSans-Regular.ttf", "-misc-liberation serif-medium-r-normal--0-0-0-0-p-0-ascii-0");
+  
   BeginAssetType(Assets, Asset_FontGlyph);
-    for(u32 Character = '!';
+  for(u32 Character = ' ';
       Character <= '~';
       ++Character)
     {
-      DebugFont->BitmapIDs[Character] = AddCharacterAsset(Assets, DebugFont, Character, 0.5f, 0.5f);
+      AddCharacterAsset(Assets, DebugFont, Character);
       //AddCharacterAsset(Assets, "/usr/share/fonts/TTF/LiberationSans-Regular.ttf", "-adobe-courier-medium-o-normal--0-0-75-75-m-0-iso8859-1", Character, 0.5f, 0.5f);
       //AddCharacterAsset(Assets, "/usr/share/fonts/TTF/times.ttf", "-adobe-times-medium-r-normal--0-0-75-75-p-0-iso8859-1", Character, 0.5f, 0.5f);
     }
+
+  AddCharacterAsset(Assets, DebugFont, 0x5c0f);
+  AddCharacterAsset(Assets, DebugFont, 0x8033);
+  AddCharacterAsset(Assets, DebugFont, 0x6728);
+  AddCharacterAsset(Assets, DebugFont, 0x514e);
+  
   EndAssetType(Assets);
   
   BeginAssetType(Assets, Asset_Font);

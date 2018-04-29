@@ -7,6 +7,62 @@
 #include "handmade_intrinsics.h"
 #include "handmade_math.h"
 
+#define USE_FONTS_FROM_LINUX 1
+#if USE_FONTS_FROM_LINUX
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+
+#define ONE_PAST_MAX_FONT_CODEPOINT (0x10ffff + 1)
+#define MAX_FONT_WIDTH  1024
+#define MAX_FONT_HEIGHT 1024
+
+global_variable Display* OpenDisplay = 0;
+global_variable Pixmap   FontPixmap;
+global_variable int      DefaultScreen;
+global_variable GC       DefaultGC;
+
+#define USE_FTLIB 1
+#if USE_FTLIB
+#undef internal
+#include <X11/Xft/Xft.h>
+#include <freetype/freetype.h>
+#include <freetype/fttypes.h>
+#endif
+#define internal static
+
+#else
+#define STB_TRUETYPE_IMPLEMENTATION 1
+#include "stb_truetype.h"
+#endif
+
+typedef struct
+{
+  int Width;
+  int Height;
+  int Pitch;
+  void* Memory;
+
+  void* Free;
+} loaded_bitmap;
+
+typedef struct 
+{
+  XftFont* Linux32Handle;
+  FT_Face Metrics;
+  r32 LineAdvance;
+
+  hha_font_glyph* Glyphs;
+  r32* HorizontalAdvance;
+
+  u32 MinCodePoint;
+  u32 MaxCodePoint;
+  
+  u32 MaxGlyphCount;
+  u32 GlyphCount;
+
+  u32* GlyphIndexFromCodePoint;
+} loaded_font;
+
 typedef enum
   {
     AssetType_Sound,
@@ -15,7 +71,6 @@ typedef enum
     AssetType_FontGlyph,
   } asset_type;
 
-typedef struct loaded_font loaded_font;
 typedef struct
 {
   loaded_font* Font;

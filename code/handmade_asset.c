@@ -369,8 +369,8 @@ LoadFont(assets* Assets, font_id ID, bool32 Immediate)
 	      asset* Asset = Assets->Assets + ID.Value;
 	      hha_font* Info = &Asset->HHA.Font;
 
-	      u32 HorizontalAdvanceSize = sizeof(r32) * Info->CodePointCount*Info->CodePointCount;
-	      u32 CodePointsSize = Info->CodePointCount*sizeof(bitmap_id);
+	      u32 HorizontalAdvanceSize = sizeof(r32) * Info->GlyphCount*Info->GlyphCount;
+	      u32 CodePointsSize = Info->GlyphCount*sizeof(bitmap_id);
 	      u32 SizeData = CodePointsSize + HorizontalAdvanceSize;
 	      u32 SizeTotal = SizeData + sizeof(asset_memory_header);
 
@@ -713,7 +713,7 @@ internal inline u32
 GetClampedCodePoint(hha_font* Info, u32 CodePoint)
 {
   u32 Result = 0;
-  if(CodePoint < Info->CodePointCount)
+  if(CodePoint < Info->GlyphCount)
     {
       Result = CodePoint;
     }
@@ -728,7 +728,7 @@ GetHorizontalAdvanceForPair(hha_font* Info, loaded_font* Font,
   u32 PrevCodePoint = GetClampedCodePoint(Info, DesiredPrevCodePoint);
   u32 CodePoint     = GetClampedCodePoint(Info, DesiredCodePoint);
   
-  r32 Result = Font->HorizontalAdvance[PrevCodePoint*Info->CodePointCount + CodePoint];
+  r32 Result = Font->HorizontalAdvance[PrevCodePoint*Info->GlyphCount + CodePoint];
 
   return(Result);
 }

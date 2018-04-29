@@ -692,6 +692,14 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
     }
 }
 
+/* 
+   0x5c0f 小
+   0x8033 耳
+   0x6728 木
+   0x514e 兎
+   
+*/
+
 global_variable render_group* DEBUGRenderGroup;
 global_variable r32 LeftEdge;
 global_variable r32 AtY;

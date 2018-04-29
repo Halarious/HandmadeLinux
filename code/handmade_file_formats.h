@@ -110,11 +110,17 @@ typedef struct
 
 typedef struct
 {
-  u32 CodePointCount;
+  u32 GlyphCount;
   r32 AscenderHeight;
   r32 DescenderHeight;
   r32 ExternalLeading;
 } hha_font;
+
+typedef struct
+{
+  u32 UnicodeCodePoint;
+  bitmap_id BitmapID;
+} hha_font_glyph;
 
 typedef struct
 {
