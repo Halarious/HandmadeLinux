@@ -111,7 +111,9 @@ typedef struct
 typedef struct
 {
   u32 CodePointCount;
-  r32 LineAdvance;
+  r32 AscenderHeight;
+  r32 DescenderHeight;
+  r32 ExternalLeading;
 } hha_font;
 
 typedef struct

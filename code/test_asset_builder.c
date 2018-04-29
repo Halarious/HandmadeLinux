@@ -419,29 +419,11 @@ LoadFont(char* FileName, char* FontName, u32 CodePointCount)
   //NOTE: This gives us the same result as the height in the XftFont struct (but in 26.6 pixel format(?))
   //u32 LineAdvance = FT_MulFix(Font->Metrics->height, Font->Metrics->size->metrics.x_scale ); 
   
-  Font->LineAdvance = (r32)Font->Linux32Handle->height;
   Font->CodePointCount = CodePointCount;
   Font->BitmapIDs = (bitmap_id*) malloc(sizeof(bitmap_id) * CodePointCount);
-  Font->HorizontalAdvance = (r32*) malloc(sizeof(r32) * CodePointCount * CodePointCount);
-  
-  for(u32 CodePointIndex = 0;
-      CodePointIndex < Font->CodePointCount;
-      ++CodePointIndex)
-    {
-#if USE_FTLIB
-      FT_UInt CodePoint = XftCharIndex(OpenDisplay, Font->Linux32Handle, CodePointIndex);
-      
-      XGlyphInfo XftCharInfo = {};
-      XftGlyphExtents(OpenDisplay, Font->Linux32Handle, &CodePoint, 1, &XftCharInfo);
-#else
-#endif
-      for(u32 OtherCodePointIndex = 0;
-	  OtherCodePointIndex < Font->CodePointCount;
-	  ++OtherCodePointIndex)
-	{
-	  Font->HorizontalAdvance[CodePointIndex*Font->CodePointCount + OtherCodePointIndex] = (r32)XftCharInfo.xOff;
-	}
-    }
+  size_t HorizontalAdvanceSize = sizeof(r32)*CodePointCount*CodePointCount;
+  Font->HorizontalAdvance = (r32*) malloc(HorizontalAdvanceSize);
+  memset(Font->HorizontalAdvance, 0, HorizontalAdvanceSize);
   
   for(u32 CodePointIndex = 0;
       CodePointIndex < Font->CodePointCount;
@@ -458,10 +440,11 @@ LoadFont(char* FileName, char* FontName, u32 CodePointCount)
 #else
 	  FT_Vector akerning = {};
 	  FT_Get_Kerning(Font->Metrics,
-			 (FT_UInt)CodePoint,
-			 (FT_UInt)OtherCodePoint,
+			 CodePoint,
+			 OtherCodePoint,
 			 FT_KERNING_DEFAULT,
-			 &akerning );
+			 &akerning);
+
 	  Font->HorizontalAdvance[CodePointIndex*Font->CodePointCount + OtherCodePointIndex] += (r32)(akerning.x / 64.0f);
 #endif
 	}
@@ -504,8 +487,8 @@ LoadGlyphBitmap(loaded_font* Font, u32 CodePoint,
 
 #if USE_FONTS_FROM_LINUX
 
-  int FudgeX = 100;
-  int FudgeY = 100;
+  int PrestepX = 128;
+  int PrestepY = 128;
 
   wchar_t CheesePoint  = (wchar_t) CodePoint;
 
@@ -520,8 +503,16 @@ LoadGlyphBitmap(loaded_font* Font, u32 CodePoint,
   XGlyphInfo XftCharInfo;
   XftTextExtents16(OpenDisplay, Font->Linux32Handle, &XftCheesePoint, 1, &XftCharInfo);
 
-  int BoundWidth  = XftCharInfo.width  + FudgeX;
-  int BoundHeight = XftCharInfo.height + FudgeY;
+  int BoundWidth  = XftCharInfo.width  + 2*PrestepX;
+  if(BoundWidth > MAX_FONT_WIDTH)
+    {
+      BoundWidth = MAX_FONT_WIDTH;
+    }
+  int BoundHeight = XftCharInfo.height + PrestepY;
+  if(BoundHeight > MAX_FONT_HEIGHT)
+    {
+      BoundHeight = MAX_FONT_HEIGHT;
+    }
   
   XftColor XBackgroundColor = {BlackPixel(OpenDisplay, DefaultScreen), {0x0, 0x0, 0x0, 0x0} };
   XftColor XForegroundColor = {WhitePixel(OpenDisplay, DefaultScreen), {0xffff, 0xffff, 0xffff, 0xffff} };
@@ -530,8 +521,8 @@ LoadGlyphBitmap(loaded_font* Font, u32 CodePoint,
 		  0, 0,
 		  MAX_FONT_WIDTH, MAX_FONT_HEIGHT);
   XftDrawString16(Bitmap, &XForegroundColor, Font->Linux32Handle,
-		  FudgeX + XftCharInfo.x,
-		  FudgeY + XftCharInfo.y,
+		  PrestepX,
+		  PrestepY,
 		  &XftCheesePoint, 1);
 
   XftDrawDestroy(Bitmap);
@@ -553,12 +544,12 @@ LoadGlyphBitmap(loaded_font* Font, u32 CodePoint,
   int Width  = CharInfo.rbearing - CharInfo.lbearing + 1;
   
   XSetForeground(Display, GraphicsContext, BlackPixel(Display, Screen));  
-  XFillRectangle(Display, Pixmap, GraphicsContext, FudgeX, FudgeY, Width, Height);
+  XFillRectangle(Display, Pixmap, GraphicsContext, PrestepX, PrestepY, Width, Height);
 
   XSetForeground(Display, GraphicsContext, WhitePixel(Display, Screen));
   XDrawImageString16(Display, Pixmap, GraphicsContext,
-		     -CharInfo.lbearing            + FudgeX,
-		     Asc - (Asc - CharInfo.ascent) + FudgeY + 1,
+		     -CharInfo.lbearing            + PrestepX,
+		     Asc - (Asc - CharInfo.ascent) + PrestepY + 1,
 		     &XCheesePoint, 1);
 
   XUnloadFont(Display, FontStruct->fid);
@@ -631,7 +622,7 @@ LoadGlyphBitmap(loaded_font* Font, u32 CodePoint,
 	  Y <= MaxY;
 	  ++Y)
 	{
-	  u32* Dest = (u32*) DestRow;
+	  u32* Dest = (u32*) DestRow + 1;
 	  for(s32 X = MinX;
 	      X <= MaxX;
 	      ++X)
@@ -654,12 +645,22 @@ LoadGlyphBitmap(loaded_font* Font, u32 CodePoint,
 	  
 	  DestRow -= Result.Pitch;
 	}
-    
-      Asset->Bitmap.AlignPercentage[0] = (1.0f + XftCharInfo.x) / (r32)Result.Width;
+      
+      r32 CharAdvance   = XftCharInfo.xOff;
+      r32 KerningChange = -XftCharInfo.x;
+      for(u32 OtherCodePointIndex = 0;
+	  OtherCodePointIndex < Font->CodePointCount;
+	  ++OtherCodePointIndex)
+	{
+	  Font->HorizontalAdvance[CodePoint*Font->CodePointCount + OtherCodePointIndex] += CharAdvance - KerningChange;
+	  if(OtherCodePointIndex != 0)
+	    {
+	      Font->HorizontalAdvance[OtherCodePointIndex*Font->CodePointCount + CodePoint] += KerningChange;
+	    }
+	}
+      
+      Asset->Bitmap.AlignPercentage[0] = (1.0f) / (r32)Result.Width;
       Asset->Bitmap.AlignPercentage[1] = (1.0f + (XftCharInfo.height - XftCharInfo.y)) / (r32)Result.Height;
-      //Asset->Bitmap.AlignPercentage[1] = (1.0f + (MaxY - (BoundHeight - Font->Linux32Handle->descent))) / (r32)Result.Height;
-
-      u32 Break = 0;
     }
 
 #else  
@@ -799,7 +800,9 @@ AddFontAsset(assets* Assets, loaded_font* Font)
   added_asset Asset = AddAsset(Assets);
 
   Asset.HHA->Font.CodePointCount = Font->CodePointCount;
-  Asset.HHA->Font.LineAdvance    = Font->LineAdvance;
+  Asset.HHA->Font.AscenderHeight  = (r32)Font->Linux32Handle->ascent;
+  Asset.HHA->Font.DescenderHeight = (r32)Font->Linux32Handle->descent;
+  Asset.HHA->Font.ExternalLeading = (r32)Font->Linux32Handle->height - (Asset.HHA->Font.AscenderHeight + Asset.HHA->Font.DescenderHeight);
   
   Asset.Source->Type = AssetType_Font;
   Asset.Source->Font.Font = Font;
@@ -947,10 +950,6 @@ WriteFonts()
   Initialize(Assets);
 
   loaded_font* DebugFont = LoadFont("/usr/share/fonts/TTF/LiberationSans-Regular.ttf", "-misc-liberation serif-medium-r-normal--0-0-0-0-p-0-ascii-0", ('~' + 1));
-  
-  BeginAssetType(Assets, Asset_Font);
-  AddFontAsset(Assets, DebugFont);
-  EndAssetType(Assets);
 
   BeginAssetType(Assets, Asset_FontGlyph);
     for(u32 Character = '!';
@@ -961,6 +960,10 @@ WriteFonts()
       //AddCharacterAsset(Assets, "/usr/share/fonts/TTF/LiberationSans-Regular.ttf", "-adobe-courier-medium-o-normal--0-0-75-75-m-0-iso8859-1", Character, 0.5f, 0.5f);
       //AddCharacterAsset(Assets, "/usr/share/fonts/TTF/times.ttf", "-adobe-times-medium-r-normal--0-0-75-75-p-0-iso8859-1", Character, 0.5f, 0.5f);
     }
+  EndAssetType(Assets);
+  
+  BeginAssetType(Assets, Asset_Font);
+  AddFontAsset(Assets, DebugFont);
   EndAssetType(Assets);
 
   WriteHHA(Assets, "testfonts.hha");

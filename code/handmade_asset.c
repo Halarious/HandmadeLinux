@@ -744,9 +744,16 @@ GetBitmapForGlyph(assets* Assets, hha_font* Info, loaded_font* Font, u32 Desired
 }
 
 internal r32
-GetLineAdvanceFor(hha_font* Info, loaded_font* Font)
+GetLineAdvanceFor(hha_font* Info)
 {
-  r32 Result = Info->LineAdvance;
+  r32 Result = Info->AscenderHeight + Info->DescenderHeight + Info->ExternalLeading;
+  return(Result);  
+}
+
+internal r32
+GetStartingBaselineY(hha_font* Info)
+{
+  r32 Result = Info->AscenderHeight;
   return(Result);  
 }
 
