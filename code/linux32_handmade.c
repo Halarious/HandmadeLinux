@@ -438,7 +438,7 @@ Linux32LoadCode(char* SourceSOName, char* TempSOName, char* LockFilename)
   
   if(!Result.IsValid)
     {
-      Result.UpdateAndRender = UpdateAndRenderStub;
+      Result.UpdateAndRender = 0;
     }
   
   return Result;
@@ -454,7 +454,7 @@ Linux32UnloadCode(linux32_code* Code)
     }
 
   Code->IsValid = false;
-  Code->UpdateAndRender = UpdateAndRenderStub;
+  Code->UpdateAndRender = 0;
 }
 
 internal void
@@ -514,6 +514,7 @@ DisplayBufferInWindow(DisplayInfo DisplayInfo, linux32_offscreen_buffer* Buffer)
 
 }
 
+#if 0
 internal void
 HandleDebugCycleCounters(memory* Memory)
 {
@@ -539,6 +540,7 @@ HandleDebugCycleCounters(memory* Memory)
     }
   #endif
 }
+#endif
 
 typedef void work_queue_callback(platform_work_queue* Queue, void* Data);
 typedef struct
@@ -1119,7 +1121,7 @@ main(int ArgCount, char** Arguments)
 		  if(Code.UpdateAndRender)
 		    {
 		      Code.UpdateAndRender(&Memory, NewInputState, &Buffer);
-		      HandleDebugCycleCounters(&Memory);
+		      //HandleDebugCycleCounters(&Memory);
 		    }
 		  
 		  DisplayBufferInWindow(DisplayInfo, &GlobalOffscreenBuffer);

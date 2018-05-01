@@ -255,9 +255,9 @@ IsSoundIDValid(sound_id ID)
   return(Result);  
 }
 
-internal void LoadFont(assets* Assets, font_id ID, bool32 Immediate);
-internal void LoadBitmap(assets* Assets, bitmap_id ID, bool32 Immediate);
-internal void LoadSound(assets* Assets, sound_id ID);
+void LoadFont(assets* Assets, font_id ID, bool32 Immediate);
+void LoadBitmap(assets* Assets, bitmap_id ID, bool32 Immediate);
+void LoadSound(assets* Assets, sound_id ID);
 internal inline void PrefetchFont(assets* Assets, font_id ID) {LoadFont(Assets, ID, false);}
 internal inline void PrefetchSound(assets* Assets, sound_id ID)   {LoadSound(Assets, ID);}
 internal inline void PrefetchBitmap(assets* Assets, bitmap_id ID) {LoadBitmap(Assets, ID, false);}

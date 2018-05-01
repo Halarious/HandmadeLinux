@@ -122,3 +122,10 @@ PushRectOutline(render_group *Group, v3 Offset, v2 Dim, v4 Color);
 internal inline void
 Clear(render_group* Group, v4 Color);
 
+void
+DrawRectangleQuickly(loaded_bitmap *Buffer,
+		     v2 Origin, v2 XAxis, v2 YAxis,
+		     v4 Color, loaded_bitmap* Texture,
+		     r32 PixelsToMeters,
+		     rectangle2i ClipRect,
+		     bool32 Even);

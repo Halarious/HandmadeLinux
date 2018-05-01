@@ -44,12 +44,16 @@
  */
 
 #include "handmade.h"
+#include "handmade_debug.c"
 #include "handmade_render_group.c"
 #include "handmade_world.c"
 #include "handmade_sim_region.c"
 #include "handmade_entity.c"
 #include "handmade_asset.c"
 #include "handmade_audio.c"
+
+internal void
+OverlayCycleCounters(memory* Memory);
 
 internal void
 ClearBitmap(loaded_bitmap* Bitmap)
@@ -834,44 +838,6 @@ DEBUGTextLine(char* String)
     }
 }
 
-internal void
-OverlayCycleCounters(memory* Memory)
-{
-  char* NameTable[] =
-    {
-      "UpdateAndRender",
-      "RenderGroupToOutput",
-      "DrawRectangleSlowly",
-      "DrawRectangleQuickly",
-      "ProcessPixel",
-    };
-  
-  DEBUGTextLine("\\5c0f\\8033\\6728\\514e");  
-#if HANDMADE_INTERNAL
-  DEBUGTextLine("\\#900DEBUG \\#090CYCLE \\#990\\^5COUNTS: ");
-  for(s32 CounterIndex = 0;
-      CounterIndex < ArrayCount(Memory->Counters);
-      ++CounterIndex)
-    {
-      debug_cycle_counter* Counter = Memory->Counters + CounterIndex;
-
-      if(Counter->HitCount)
-	{
-#if 0
-	  printf("\t%d: %luc %uh %luc/h\n",
-		 CounterIndex,
-		 Counter->CycleCount,
-		 Counter->HitCount,
-		 Counter->CycleCount / Counter->HitCount);
-#else
-	  DEBUGTextLine(NameTable[CounterIndex]);
-#endif
-	}
-    }
-#endif
-  DEBUGTextLine("AVA WA Ta");
-}
-
 #if HANDMADE_INTERNAL
 memory* DebugGlobalMemory;
 #endif
@@ -882,7 +848,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 #if HANDMADE_INTERNAL
   DebugGlobalMemory = Memory;
 #endif
-  BEGIN_TIMED_BLOCK(UpdateAndRender);
+  timed_block TB_UpdateAndRender = BEGIN_TIMED_BLOCK(1);
   
   u32 GroundBufferWidth = 256;
   u32 GroundBufferHeight = 256;
@@ -1926,7 +1892,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   CheckArena(&State->WorldArena);
   CheckArena(&TransState->TransientArena);
 
-  END_TIMED_BLOCK(UpdateAndRender);
+  END_TIMED_BLOCK(TB_UpdateAndRender);
   
   OverlayCycleCounters(Memory);
   if(DEBUGRenderGroup)
@@ -1945,3 +1911,41 @@ GET_SOUND_SAMPLES(GetSoundSamples)
   OutputPlayingSounds(&State->AudioState, SoundBuffer, TranState->Assets, &TranState->TransientArena);
 }
 
+
+debug_record DebugRecordArray[__COUNTER__];
+
+#include <stdio.h>
+
+internal void
+OverlayCycleCounters(memory* Memory)
+{
+  //DEBUGTextLine("\\5c0f\\8033\\6728\\514e");  
+#if HANDMADE_INTERNAL
+  DEBUGTextLine("\\#900DEBUG \\#090CYCLE \\#990\\^5COUNTS: ");
+  for(s32 CounterIndex = 0;
+      CounterIndex < ArrayCount(DebugRecords_Main);
+      ++CounterIndex)
+    {
+      debug_record* Counter = DebugRecords_Main + CounterIndex;
+
+      if(Counter->HitCount)
+	{
+#if 1
+	  char TextBuffer[256];
+	  snprintf(TextBuffer, sizeof(TextBuffer),
+		 "%s: %luc %uh %luc/h\n",
+		 Counter->FunctionName,
+		 Counter->CycleCount,
+		 Counter->HitCount,
+		 Counter->CycleCount / Counter->HitCount);
+
+	  DEBUGTextLine(TextBuffer);
+	  
+	  Counter->CycleCount = 0;
+	  Counter->HitCount = 0;
+#endif
+	}
+    }
+#endif
+  //DEBUGTextLine("AVA WA Ta");
+}

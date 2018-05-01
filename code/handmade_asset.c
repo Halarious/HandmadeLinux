@@ -248,7 +248,7 @@ typedef struct
   u32 Section;
 } asset_memory_size;
 
-internal void
+void
 LoadBitmap(assets* Assets, bitmap_id ID, bool32 Immediate)
 {
   asset* Asset = Assets->Assets + ID.Value;
@@ -325,7 +325,7 @@ LoadBitmap(assets* Assets, bitmap_id ID, bool32 Immediate)
     }
 }
 
-internal void
+void
 LoadSound(assets* Assets, sound_id ID)
 {
   asset* Asset = Assets->Assets + ID.Value;
@@ -382,7 +382,7 @@ LoadSound(assets* Assets, sound_id ID)
     }
 }
 
-internal void
+void
 LoadFont(assets* Assets, font_id ID, bool32 Immediate)
 {
   asset* Asset = Assets->Assets + ID.Value;

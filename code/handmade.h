@@ -1,4 +1,7 @@
+#if !defined(HANDMADE_H)
+
 #include "handmade_platform.h"
+#include "handmade_debug.h"
 
 #define Minimum(A, B) ((A < B) ? A : B)
 #define Maximum(A, B) ((A > B) ? A : B)
@@ -341,3 +344,5 @@ AddCollisionRule(state *State, u32 StorageIndexA, u32 StorageIndexB, bool32 CanC
 internal void
 ClearCollisionRuleFor(state *State, u32 StorageIndex);
 
+#define HANDMADE_H
+#endif

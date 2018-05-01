@@ -130,24 +130,9 @@ typedef DEBUG_PLATFORM_FREE_FILE_MEMORY(debug_platform_free_file_memory);
 #define DEBUG_PLATFORM_WRITE_ENTIRE_FILE(name) bool32 name(char* Filename, u32 MemorySize, void* Memory)
 typedef DEBUG_PLATFORM_WRITE_ENTIRE_FILE(debug_platform_write_entire_file);
 
-enum
-  {
-    DebugCycleCounter_UpdateAndRender,
-    DebugCycleCounter_RenderGroupToOutput,
-    DebugCycleCounter_DrawRectangleSlowly,
-    DebugCycleCounter_DrawRectangleQuickly,
-    DebugCycleCounter_ProcessPixel,
-    DebugCycleCounter_Count,
-  };
-
-typedef struct
-{
-  u64 CycleCount;
-  u32 HitCount;
-} debug_cycle_counter;
-
-
 extern struct memory* DebugGlobalMemory;
+
+#if 0 
 
 #if COMPILER_LLVM
 #define BEGIN_TIMED_BLOCK_(StartCycleCount) StartCycleCount = __builtin_readcyclecounter();
@@ -170,6 +155,8 @@ extern struct memory* DebugGlobalMemory;
 #define END_TIMED_BLOCK(ID)
 #endif
 
+#endif
+//NOTE: HANDMADE_INTERNAL
 #endif
 
 #define BITMAP_BYTES_PER_PIXEL 4
@@ -325,23 +312,18 @@ struct memory
   platform_work_queue* LowPriorityQueue;
 
   platform_api PlatformAPI;
-#if HANDMADE_INTERNAL
-  debug_cycle_counter Counters[DebugCycleCounter_Count];
-#endif
 };
 
 #define UPDATE_AND_RENDER(name) void name(memory* Memory, input* Input, offscreen_buffer* Buffer)
 typedef UPDATE_AND_RENDER(update_and_render);
-UPDATE_AND_RENDER(UpdateAndRenderStub)
-{
-}
 
 #define GET_SOUND_SAMPLES(name) void name(memory* Memory, sound_output_buffer* SoundBuffer)
 typedef UPDATE_AND_RENDER(get_sound_samples);
 
-controller_input*
+internal inline controller_input*
 GetController(input *Input, u32 ControllerIndex)
 {
   controller_input *Result = &Input->Controllers[ControllerIndex];
   return(Result);
 }
+
