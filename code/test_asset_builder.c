@@ -355,16 +355,16 @@ LoadBMP(char* Filename)
 }
 
 internal loaded_font*
-LoadFont(char* FileName, char* FontName)
+LoadFont(char* FileName, char* FontName, int PixelHeight)
 {  
   loaded_font* Font = (loaded_font*) malloc(sizeof(loaded_font));
   
   Font->Linux32Handle = XftFontOpen(OpenDisplay,
-				      DefaultScreen(OpenDisplay),
-				      XFT_FAMILY,     XftTypeString, "Liberation Sans",
-				      XFT_PIXEL_SIZE, XftTypeDouble, 64.0,
-				      XFT_ANTIALIAS,  XftTypeBool, true,
-				      NULL);
+				    DefaultScreen(OpenDisplay),
+				    XFT_FAMILY,     XftTypeString, FontName,
+				    XFT_PIXEL_SIZE, XftTypeDouble, (r32)PixelHeight,
+				    XFT_ANTIALIAS,  XftTypeBool, true,
+				    NULL);
 
   Font->Metrics = XftLockFace(Font->Linux32Handle);
 
@@ -954,32 +954,43 @@ WriteFonts()
 {
   assets Assets_;
   assets* Assets = &Assets_;
-  
   Initialize(Assets);
-  
-  loaded_font* DebugFont = LoadFont("/usr/share/fonts/TTF/LiberationSans-Regular.ttf", "-misc-liberation serif-medium-r-normal--0-0-0-0-p-0-ascii-0");
-  
-  BeginAssetType(Assets, Asset_FontGlyph);
-  for(u32 Character = ' ';
-      Character <= '~';
-      ++Character)
+
+  loaded_font* Fonts[] =
     {
-      AddCharacterAsset(Assets, DebugFont, Character);
-      //AddCharacterAsset(Assets, "/usr/share/fonts/TTF/LiberationSans-Regular.ttf", "-adobe-courier-medium-o-normal--0-0-75-75-m-0-iso8859-1", Character, 0.5f, 0.5f);
-      //AddCharacterAsset(Assets, "/usr/share/fonts/TTF/times.ttf", "-adobe-times-medium-r-normal--0-0-75-75-p-0-iso8859-1", Character, 0.5f, 0.5f);
+      LoadFont("/usr/share/fonts/TTF/LiberationSans-Regular.ttf", "Liberation Serif", 128),
+      LoadFont("/usr/share/fonts/TTF/LiberationMono-Regular.ttf", "Liberation Mono", 20),
+    };
+    
+  BeginAssetType(Assets, Asset_FontGlyph);
+  for(u32 FontIndex = 0;
+      FontIndex < ArrayCount(Fonts);
+      ++FontIndex)
+    {
+      loaded_font* Font = Fonts[FontIndex];
+      for(u32 Character = ' ';
+	  Character <= '~';
+	  ++Character)
+	{
+	  AddCharacterAsset(Assets, Font, Character);
+	  //AddCharacterAsset(Assets, "/usr/share/fonts/TTF/LiberationSans-Regular.ttf", "-adobe-courier-medium-o-normal--0-0-75-75-m-0-iso8859-1", Character, 0.5f, 0.5f);
+	  //AddCharacterAsset(Assets, "/usr/share/fonts/TTF/times.ttf", "-adobe-times-medium-r-normal--0-0-75-75-p-0-iso8859-1", Character, 0.5f, 0.5f);
+	}
+
+      AddCharacterAsset(Assets, Font, 0x5c0f);
+      AddCharacterAsset(Assets, Font, 0x8033);
+      AddCharacterAsset(Assets, Font, 0x6728);
+      AddCharacterAsset(Assets, Font, 0x514e);
     }
-
-  AddCharacterAsset(Assets, DebugFont, 0x5c0f);
-  AddCharacterAsset(Assets, DebugFont, 0x8033);
-  AddCharacterAsset(Assets, DebugFont, 0x6728);
-  AddCharacterAsset(Assets, DebugFont, 0x514e);
-  
   EndAssetType(Assets);
-  
+    
   BeginAssetType(Assets, Asset_Font);
-  AddFontAsset(Assets, DebugFont);
+  AddFontAsset(Assets, Fonts[0]);
+  AddTag(Assets, Tag_FontType, FontType_Default);
+  AddFontAsset(Assets, Fonts[1]);
+  AddTag(Assets, Tag_FontType, FontType_Debug);
   EndAssetType(Assets);
-
+  
   WriteHHA(Assets, "testfonts.hha");
 }
 

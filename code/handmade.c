@@ -578,6 +578,8 @@ typedef struct
 internal
 PLATFORM_WORK_QUEUE_CALLBACK(FillGroundChunkWork)
 {
+  timed_block TB_FillGroundChunkWork = BEGIN_TIMED_BLOCK(1);
+  
   fill_ground_chunk_work* Work = (fill_ground_chunk_work*) Data;
 
   loaded_bitmap *Buffer = &Work->GroundBuffer->Bitmap;
@@ -675,6 +677,8 @@ PLATFORM_WORK_QUEUE_CALLBACK(FillGroundChunkWork)
   EndRender(RenderGroup);
     
   EndTaskWithMemory(Work->Task);
+
+  END_TIMED_BLOCK(TB_FillGroundChunkWork);
 }
 
 internal void
@@ -713,8 +717,12 @@ global_variable font_id FontID;
 internal void
 DEBUGReset(assets* Assets, u32 Width, u32 Height)
 {
+  timed_block TB_DEBUGReset = BEGIN_TIMED_BLOCK(1);
+  
   asset_vector MatchVector  = {};
   asset_vector WeightVector = {};
+  MatchVector.E[Tag_FontType] = (r32)FontType_Debug;
+  WeightVector.E[Tag_FontType] = 1.0f;
   FontID  = GetBestMatchFontFrom(Assets,
 				 Asset_Font,
 				 &MatchVector, &WeightVector);
@@ -725,6 +733,8 @@ DEBUGReset(assets* Assets, u32 Width, u32 Height)
 
   hha_font* Info = GetFontInfo(Assets, FontID);
   AtY = 0.5f * (r32)Height - FontScale*GetStartingBaselineY(Info);    
+
+  END_TIMED_BLOCK(TB_DEBUGReset);
 }
 
 inline internal bool32
@@ -1912,9 +1922,42 @@ GET_SOUND_SAMPLES(GetSoundSamples)
 }
 
 
+#include <stdio.h>
 debug_record DebugRecordArray[__COUNTER__];
 
-#include <stdio.h>
+internal void
+OutputDebugRecords(u32 CounterCount, debug_record* Counters)
+{
+  for(u32 CounterIndex = 0;
+      CounterIndex < CounterCount;
+      ++CounterIndex)
+    {
+      debug_record* Counter = Counters + CounterIndex;
+
+      u64 HitCount_CycleCount = AtomicExchangeUInt64(&Counter->HitCount_CycleCount, 0);
+      u32 HitCount   = (u32)(HitCount_CycleCount >> 32);
+      u32 CycleCount = (u32)(HitCount_CycleCount & 0xffffffff);
+            
+      if(HitCount)
+	{
+#if 1
+	  char TextBuffer[256];
+	  snprintf(TextBuffer, sizeof(TextBuffer),
+		   "%24s(%4d): %10ucy %8uh %18ucy/h\n",
+		   Counter->FunctionName,
+		   Counter->LineNumber,
+		   CycleCount,
+		   HitCount,
+		   CycleCount / HitCount);
+
+	  DEBUGTextLine(TextBuffer);
+#endif
+	}
+    }  
+}
+
+extern u32 const DebugRecords_Optimized_Count;
+extern debug_record DebugRecords_Optimized[];
 
 internal void
 OverlayCycleCounters(memory* Memory)
@@ -1922,30 +1965,10 @@ OverlayCycleCounters(memory* Memory)
   //DEBUGTextLine("\\5c0f\\8033\\6728\\514e");  
 #if HANDMADE_INTERNAL
   DEBUGTextLine("\\#900DEBUG \\#090CYCLE \\#990\\^5COUNTS: ");
-  for(s32 CounterIndex = 0;
-      CounterIndex < ArrayCount(DebugRecords_Main);
-      ++CounterIndex)
-    {
-      debug_record* Counter = DebugRecords_Main + CounterIndex;
-
-      if(Counter->HitCount)
-	{
-#if 1
-	  char TextBuffer[256];
-	  snprintf(TextBuffer, sizeof(TextBuffer),
-		 "%s: %luc %uh %luc/h\n",
-		 Counter->FunctionName,
-		 Counter->CycleCount,
-		 Counter->HitCount,
-		 Counter->CycleCount / Counter->HitCount);
-
-	  DEBUGTextLine(TextBuffer);
-	  
-	  Counter->CycleCount = 0;
-	  Counter->HitCount = 0;
-#endif
-	}
-    }
+  
+  OutputDebugRecords(DebugRecords_Optimized_Count, DebugRecords_Optimized);
+  OutputDebugRecords(ArrayCount(DebugRecords_Main), DebugRecords_Main);
 #endif
   //DEBUGTextLine("AVA WA Ta");
 }
+

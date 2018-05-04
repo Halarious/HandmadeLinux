@@ -1,10 +1,17 @@
 
 typedef enum
   {
+    FontType_Default = 0,
+    FontType_Debug = 10,
+  } asset_font_type;
+
+typedef enum
+  {
     Tag_Smoothness,
     Tag_Flatness,
     Tag_FacingDirection,
     Tag_UnicodeCodepoint,
+    Tag_FontType,
     
     Tag_Count,
   } asset_tag_id;

@@ -8,13 +8,13 @@
 
 typedef struct
 {
-  u64 CycleCount;  
-
   char* FileName;
   char* FunctionName;
 
   u32 LineNumber;
-  u32 HitCount;
+  u32 Reserved;
+  
+  u64 HitCount_CycleCount;  
 } debug_record;
 
 debug_record DebugRecordArray[];
@@ -22,12 +22,36 @@ debug_record DebugRecordArray[];
 typedef struct
 {
   debug_record* Record;
+  u64 StartCycles;
+  u32 HitCount;
 } timed_block;
 
+/*
 timed_block
-ConstructTimedBlock(int Counter, char* FileName, int LineNumber, char* FunctionName, int HitCount);
+ConstructTimedBlock(int Counter, char* FileName, int LineNumber, char* FunctionName, u32 HitCountInit);
 
 void
 DestructTimedBlock(timed_block Block);
+*/
+
+internal timed_block
+ConstructTimedBlock(int Counter, char* FileName, int LineNumber, char* FunctionName, u32 HitCountInit)
+{
+  debug_record* Record = DebugRecordArray + Counter;
+  Record->FileName = FileName;
+  Record->FunctionName = FunctionName;
+  Record->LineNumber = LineNumber;
+    
+  timed_block Result = {Record, __builtin_readcyclecounter(), HitCountInit};
+  return(Result);
+}
+
+internal void
+DestructTimedBlock(timed_block Block)
+{
+  u64 Delta = (__builtin_readcyclecounter() - Block.StartCycles) | (((u64)Block.HitCount) << 32);
+  //AtomicAddUInt64(&Block.Record->HitCount_CycleCount, Delta);
+  __sync_fetch_and_add(&Block.Record->HitCount_CycleCount, Delta);
+}
 
 

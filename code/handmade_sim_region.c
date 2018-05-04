@@ -77,6 +77,8 @@ StoreEntityReference(entity_reference *Ref)
 internal sim_entity*
 _AddEntity(state *State, sim_region *SimRegion, u32 StorageIndex, low_entity *Source)
 {
+  timed_block TB__AddEntity = BEGIN_TIMED_BLOCK(1);
+  
   Assert(StorageIndex);
   sim_entity *Entity = 0;
 
@@ -107,6 +109,9 @@ _AddEntity(state *State, sim_region *SimRegion, u32 StorageIndex, low_entity *So
 	  InvalidCodePath;
 	}
     }  
+
+  END_TIMED_BLOCK(TB__AddEntity);
+  
   return(Entity);
 }
 
@@ -141,6 +146,8 @@ AddEntity(state *State, sim_region *SimRegion, u32 StorageIndex, low_entity *Sou
 internal sim_region*
 BeginSim(memory_arena *SimArena, state* State, world* World, world_position Origin, rectangle3 Bounds, r32 dt)
 {
+  timed_block TB_BeginSim = BEGIN_TIMED_BLOCK(1);
+
   sim_region *SimRegion = PushStruct(SimArena, sim_region);
   ZeroStruct(SimRegion->Hash);
 
@@ -208,6 +215,8 @@ BeginSim(memory_arena *SimArena, state* State, world* World, world_position Orig
 	    }
 	}
     }
+
+  END_TIMED_BLOCK(TB_BeginSim);
   
   return(SimRegion);
 }
@@ -215,6 +224,8 @@ BeginSim(memory_arena *SimArena, state* State, world* World, world_position Orig
 internal void
 EndSim(sim_region *SimRegion, state *State)
 {
+  timed_block TB_EndSim = BEGIN_TIMED_BLOCK(1);
+
   sim_entity *Entity = SimRegion->Entities;
   for(u32 EntityIndex = 0;
       EntityIndex < SimRegion->EntityCount;
@@ -264,6 +275,8 @@ EndSim(sim_region *SimRegion, state *State)
 	  State->CameraP = NewCameraP;
 	}
     }
+
+  END_TIMED_BLOCK(TB_EndSim);
 }
 
 typedef struct
@@ -404,6 +417,8 @@ HandleOverlap(state *State, sim_entity *Mover, sim_entity *Region, r32 dt, r32 *
 internal bool32
 SpeculativeCollide(sim_entity *Mover, sim_entity *Region, v3 TestP)
 {
+  timed_block TB_SpeculativeCollide = BEGIN_TIMED_BLOCK(1);
+  
   bool32 Result = true;
   
   if(Region->Type == EntityType_Stairwell)
@@ -419,12 +434,16 @@ SpeculativeCollide(sim_entity *Mover, sim_entity *Region, v3 TestP)
       Result = (AbsoluteValue(GetEntityGroundPointWithoutP(Mover).z - Ground) > StepHeight);
     }
 
+  END_TIMED_BLOCK(TB_SpeculativeCollide);
+  
   return(Result);
 }
 
 internal bool32
 EntitiesOverlap(sim_entity* Entity, sim_entity* TestEntity, v3 Epsilon)
 {
+  timed_block TB_EntitiesOverlap = BEGIN_TIMED_BLOCK(1);
+
   bool32 Result = false;
   
   for(u32 EntityVolumeIndex = 0;
@@ -447,6 +466,8 @@ EntitiesOverlap(sim_entity* Entity, sim_entity* TestEntity, v3 Epsilon)
 	  Result = RectanglesIntersect(EntityRect, TestEntityRect);			   
 	}
     }
+
+  END_TIMED_BLOCK(TB_EntitiesOverlap);
   
   return(Result);
 }
@@ -455,6 +476,8 @@ internal void
 MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
 	   move_spec *MoveSpec, v3 ddEntity)
 {
+  timed_block TB_MoveEntity = BEGIN_TIMED_BLOCK(1);
+
   Assert(!IsSet(Entity, EntityFlag_Nonspatial));
   
   world *World = SimRegion->World; 
@@ -735,5 +758,7 @@ MoveEntity(state *State, sim_region *SimRegion, sim_entity *Entity, r32 dt,
     {
       Entity->FacingDirection = ATan2(Entity->dP.y, Entity->dP.x);
     }
+
+  END_TIMED_BLOCK(TB_MoveEntity);
 }
 

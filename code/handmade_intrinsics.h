@@ -16,6 +16,30 @@ AtomicCompareExchangeUInt32(u32 volatile* Value, u32 New, u32 Expected)
   return(Result);
 }
 
+internal inline u64
+AtomicExchangeUInt64(u64 volatile* Value, u64 New)
+{
+  u64 Result = _InterlockedExchange((__int64*)Value,
+				    New);
+  return(Result);
+}
+
+internal inline u32
+AtomicAddUInt32(u32 volatile* Value, u32 Addend)
+{
+  u32 Result = _InterlockedExchangedAdd((long*)Value,
+					Addend);
+  return(Result);
+}
+
+internal inline u64
+AtomicAddUInt64(u32 volatile* Value, u32 Addend)
+{
+  u64 Result = _InterlockedExchangedAdd((__int64*)Value,
+					Addend);
+  return(Result);
+}
+
 #elif COMPILER_LLVM
 #define CompletePreviousReadsBeforeFutureReads   asm volatile("" ::: "memory");
 #define CompletePreviousWritesBeforeFutureWrites asm volatile("" ::: "memory");
@@ -26,6 +50,30 @@ AtomicCompareExchangeUInt32(u32 volatile* Value, u32 New, u32 Expected)
   u32 Result = __sync_val_compare_and_swap(Value,
 					   Expected,
 					   New);
+  return(Result);
+}
+
+internal inline u64
+AtomicExchangeUInt64(u64 volatile* Value, u64 New)
+{
+  u64 Result = __sync_lock_test_and_set(Value, New);
+  //u64 Result = __sync_swap(Value, New);
+  return(Result);
+}
+
+internal inline u32
+AtomicAddUInt32(u32 volatile* Value, u32 Addend)
+{
+  u32 Result = __sync_fetch_and_add(Value,
+				    Addend);
+  return(Result);
+}
+
+internal inline u64
+AtomicAddUInt64(u64 volatile* Value, u32 Addend)
+{
+  u64 Result = __sync_fetch_and_add(Value,
+				    Addend);
   return(Result);
 }
 

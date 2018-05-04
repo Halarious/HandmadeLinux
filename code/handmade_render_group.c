@@ -19,7 +19,7 @@ internal void
 DrawBitmap(loaded_bitmap *Buffer, loaded_bitmap *Bitmap,
 	   r32 RealX,  r32 RealY, r32 CAlpha)
 {
-  timed_block TimedBlock_DrawBitmap = BEGIN_TIMED_BLOCK(1);
+  timed_block TB_DrawBitmap = BEGIN_TIMED_BLOCK(1);
   
   s32 MinX = RoundReal32ToInt32(RealX);
   s32 MinY = RoundReal32ToInt32(RealY);
@@ -100,7 +100,7 @@ DrawBitmap(loaded_bitmap *Buffer, loaded_bitmap *Bitmap,
       DestRow   += Buffer->Pitch;
     }
 
-  END_TIMED_BLOCK(TimedBlock_DrawBitmap);
+  END_TIMED_BLOCK(TB_DrawBitmap);
 }
 
 internal void
@@ -150,6 +150,8 @@ DrawRectangle(loaded_bitmap *Buffer,
 	      rectangle2i ClipRect,
 	      bool32 Even)
 {
+  timed_block TB_DrawRectangle = BEGIN_TIMED_BLOCK(1);
+
   r32 R = Color.r;
   r32 G = Color.g;
   r32 B = Color.b;
@@ -189,6 +191,8 @@ DrawRectangle(loaded_bitmap *Buffer,
 	}
       Row += 2*Buffer->Pitch; 
     }
+
+  END_TIMED_BLOCK(TB_DrawRectangle);
 }
 
 internal inline v4
@@ -562,9 +566,9 @@ typedef struct
 internal void
 RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget, rectangle2i ClipRect, bool32 Even)
 {
-  Assert(RenderGroup->InsideRender);
-
   timed_block TB_RenderGroupToOutput = BEGIN_TIMED_BLOCK(1);
+
+  Assert(RenderGroup->InsideRender);
 
   r32 NullPixelsToMeters = 1.0f;
   
@@ -730,6 +734,8 @@ PLATFORM_WORK_QUEUE_CALLBACK(DoTiledRenderWork)
 internal void
 RenderGroupToOutput2(render_group* RenderGroup, loaded_bitmap* OutputTarget)
 {
+  timed_block TB_RenderGroupToOutput2 = BEGIN_TIMED_BLOCK(1);
+
   Assert(RenderGroup->InsideRender);
   Assert(((uintptr)OutputTarget->Memory & 15) == 0);
   
@@ -745,12 +751,16 @@ RenderGroupToOutput2(render_group* RenderGroup, loaded_bitmap* OutputTarget)
   Work.ClipRect = ClipRect;
     
   DoTiledRenderWork(0, &Work);  
+
+  END_TIMED_BLOCK(TB_RenderGroupToOutput2);
 }
 
 internal void
 TiledRenderGroupToOutput(platform_work_queue* RenderQueue,
 			 render_group* RenderGroup, loaded_bitmap* OutputTarget)
 {
+  timed_block TB_TiledGroupToOutput = BEGIN_TIMED_BLOCK(1);
+
   Assert(RenderGroup->InsideRender);
   
   s32 const TileCountX = 4;
@@ -803,6 +813,8 @@ TiledRenderGroupToOutput(platform_work_queue* RenderQueue,
     }
 
   Platform.CompleteAllWork(RenderQueue);
+
+  END_TIMED_BLOCK(TB_TiledGroupToOutput);
 }
 
 internal render_group*
@@ -839,6 +851,8 @@ AllocateRenderGroup(assets* Assets, memory_arena *Arena, u32 MaxPushBufferSize, 
 internal void
 BeginRender(render_group* Group)
 {
+  timed_block TB_BeginRender = BEGIN_TIMED_BLOCK(1);
+
   if(Group)
     {
       Assert(!Group->InsideRender);
@@ -846,11 +860,15 @@ BeginRender(render_group* Group)
       
       Group->GenerationID = BeginGeneration(Group->Assets);
     }
+
+  END_TIMED_BLOCK(TB_BeginRender);  
 }
 
 internal void
 EndRender(render_group* Group)
 {
+  timed_block TB_EndRender = BEGIN_TIMED_BLOCK(1);
+
   if(Group)
     {
       Assert(Group->InsideRender);
@@ -860,6 +878,8 @@ EndRender(render_group* Group)
       Group->GenerationID = 0;
       Group->PushBufferSize = 0;
     }
+
+  END_TIMED_BLOCK(TB_EndRender);  
 }
 
 internal inline void
@@ -957,6 +977,8 @@ GetRenderEntityBasisP(render_transform* Transform, v3 OriginalP)
 internal inline void*
 PushRenderElement_(render_group *Group, u32 Size, render_group_entry_type Type)
 {
+  timed_block TB_PushRenderElement_ = BEGIN_TIMED_BLOCK(1);  
+  
   Assert(Group->InsideRender);
   
   void* Result = 0;
@@ -975,6 +997,8 @@ PushRenderElement_(render_group *Group, u32 Size, render_group_entry_type Type)
       InvalidCodePath;
     }
 
+  END_TIMED_BLOCK(TB_PushRenderElement_);  
+  
   return(Result);
 }
 

@@ -56,6 +56,8 @@ inline internal world_chunk*
 GetWorldChunk(world *World, s32 ChunkX, s32 ChunkY, s32 ChunkZ,
 	     memory_arena *Arena)
 {
+  timed_block TB_GetWorldChunk = BEGIN_TIMED_BLOCK(1);
+
   Assert(ChunkX > -WORLD_CHUNK_SAFE_MARGIN);
   Assert(ChunkY > -WORLD_CHUNK_SAFE_MARGIN);
   Assert(ChunkZ > -WORLD_CHUNK_SAFE_MARGIN);
@@ -96,6 +98,8 @@ GetWorldChunk(world *World, s32 ChunkX, s32 ChunkY, s32 ChunkZ,
       Chunk = Chunk->NextInHash;
     } while(Chunk);
 
+  END_TIMED_BLOCK(TB_GetWorldChunk);
+  
   return(Chunk);
 }
 
@@ -175,6 +179,8 @@ internal void
 ChangeEntityLocationRaw(memory_arena *Arena, world *World, u32 LowEntityIndex,
 			world_position *OldP, world_position *NewP)
 {
+  timed_block TB_ChangeEntityLocationRaw = BEGIN_TIMED_BLOCK(1);
+
   Assert(!OldP || IsValid(*OldP));
   Assert(!NewP || IsValid(*NewP));
   
@@ -249,6 +255,8 @@ ChangeEntityLocationRaw(memory_arena *Arena, world *World, u32 LowEntityIndex,
 	  Block->LowEntityIndex[Block->EntityCount++] = LowEntityIndex;
 	}
     }
+
+  END_TIMED_BLOCK(TB_ChangeEntityLocationRaw);
 }
 
 
@@ -257,6 +265,8 @@ ChangeEntityLocation(memory_arena *Arena, world *World,
 		     u32 LowEntityIndex, low_entity *LowEntity,
 		     world_position NewPInit)
 {
+  timed_block TB_ChangeEntityLocation = BEGIN_TIMED_BLOCK(1);
+
   world_position *OldP = 0;
   world_position *NewP = 0;
 
@@ -282,5 +292,7 @@ ChangeEntityLocation(memory_arena *Arena, world *World,
       LowEntity->P = NullPosition();
       AddFlags(&LowEntity->Sim, EntityFlag_Nonspatial);
     }
+
+  END_TIMED_BLOCK(TB_ChangeEntityLocation);
 }
 
