@@ -53,9 +53,6 @@
 #include "handmade_audio.c"
 
 internal void
-OverlayCycleCounters(memory* Memory);
-
-internal void
 ClearBitmap(loaded_bitmap* Bitmap)
 {
   if(Bitmap->Memory)
@@ -845,6 +842,113 @@ DEBUGTextLine(char* String)
 
 	  AtY -= GetLineAdvanceFor(Info)*FontScale;
 	}
+    }
+}
+
+#include <stdio.h>
+debug_record DebugRecordArray[__COUNTER__];
+
+typedef struct
+{
+  r32 Count;
+  r64 Min;
+  r64 Max;
+  r64 Avg;
+} debug_statistic;
+
+internal inline void
+BeginDebugStatistic(debug_statistic* Stat)
+{
+  Stat->Count = 0.0f;
+  Stat->Min = Real32Maximum;
+  Stat->Max = -Real32Maximum;
+  Stat->Avg = 0.0f;
+}
+
+internal inline void
+UpdateDebugStatistic(debug_statistic* Stat, r64 Value)
+{
+  ++Stat->Count;
+
+  if(Stat->Min > Value)
+    {
+      Stat->Min = Value;
+    }
+
+  if(Stat->Max < Value)
+    {
+      Stat->Max = Value;
+    }
+
+  Stat->Avg += Value;
+}
+
+internal inline void
+EndDebugStatistic(debug_statistic* Stat)
+{
+  if(Stat->Count)
+    {
+      Stat->Avg /= (r64)Stat->Count;
+    }
+  else
+    {
+      Stat->Min = Stat->Max = 0.0f;
+    }
+}
+
+internal void
+OverlayCycleCounters(memory* Memory)
+{
+  debug_state* DebugState = (debug_state*)Memory->DebugStorage;
+  if(DebugState)
+    {
+      for(u32 CounterIndex = 0;
+	  CounterIndex < DebugState->CounterCount;
+	  ++CounterIndex)
+	{
+	  debug_counter_state* Counter = DebugState->CounterStates + CounterIndex;
+
+	  debug_statistic HitCount, CycleCount, CycleOverHit;
+	  BeginDebugStatistic(&HitCount);
+	  BeginDebugStatistic(&CycleCount);
+	  BeginDebugStatistic(&CycleOverHit);
+	  for(u32 SnapshotIndex = 0;
+	      SnapshotIndex < DEBUG_SNAPSHOT_COUNT;
+	      ++SnapshotIndex)
+	    {
+	      UpdateDebugStatistic(&HitCount, Counter->Snapshots[SnapshotIndex].HitCount);
+	      UpdateDebugStatistic(&CycleCount, Counter->Snapshots[SnapshotIndex].CycleCount);
+
+	      r64 COH = 0.0f;
+	      if(Counter->Snapshots[SnapshotIndex].HitCount)
+		{
+		  COH = ((r64)Counter->Snapshots[SnapshotIndex].CycleCount /
+			 (r64)Counter->Snapshots[SnapshotIndex].HitCount);
+		}
+	      UpdateDebugStatistic(&CycleOverHit, COH);
+	    }
+	  EndDebugStatistic(&HitCount);
+	  EndDebugStatistic(&CycleCount);
+	  EndDebugStatistic(&CycleOverHit);
+	  
+	  if(HitCount.Max > 0.0f)
+	    {
+#if 1
+	      char TextBuffer[256];
+	      snprintf(TextBuffer, sizeof(TextBuffer),
+		       "%24s(%4d): %10ucy %8uh %18ucy/h\n",
+		       Counter->FunctionName,
+		       Counter->LineNumber,
+		       (u32)CycleCount.Avg,
+		       (u32)HitCount.Avg,
+		       (u32)CycleOverHit.Avg);
+
+	      DEBUGTextLine(TextBuffer);
+#endif
+	    }
+	}  
+      //DEBUGTextLine("\\5c0f\\8033\\6728\\514e");  
+      //DEBUGTextLine("AVA WA Ta");
     }
 }
 
@@ -1921,54 +2025,42 @@ GET_SOUND_SAMPLES(GetSoundSamples)
   OutputPlayingSounds(&State->AudioState, SoundBuffer, TranState->Assets, &TranState->TransientArena);
 }
 
-
-#include <stdio.h>
-debug_record DebugRecordArray[__COUNTER__];
-
 internal void
-OutputDebugRecords(u32 CounterCount, debug_record* Counters)
+UpdateDebugRecords(debug_state* DebugState, u32 CounterCount, debug_record* Counters)
 {
   for(u32 CounterIndex = 0;
       CounterIndex < CounterCount;
       ++CounterIndex)
     {
-      debug_record* Counter = Counters + CounterIndex;
-
-      u64 HitCount_CycleCount = AtomicExchangeUInt64(&Counter->HitCount_CycleCount, 0);
-      u32 HitCount   = (u32)(HitCount_CycleCount >> 32);
-      u32 CycleCount = (u32)(HitCount_CycleCount & 0xffffffff);
-            
-      if(HitCount)
-	{
-#if 1
-	  char TextBuffer[256];
-	  snprintf(TextBuffer, sizeof(TextBuffer),
-		   "%24s(%4d): %10ucy %8uh %18ucy/h\n",
-		   Counter->FunctionName,
-		   Counter->LineNumber,
-		   CycleCount,
-		   HitCount,
-		   CycleCount / HitCount);
-
-	  DEBUGTextLine(TextBuffer);
-#endif
-	}
+      debug_record* Source = Counters + CounterIndex;
+      debug_counter_state* Dest = DebugState->CounterStates + DebugState->CounterCount++;
+      
+      u64 HitCount_CycleCount = AtomicExchangeUInt64(&Source->HitCount_CycleCount, 0);
+      Dest->FileName = Source->FileName;
+      Dest->FunctionName = Source->FunctionName;
+      Dest->LineNumber = Source->LineNumber;
+      Dest->Snapshots[DebugState->SnapshotIndex].HitCount   = (u32)(HitCount_CycleCount >> 32);
+      Dest->Snapshots[DebugState->SnapshotIndex].CycleCount = (u32)(HitCount_CycleCount & 0xffffffff);
     }  
 }
 
 extern u32 const DebugRecords_Optimized_Count;
 extern debug_record DebugRecords_Optimized[];
 
-internal void
-OverlayCycleCounters(memory* Memory)
+extern DEBUG_FRAME_END(DEBUGFrameEnd)
 {
-  //DEBUGTextLine("\\5c0f\\8033\\6728\\514e");  
-#if HANDMADE_INTERNAL
-  DEBUGTextLine("\\#900DEBUG \\#090CYCLE \\#990\\^5COUNTS: ");
-  
-  OutputDebugRecords(DebugRecords_Optimized_Count, DebugRecords_Optimized);
-  OutputDebugRecords(ArrayCount(DebugRecords_Main), DebugRecords_Main);
-#endif
-  //DEBUGTextLine("AVA WA Ta");
+    debug_state* DebugState = (debug_state*)Memory->DebugStorage;
+    if(DebugState)
+      {
+	DebugState->CounterCount = 0;
+	UpdateDebugRecords(DebugState, DebugRecords_Optimized_Count, DebugRecords_Optimized);
+	UpdateDebugRecords(DebugState, ArrayCount(DebugRecords_Main), DebugRecords_Main);
+
+	++DebugState->SnapshotIndex;
+	if(DebugState->SnapshotIndex >= DEBUG_SNAPSHOT_COUNT)
+	  {
+	    DebugState->SnapshotIndex = 0;
+	  }
+      }
 }
 

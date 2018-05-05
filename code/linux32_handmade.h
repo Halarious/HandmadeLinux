@@ -30,7 +30,8 @@ typedef struct
   void* CodeSO;
   time_t SOLastWriteTime;
   update_and_render* UpdateAndRender;
-
+  debug_frame_end* DEBUGFrameEnd;
+  
   bool32 IsValid;
 } linux32_code;
 

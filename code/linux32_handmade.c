@@ -57,28 +57,31 @@ InitScreenBuffer(DisplayInfo DisplayInfo,
   Buffer->BitmapInfo->data  = (char*)(Buffer->BitmapMemory);
   }
 
+//TODO: This routine is widely inaccurate, but should suffice for now
 internal struct timespec
 SubtractTimeValues(struct timespec EndTime, struct timespec BeginTime)
 {
   struct timespec Result = {};
 
-  s64 BeginTimeNanos = BeginTime.tv_nsec;
-  s64 EndTimeNanos   = EndTime.tv_nsec;
+  long BeginTimeNanos = BeginTime.tv_nsec;
+  long EndTimeNanos   = EndTime.tv_nsec;
+
+  Assert(EndTime.tv_sec >= BeginTime.tv_sec);
+  Result.tv_sec = EndTime.tv_sec - BeginTime.tv_sec;
+  
+  Assert(BeginTimeNanos < 1000000000L);
+  Assert(EndTimeNanos   < 1000000000L);
+      
   if(BeginTimeNanos > EndTimeNanos)
     {
       Result.tv_nsec  = (time_t)(1000000000L - (BeginTimeNanos - EndTimeNanos));
-      if(EndTime.tv_sec)
-	{
-	  EndTime.tv_sec -= 1;
-	}
+      --Result.tv_sec;
     }
   else
     {
       Result.tv_nsec = EndTimeNanos - BeginTimeNanos;
     }
   
-  Result.tv_sec = EndTime.tv_sec - BeginTime.tv_sec;
-
   return(Result);
 }
 
@@ -432,6 +435,10 @@ Linux32LoadCode(char* SourceSOName, char* TempSOName, char* LockFilename)
 	{
 	  Result.UpdateAndRender = (update_and_render*)
 	    dlsym(Result.CodeSO, "UpdateAndRender");
+	  
+	  Result.DEBUGFrameEnd = (debug_frame_end*)
+	    dlsym(Result.CodeSO, "DEBUGFrameEnd");
+
 	  Result.IsValid = (Result.UpdateAndRender != 0);
 	}
     }
@@ -511,7 +518,39 @@ DisplayBufferInWindow(DisplayInfo DisplayInfo, linux32_offscreen_buffer* Buffer)
 	    0, 0, //NOTE Dest
 	    GlobalOffscreenBuffer.Width,
 	    GlobalOffscreenBuffer.Height);
+  
+  //TODO: Find a way to stop flickering caused by clearing the screen
+  //      to blackness
+  int OffsetX = 10;
+  int OffsetY = 10;
+  //XClearWindow(DisplayInfo.Display, DisplayInfo.Window);
+#if 0
+  XClearArea(DisplayInfo.Display, DisplayInfo.Window,
+	     0, 0, w, OffsetY, false);
+  XClearArea(DisplayInfo.Display, DisplayInfo.Window,
+	     0, OffsetY + Buffer.Height,
+	     w, h, false);
+  XClearArea(DisplayInfo.Display, DisplayInfo.Window,
+	     0, 0, OffsetX, h, false);
+  XClearArea(DisplayInfo.Display, DisplayInfo.Window,
+	     OffsetX + Buffer.Width, 0, w, h, false);
+#endif
+  XCopyArea(DisplayInfo.Display,
+	    GlobalOffscreenBuffer.BitmapHandle,
+	    DisplayInfo.Window,
+	    DisplayInfo.GraphicsContext,
+	    0, 0,
+	    GlobalOffscreenBuffer.Width,
+	    GlobalOffscreenBuffer.Height,
+	    OffsetX, OffsetY);
+}
 
+internal inline struct timespec
+Linux32GetWallClock()
+{
+  struct timespec Result;
+  clock_gettime(CLOCK_REALTIME, &Result);
+  return(Result);
 }
 
 #if 0
@@ -992,6 +1031,7 @@ main(int ArgCount, char** Arguments)
       memory Memory = {};
       Memory.PermanentStorageSize = Megabytes(256);
       Memory.TransientStorageSize = Gigabytes((u64)1);
+      Memory.DebugStorageSize = Megabytes(64);
       Memory.HighPriorityQueue = &HighPriorityQueue;
       Memory.LowPriorityQueue = &LowPriorityQueue;
       Memory.PlatformAPI.AddEntry = Linux32AddEntry;
@@ -1010,12 +1050,15 @@ main(int ArgCount, char** Arguments)
       Memory.PlatformAPI.DEBUGFreeFileMemory = DEBUGPlatformFreeFileMemory;
       Memory.PlatformAPI.DEBUGWriteEntireFile = DEBUGPlatformWriteEntireFile;
       
-      Linux32State.TotalSize   = Memory.PermanentStorageSize + Memory.TransientStorageSize;
+      Linux32State.TotalSize   = (Memory.PermanentStorageSize +
+				  Memory.TransientStorageSize +
+				  Memory.DebugStorageSize);
       Linux32State.MemoryBlock = mmap(BaseAddress, Linux32State.TotalSize,
 				     PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS,
 				     -1, 0);
       Memory.PermanentStorage = Linux32State.MemoryBlock;
       Memory.TransientStorage = (u8*)Memory.PermanentStorage + Memory.PermanentStorageSize;
+      Memory.DebugStorage = (u8*)Memory.TransientStorage + Memory.TransientStorageSize;
       
       if(Memory.PermanentStorage != MAP_FAILED)
 	{  
@@ -1035,12 +1078,15 @@ main(int ArgCount, char** Arguments)
 	  //     looks like it's not the greatest idea to use rdtsc for actual
 	  //     time calculations because of inconsistent clock rate and
 	  //     whatnot.
-	  struct timespec LastTime;
-	  clock_gettime(CLOCK_MONOTONIC, &LastTime);
+	  struct timespec LastCounter = Linux32GetWallClock();
+	  struct timespec FlipWallClock = Linux32GetWallClock();
+	  
 	  //TODO: This is LLVM only obviously
 	  s64 LastCycleCount = __builtin_readcyclecounter();
 	  while(GlobalRunning)
 	    {
+	      debug_frame_end_info FrameEndInfo = {};
+
 	      NewInputState->dtForFrame = TargetSecondsPerFrame;
 	      NewInputState->ExecutableReloaded = false;
 	      
@@ -1056,6 +1102,9 @@ main(int ArgCount, char** Arguments)
 					 LockFullPath);
 		  NewInputState->ExecutableReloaded = true;
 		}
+	      
+	      struct timespec ExecutableReadyTime = SubtractTimeValues(Linux32GetWallClock(), LastCounter);
+	      FrameEndInfo.ExecutableReady = (r32)ExecutableReadyTime.tv_sec + ((r32)ExecutableReadyTime.tv_nsec / 1000000000.0f);
 	      
 	      controller_input *OldKeyboardController = GetController(OldInputState, 0);
 	      controller_input *NewKeyboardController = GetController(NewInputState, 0);
@@ -1103,7 +1152,13 @@ main(int ArgCount, char** Arguments)
 						  MaskReturn & Button5Mask);
 
 		  }
-		  
+		}
+
+	      struct timespec InputProcessedTime = SubtractTimeValues(Linux32GetWallClock(), LastCounter);
+	      FrameEndInfo.InputProcessed = (r32)InputProcessedTime.tv_sec + ((r32)InputProcessedTime.tv_nsec / 1000000000.0f);
+	      
+	      if(!GlobalPause)
+		{
 		  offscreen_buffer Buffer = {};
 		  Buffer.Memory = GlobalOffscreenBuffer.BitmapMemory;
 		  Buffer.Width  = GlobalOffscreenBuffer.Width;
@@ -1123,29 +1178,43 @@ main(int ArgCount, char** Arguments)
 		      Code.UpdateAndRender(&Memory, NewInputState, &Buffer);
 		      //HandleDebugCycleCounters(&Memory);
 		    }
-		  
-		  DisplayBufferInWindow(DisplayInfo, &GlobalOffscreenBuffer);
+		}
+	      	      
+	      struct timespec GameUpdatedTime = SubtractTimeValues(Linux32GetWallClock(), LastCounter);
+	      FrameEndInfo.GameUpdated = (r32)GameUpdatedTime.tv_sec + ((r32)GameUpdatedTime.tv_nsec / 1000000000.0f);
+	      
+	      if(!GlobalPause)
+		{
+		  //TODO: Hey, we don't have audio yet
+		  struct timespec AudioWallClock = Linux32GetWallClock(); 
+		  struct timespec FromBeginToAudioTime = SubtractTimeValues(AudioWallClock, FlipWallClock);
 
-		  struct timespec EndTime; 
-		  clock_gettime(CLOCK_MONOTONIC, &EndTime);
+		  //TODO: Audio goes here!
+		}
 
-		  struct timespec ElapsedTime = SubtractTimeValues(EndTime, LastTime);
-		  r32 ElapsedTimeSeconds      = (r32)ElapsedTime.tv_nsec / 1000000000.0f; 
+	      struct timespec AudioUpdatedTime = SubtractTimeValues(Linux32GetWallClock(), LastCounter);
+	      FrameEndInfo.AudioUpdated = (r32)AudioUpdatedTime.tv_sec + ((r32)AudioUpdatedTime.tv_nsec / 1000000000.0f);
+	      
+	      if(!GlobalPause)
+		{
+		  struct timespec WorkCounter = Linux32GetWallClock();
+		  struct timespec TimeElapsedForFrame = SubtractTimeValues(WorkCounter, LastCounter);
+		  r32 SecondsElapsedForFrame = (r32)TimeElapsedForFrame.tv_sec + ((r32)TimeElapsedForFrame.tv_nsec / 1000000000.0f); 
 		  //TODO See what happens if for some reason we miss (a) frame(s),
 		  //     and what is expected as a framerate if it even matters.
-		  if(ElapsedTimeSeconds < TargetSecondsPerFrame)
+		  if(SecondsElapsedForFrame < TargetSecondsPerFrame)
 		    {
 		      //TODO The code here sleeps for 1ms less than it should so we guarantee the spinlock for a bit and hit
 		      //     very close to 33.33ms of wait time, like in Caseys' example. Win sleep is a bit different (DWORD for ms time)
 		      //     and it would appear that linux is more precise but I couldn't figure out why I was getting like .10+ ms
-		      //     off all he time while using the sleep (granularity give back nano precision so it shouldn't happen),
+		      //     off all the time while using the sleep (granularity gives back nano precision so it shouldn't happen),
 		      //     but for now it is as it is and later we should do something about this to make it sane and get rid of
 		      //     the spinlock
 		      r32 Epsilon = 1000000.0f;
 		      
 		      struct timespec SleepTime = {};
 		      struct timespec RemainingSleepTime = {};
-		      r32 SleepTimeInSeconds = TargetSecondsPerFrame - ElapsedTimeSeconds;
+		      r32 SleepTimeInSeconds = TargetSecondsPerFrame - SecondsElapsedForFrame;
 		      SleepTime.tv_sec  = FloorReal32ToInt32(SleepTimeInSeconds);
 		      SleepTime.tv_nsec = ((SleepTimeInSeconds - SleepTime.tv_sec) * 1000000000.0f) - Epsilon;
 		      clock_nanosleep(CLOCK_MONOTONIC, 0, &SleepTime, &RemainingSleepTime);
@@ -1156,60 +1225,54 @@ main(int ArgCount, char** Arguments)
 			  printf("Missed sleep\n\t");
 			}
 		      
-		      while(ElapsedTimeSeconds < TargetSecondsPerFrame)
-			{		      
-			  clock_gettime(CLOCK_MONOTONIC, &EndTime);
-			  ElapsedTime      = SubtractTimeValues(EndTime, LastTime);
-			  ElapsedTimeSeconds = (r32)ElapsedTime.tv_nsec/1000000000.0f; 
+		      while(SecondsElapsedForFrame < TargetSecondsPerFrame)
+			{
+			  TimeElapsedForFrame    = SubtractTimeValues(Linux32GetWallClock(), LastCounter);
+			  SecondsElapsedForFrame = (r32)TimeElapsedForFrame.tv_sec +(r32)TimeElapsedForFrame.tv_nsec/1000000000.0f; 
 			}
 		    }
 		  else
 		    {
-		      printf("Missed a frame\n\t");
+		      //printf("Missed a frame: %fms\n\t", SecondsElapsedForFrame*1000.0f);
 		    }
-		  
-		  
-		  clock_gettime(CLOCK_MONOTONIC, &EndTime);	    
-#if 0
-		  s64 EndCycleCount = __builtin_readcyclecounter();	      
-		  s64 CyclesElapsed = EndCycleCount - LastCycleCount;
-		  LastCycleCount = EndCycleCount;
-
-		  ElapsedTime = SubtractTimeValues(EndTime, LastTime);
-		  printf("%.2fms/f, %uMc/f \n", (r32)ElapsedTime.tv_nsec/1000000.0f, CyclesElapsed / (1000*1000));
-#endif
-
-		  LastTime = EndTime;
-		  
-		    
-		  //TODO: Find a way to stop flickering caused by clearing the screen
-		  //      to blackness
-		  int OffsetX = 10;
-		  int OffsetY = 10;
-		  //XClearWindow(DisplayInfo.Display, DisplayInfo.Window);
-		  XClearArea(DisplayInfo.Display, DisplayInfo.Window,
-			     0, 0, w, OffsetY, false);
-		  XClearArea(DisplayInfo.Display, DisplayInfo.Window,
-			     0, OffsetY + Buffer.Height,
-			     w, h, false);
-		  XClearArea(DisplayInfo.Display, DisplayInfo.Window,
-			     0, 0, OffsetX, h, false);
-		  XClearArea(DisplayInfo.Display, DisplayInfo.Window,
-			     OffsetX + Buffer.Width, 0, w, h, false);
-		  XCopyArea(DisplayInfo.Display,
-			    GlobalOffscreenBuffer.BitmapHandle,
-			    DisplayInfo.Window,
-			    DisplayInfo.GraphicsContext,
-			    0, 0,
-			    GlobalOffscreenBuffer.Width,
-			    GlobalOffscreenBuffer.Height,
-			    OffsetX, OffsetY);
-
-		  input *tempInput = OldInputState;
-		  OldInputState    = NewInputState;
-		  NewInputState    = tempInput;
 		}
-	    }
+
+	      struct timespec FrameWaitCompleteTime = SubtractTimeValues(Linux32GetWallClock(), LastCounter);
+	      FrameEndInfo.FrameWaitComplete = (r32)FrameWaitCompleteTime.tv_sec + ((r32)FrameWaitCompleteTime.tv_nsec / 1000000000.0f);
+		  
+	      DisplayBufferInWindow(DisplayInfo, &GlobalOffscreenBuffer);
+
+	      FlipWallClock = Linux32GetWallClock();
+
+	      input *tempInput = OldInputState;
+	      OldInputState    = NewInputState;
+	      NewInputState    = tempInput;
+
+	      struct timespec EndCounter = Linux32GetWallClock(); 
+	      struct timespec TimePerFrame = SubtractTimeValues(EndCounter, LastCounter);
+	      r32 MSPerFrame = ((r32)TimePerFrame.tv_sec * 1000.0f) + ((r32)TimePerFrame.tv_nsec / 1000000.0f);
+	      LastCounter = EndCounter;
+
+#if HANDMADE_INTERNAL
+	      struct timespec EndOfFrameTime = SubtractTimeValues(EndCounter, LastCounter);
+	      FrameEndInfo.EndOfFrame = (r32)EndOfFrameTime.tv_sec + ((r32)EndOfFrameTime.tv_nsec / 1000000000.0f);
+
+	      s64 EndCycleCount = __builtin_readcyclecounter();	      
+	      s64 CyclesElapsed = EndCycleCount - LastCycleCount;
+	      LastCycleCount = EndCycleCount;
+#if 0		  
+	      r32 FPS = 0.0f;
+	      r32 MCPF = ((r32)CyclesElapsed / (1000.0f * 1000.0f));
+
+	      //ElapsedTime = SubtractTimeValues(EndTime, LastTime);
+	      printf("%.02fms/f, %.02ff/s %.02fMc/f \n", MSPerFrame, FPS, MCPF);
+#endif
+	      if(Code.DEBUGFrameEnd)
+		{
+		  Code.DEBUGFrameEnd(&Memory, &FrameEndInfo);
+		}
+#endif		  
+	   }
 	}
       else
 	{
@@ -1217,9 +1280,9 @@ main(int ArgCount, char** Arguments)
 	}
     }
   else
-    {
-      //TODO: Logging
-    }
-
+   {
+     //TODO: Logging
+   }
+  
   return(0);
 }

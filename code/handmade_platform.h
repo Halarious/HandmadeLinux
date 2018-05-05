@@ -154,8 +154,8 @@ extern struct memory* DebugGlobalMemory;
 #define BEGIN_TIMED_BLOCK(ID) 
 #define END_TIMED_BLOCK(ID)
 #endif
-
 #endif
+
 //NOTE: HANDMADE_INTERNAL
 #endif
 
@@ -303,10 +303,13 @@ typedef struct memory memory;
 struct memory
 {
   u64   PermanentStorageSize;
-  u64   TransientStorageSize;
-
   void* PermanentStorage;
+
+  u64   TransientStorageSize;
   void* TransientStorage;
+
+  u64   DebugStorageSize;
+  void* DebugStorage;
 
   platform_work_queue* HighPriorityQueue;
   platform_work_queue* LowPriorityQueue;
@@ -319,6 +322,19 @@ typedef UPDATE_AND_RENDER(update_and_render);
 
 #define GET_SOUND_SAMPLES(name) void name(memory* Memory, sound_output_buffer* SoundBuffer)
 typedef UPDATE_AND_RENDER(get_sound_samples);
+
+typedef struct
+{
+  r32 ExecutableReady;
+  r32 InputProcessed;
+  r32 GameUpdated;
+  r32 AudioUpdated;
+  r32 FrameWaitComplete;
+  r32 EndOfFrame;
+} debug_frame_end_info;
+
+#define DEBUG_FRAME_END(name) void name(memory* Memory, debug_frame_end_info* Info)
+typedef DEBUG_FRAME_END(debug_frame_end);
 
 internal inline controller_input*
 GetController(input *Input, u32 ControllerIndex)

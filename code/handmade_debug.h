@@ -55,3 +55,28 @@ DestructTimedBlock(timed_block Block)
 }
 
 
+typedef struct
+{
+  u32 HitCount;
+  u32 CycleCount;  
+} debug_counter_snapshot;
+
+#define DEBUG_SNAPSHOT_COUNT 120
+typedef struct
+{
+  char* FileName;
+  char* FunctionName;
+
+  u32 LineNumber;
+
+  debug_counter_snapshot Snapshots[DEBUG_SNAPSHOT_COUNT];
+} debug_counter_state;
+  
+typedef struct
+{
+  u32 SnapshotIndex;
+  u32 CounterCount;
+  debug_counter_state CounterStates[512];
+} debug_state;
+
+
