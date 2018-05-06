@@ -66,8 +66,8 @@ DrawRectangleQuickly(loaded_bitmap *Buffer,
 
   if(HasArea(FillRect))
     {
-      __m128i StartClipMask = _mm_set1_epi32(0xFFFFFFFF);
-      __m128i EndClipMask = _mm_set1_epi32(0xFFFFFFFF);
+      __m128i StartClipMask = _mm_set1_epi8(-1);
+      __m128i EndClipMask = _mm_set1_epi8(-1);
 
       __m128i StartClipMasks[] =
 	{

@@ -893,6 +893,16 @@ PLATFORM_DEALLOCATE_MEMORY(Linux32DeallocateMemory)
     }
 }
 
+internal inline void
+Linux32RecordTimestamp(debug_frame_end_info* Info, char* Name, r32 Seconds)
+{
+  Assert(Info->TimestampCount < ArrayCount(Info->Timestamps));
+
+  debug_frame_timestamp* Timestamp = Info->Timestamps + Info->TimestampCount++;
+  Timestamp->Name = Name;
+  Timestamp->Seconds = Seconds;
+}
+
 int
 main(int ArgCount, char** Arguments)
 {
@@ -965,10 +975,14 @@ main(int ArgCount, char** Arguments)
   DisplayInfo DisplayInfo = {};
   DisplayInfo.Display         = XOpenDisplay(0);
   DisplayInfo.Screen          = DefaultScreen(DisplayInfo.Display);
-  s32 w = 960;//DisplayWidth(DisplayInfo.Display, DisplayInfo.Screen)/2;
-  s32 h = 540;//DisplayHeight(DisplayInfo.Display, DisplayInfo.Screen)/2;
-  //s32 w = 1280;
-  //s32 h = 720;
+  //s32 w = DisplayWidth(DisplayInfo.Display, DisplayInfo.Screen)/2;
+  //s32 h = DisplayHeight(DisplayInfo.Display, DisplayInfo.Screen)/2;
+  //s32 w = 960;
+  //s32 h = 540;
+  s32 w = 1280;
+  s32 h = 720;
+  //s32 w = 1366;
+  //s32 h = 768;
   //s32 w = 1279;
   //s32 h = 719;
   DisplayInfo.RootWindow      = RootWindow(DisplayInfo.Display, DisplayInfo.Screen);
@@ -1104,7 +1118,8 @@ main(int ArgCount, char** Arguments)
 		}
 	      
 	      struct timespec ExecutableReadyTime = SubtractTimeValues(Linux32GetWallClock(), LastCounter);
-	      FrameEndInfo.ExecutableReady = (r32)ExecutableReadyTime.tv_sec + ((r32)ExecutableReadyTime.tv_nsec / 1000000000.0f);
+	      r32 ExecutableReadySeconds = (r32)ExecutableReadyTime.tv_sec + ((r32)ExecutableReadyTime.tv_nsec / 1000000000.0f);
+	      Linux32RecordTimestamp(&FrameEndInfo, "ExecutableReady", ExecutableReadySeconds);
 	      
 	      controller_input *OldKeyboardController = GetController(OldInputState, 0);
 	      controller_input *NewKeyboardController = GetController(NewInputState, 0);
@@ -1155,7 +1170,8 @@ main(int ArgCount, char** Arguments)
 		}
 
 	      struct timespec InputProcessedTime = SubtractTimeValues(Linux32GetWallClock(), LastCounter);
-	      FrameEndInfo.InputProcessed = (r32)InputProcessedTime.tv_sec + ((r32)InputProcessedTime.tv_nsec / 1000000000.0f);
+	      r32 InputProcessedSeconds = (r32)InputProcessedTime.tv_sec + ((r32)InputProcessedTime.tv_nsec / 1000000000.0f);
+	      Linux32RecordTimestamp(&FrameEndInfo, "InputProcessed", InputProcessedSeconds);
 	      
 	      if(!GlobalPause)
 		{
@@ -1181,7 +1197,8 @@ main(int ArgCount, char** Arguments)
 		}
 	      	      
 	      struct timespec GameUpdatedTime = SubtractTimeValues(Linux32GetWallClock(), LastCounter);
-	      FrameEndInfo.GameUpdated = (r32)GameUpdatedTime.tv_sec + ((r32)GameUpdatedTime.tv_nsec / 1000000000.0f);
+	      r32 GameUpdatedSeconds = (r32)GameUpdatedTime.tv_sec + ((r32)GameUpdatedTime.tv_nsec / 1000000000.0f);
+	      Linux32RecordTimestamp(&FrameEndInfo, "GameUpdated", GameUpdatedSeconds);
 	      
 	      if(!GlobalPause)
 		{
@@ -1193,7 +1210,8 @@ main(int ArgCount, char** Arguments)
 		}
 
 	      struct timespec AudioUpdatedTime = SubtractTimeValues(Linux32GetWallClock(), LastCounter);
-	      FrameEndInfo.AudioUpdated = (r32)AudioUpdatedTime.tv_sec + ((r32)AudioUpdatedTime.tv_nsec / 1000000000.0f);
+	      r32 AudioUpdatedSeconds = (r32)AudioUpdatedTime.tv_sec + ((r32)AudioUpdatedTime.tv_nsec / 1000000000.0f);
+	      Linux32RecordTimestamp(&FrameEndInfo, "AudioUpdated", AudioUpdatedSeconds);
 	      
 	      if(!GlobalPause)
 		{
@@ -1238,8 +1256,9 @@ main(int ArgCount, char** Arguments)
 		}
 
 	      struct timespec FrameWaitCompleteTime = SubtractTimeValues(Linux32GetWallClock(), LastCounter);
-	      FrameEndInfo.FrameWaitComplete = (r32)FrameWaitCompleteTime.tv_sec + ((r32)FrameWaitCompleteTime.tv_nsec / 1000000000.0f);
-		  
+	      r32 FrameWaitCompleteSeconds = (r32)FrameWaitCompleteTime.tv_sec + ((r32)FrameWaitCompleteTime.tv_nsec / 1000000000.0f);
+	      Linux32RecordTimestamp(&FrameEndInfo, "FrameWaitComplete", FrameWaitCompleteSeconds);
+	      
 	      DisplayBufferInWindow(DisplayInfo, &GlobalOffscreenBuffer);
 
 	      FlipWallClock = Linux32GetWallClock();
@@ -1255,8 +1274,9 @@ main(int ArgCount, char** Arguments)
 
 #if HANDMADE_INTERNAL
 	      struct timespec EndOfFrameTime = SubtractTimeValues(EndCounter, LastCounter);
-	      FrameEndInfo.EndOfFrame = (r32)EndOfFrameTime.tv_sec + ((r32)EndOfFrameTime.tv_nsec / 1000000000.0f);
-
+	      r32 EndOfFrameSeconds = (r32)EndOfFrameTime.tv_sec + ((r32)EndOfFrameTime.tv_nsec / 1000000000.0f);
+	      Linux32RecordTimestamp(&FrameEndInfo, "EndOfFrame", EndOfFrameSeconds);
+	      
 	      s64 EndCycleCount = __builtin_readcyclecounter();	      
 	      s64 CyclesElapsed = EndCycleCount - LastCycleCount;
 	      LastCycleCount = EndCycleCount;

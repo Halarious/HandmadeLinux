@@ -87,7 +87,7 @@ typedef struct
 } render_transform;
 
 typedef struct assets assets;
-typedef struct
+struct render_group
 {
   assets* Assets;
   r32 GlobalAlpha;
@@ -105,7 +105,7 @@ typedef struct
   bool32 RendersInBackground;
 
   bool32 InsideRender;
-} render_group;
+};
 
 
 //NOTE: Renderer "API"

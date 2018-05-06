@@ -325,12 +325,14 @@ typedef UPDATE_AND_RENDER(get_sound_samples);
 
 typedef struct
 {
-  r32 ExecutableReady;
-  r32 InputProcessed;
-  r32 GameUpdated;
-  r32 AudioUpdated;
-  r32 FrameWaitComplete;
-  r32 EndOfFrame;
+  char* Name;
+  r32 Seconds;
+} debug_frame_timestamp;
+
+typedef struct
+{
+  u32 TimestampCount;
+  debug_frame_timestamp Timestamps[64];
 } debug_frame_end_info;
 
 #define DEBUG_FRAME_END(name) void name(memory* Memory, debug_frame_end_info* Info)

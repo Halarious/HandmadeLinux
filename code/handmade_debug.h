@@ -54,7 +54,6 @@ DestructTimedBlock(timed_block Block)
   __sync_fetch_and_add(&Block.Record->HitCount_CycleCount, Delta);
 }
 
-
 typedef struct
 {
   u32 HitCount;
@@ -77,6 +76,19 @@ typedef struct
   u32 SnapshotIndex;
   u32 CounterCount;
   debug_counter_state CounterStates[512];
+  debug_frame_end_info FrameEndInfos[DEBUG_SNAPSHOT_COUNT];
 } debug_state;
+
+typedef struct render_group render_group;
+global_variable struct render_group* DEBUGRenderGroup;
+
+typedef struct assets assets;
+internal void
+DEBUGReset(assets* Assets, u32 Width, u32 Height);
+
+internal void
+DEBUGOverlay(memory* Memory);
+
+
 
 
