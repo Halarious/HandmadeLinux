@@ -17,13 +17,46 @@ typedef struct
   u64 HitCount_CycleCount;  
 } debug_record;
 
+typedef enum
+  {
+    DebugEvent_BeginBlock,
+    DebugEvent_EndBlock,
+  } debug_event_type; 
+
+typedef struct
+{
+  u64 Clock;
+  u16 ThreadIndex;
+  u16 CoreIndex;
+  u16 DebugRecordIndex;
+  u8 DebugRecordArrayIndex;
+  u8 Type;
+} debug_event;
+
 debug_record DebugRecordArray[];
+
+#define MAX_DEBUG_EVENT_COUNT (16* 65536)
+extern u64 Global_DebugEventArrayIndex_DebugEventIndex;
+extern debug_event GlobalDebugEventArray[2][MAX_DEBUG_EVENT_COUNT];
+
+#define RecordDebugEvent(RecordIndex, EventType)			\
+  u64 ArrayIndex_EventIndex = AtomicAddUInt64(&Global_DebugEventArrayIndex_DebugEventIndex, 1);	\
+  u32 EventIndex = (ArrayIndex_EventIndex & 0xffffffff);		\
+  Assert(EventIndex < MAX_DEBUG_EVENT_COUNT);				\
+  debug_event* Event = GlobalDebugEventArray[ArrayIndex_EventIndex >> 32] + (EventIndex); \
+  Event->Clock = __builtin_readcyclecounter();				\
+  Event->ThreadIndex = 0;						\
+  Event->CoreIndex = 0;							\
+  Event->DebugRecordIndex = (u16)RecordIndex;				\
+  Event->DebugRecordArrayIndex = DebugRecordArrayIndexConstant;		\
+  Event->Type = EventType;
 
 typedef struct
 {
   debug_record* Record;
   u64 StartCycles;
   u32 HitCount;
+  int Counter;
 } timed_block;
 
 /*
@@ -41,8 +74,11 @@ ConstructTimedBlock(int Counter, char* FileName, int LineNumber, char* FunctionN
   Record->FileName = FileName;
   Record->FunctionName = FunctionName;
   Record->LineNumber = LineNumber;
-    
+  
   timed_block Result = {Record, __builtin_readcyclecounter(), HitCountInit};
+
+  RecordDebugEvent(Counter, DebugEvent_BeginBlock);
+  
   return(Result);
 }
 
@@ -50,14 +86,18 @@ internal void
 DestructTimedBlock(timed_block Block)
 {
   u64 Delta = (__builtin_readcyclecounter() - Block.StartCycles) | (((u64)Block.HitCount) << 32);
-  //AtomicAddUInt64(&Block.Record->HitCount_CycleCount, Delta);
-  __sync_fetch_and_add(&Block.Record->HitCount_CycleCount, Delta);
+  AtomicAddUInt64(&Block.Record->HitCount_CycleCount, Delta);
+  //__sync_fetch_and_add(&Block.Record->HitCount_CycleCount, Delta);
+
+
+  RecordDebugEvent(Block.Counter, DebugEvent_EndBlock);
+  
 }
 
 typedef struct
 {
   u32 HitCount;
-  u32 CycleCount;  
+  u64 CycleCount;  
 } debug_counter_snapshot;
 
 #define DEBUG_SNAPSHOT_COUNT 120

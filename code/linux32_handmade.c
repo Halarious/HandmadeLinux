@@ -979,8 +979,10 @@ main(int ArgCount, char** Arguments)
   //s32 h = DisplayHeight(DisplayInfo.Display, DisplayInfo.Screen)/2;
   //s32 w = 960;
   //s32 h = 540;
-  s32 w = 1280;
-  s32 h = 720;
+  //s32 w = 1280;
+  //s32 h = 720;
+  int w = 1960;
+  int h = 1080;
   //s32 w = 1366;
   //s32 h = 768;
   //s32 w = 1279;

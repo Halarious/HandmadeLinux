@@ -70,7 +70,7 @@ AtomicAddUInt32(u32 volatile* Value, u32 Addend)
 }
 
 internal inline u64
-AtomicAddUInt64(u64 volatile* Value, u32 Addend)
+AtomicAddUInt64(u64 volatile* Value, u64 Addend)
 {
   u64 Result = __sync_fetch_and_add(Value,
 				    Addend);
