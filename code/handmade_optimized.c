@@ -369,5 +369,5 @@ DrawRectangleQuickly(loaded_bitmap *Buffer,
   END_TIMED_BLOCK(TB_DrawRectangleQuickly);
 }
 
-u32 const DebugRecords_Optimized_Count = __COUNTER__;
-debug_record DebugRecords_Optimized[DebugRecords_Optimized_Count];
+u32 DebugRecords_Optimized_Count = __COUNTER__;
+

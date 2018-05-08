@@ -6,12 +6,12 @@ CommonLinkerFlags="-I /usr/include/freetype2 -I /usr/include/freetype2/freetype 
 mkdir ../build -p > /dev/null
 pushd ../build    > /dev/null
 
-clang $CommonCompilerFlags ../code/test_asset_builder.c $CommonLinkerFlags -o TestAssetBuilder
+clang $CommonCompilerFlags -DTRANSLATION_UNIT_INDEX=0 ../code/test_asset_builder.c $CommonLinkerFlags -o TestAssetBuilder
 
 echo LOCK > lock.tmp
-clang $CommonCompilerFlags -DDebugRecordArrayIndexConstant=1 -DDebugRecordArray=DebugRecords_Optimized -O3 -c -o handmade_optimized.obj -fPIC ../code/handmade_optimized.c  
-clang $CommonCompilerFlags -DDebugRecordArrayIndexConstant=0 -DDebugRecordArray=DebugRecords_Main -shared -o handmade.so -fPIC ../code/handmade.c handmade_optimized.obj -Wl,-Map,output.map,--gc-sections
+clang $CommonCompilerFlags -DTRANSLATION_UNIT_INDEX=1 -O3 -c -o handmade_optimized.obj -fPIC ../code/handmade_optimized.c  
+clang $CommonCompilerFlags -DTRANSLATION_UNIT_INDEX=0 -shared -o handmade.so -fPIC ../code/handmade.c handmade_optimized.obj -Wl,-Map,output.map,--gc-sections
 rm lock.tmp
-clang $CommonCompilerFlags ../code/linux32_handmade.c $CommonLinkerFlags -Wl,-Map,linux32_output.map,--gc-sections -o testBuild
+clang $CommonCompilerFlags -DTRANSLATION_UNIT_INDEX=2 ../code/linux32_handmade.c $CommonLinkerFlags -Wl,-Map,linux32_output.map,--gc-sections -o testBuild
 
 popd > /dev/null

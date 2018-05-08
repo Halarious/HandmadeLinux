@@ -6,9 +6,6 @@ global_variable r32 AtY;
 global_variable r32 FontScale;
 global_variable font_id FontID;
 
-u64 Global_DebugEventArrayIndex_DebugEventIndex = 0;
-debug_event GlobalDebugEventArray[2][MAX_DEBUG_EVENT_COUNT];
-
 /* 
    0x5c0f 小
    0x8033 耳
@@ -344,11 +341,10 @@ DEBUGOverlay(memory* Memory)
     }
 }
 
-debug_record DebugRecordArray[__COUNTER__];
+#define DebugRecords_Main_Count __COUNTER__
+extern u32 DebugRecords_Optimized_Count;
 
-u32 GlobalCurrentEventArrayIndex = 0;
-extern u32 const DebugRecords_Optimized_Count;
-extern debug_record DebugRecords_Optimized[];
+debug_table GlobalDebugTable;
 
 internal void
 UpdateDebugRecords(debug_state* DebugState, u32 CounterCount, debug_record* Counters)
@@ -372,7 +368,10 @@ UpdateDebugRecords(debug_state* DebugState, u32 CounterCount, debug_record* Coun
 internal void
 CollateDebugRecords(debug_state* DebugState, u32 EventCount, debug_event* Events)
 {
-  DebugState->CounterCount = ArrayCount(DebugRecords_Main) + DebugRecords_Optimized_Count;
+#define DebugRecords_Platform_Count 0
+  DebugState->CounterCount = (DebugRecords_Main_Count +
+			      DebugRecords_Optimized_Count +
+			      DebugRecords_Platform_Count);
 
   for(u32 CounterIndex = 0;
       CounterIndex < DebugState->CounterCount;
@@ -383,16 +382,11 @@ CollateDebugRecords(debug_state* DebugState, u32 EventCount, debug_event* Events
       Dest->Snapshots[DebugState->SnapshotIndex].CycleCount = 0;
     }  
 
-  debug_counter_state* CounterArray[2] =
+  debug_counter_state* CounterArray[3] =
     {
       DebugState->CounterStates,
-      DebugState->CounterStates + ArrayCount(DebugRecords_Main),
-    };
-
-  debug_record* DebugRecords[2] =
-    {
-      DebugRecords_Main,
-      DebugRecords_Optimized,
+      DebugState->CounterStates + DebugRecords_Main_Count,
+      DebugState->CounterStates + DebugRecords_Main_Count + DebugRecords_Optimized_Count,
     };
     
   for(u32 EventIndex = 0;
@@ -401,9 +395,9 @@ CollateDebugRecords(debug_state* DebugState, u32 EventCount, debug_event* Events
     {
       debug_event* Event = Events + EventIndex;
 
-      debug_counter_state* Dest = CounterArray[Event->DebugRecordArrayIndex] + Event->DebugRecordIndex;
+      debug_counter_state* Dest = CounterArray[Event->TranslationUnit] + Event->DebugRecordIndex;
 
-      debug_record* Source = DebugRecords[Event->DebugRecordArrayIndex] + Event->DebugRecordIndex;
+      debug_record* Source = GlobalDebugTable.Records[Event->TranslationUnit] + Event->DebugRecordIndex;
       Dest->FileName = Source->FileName;
       Dest->FunctionName = Source->FunctionName;
       Dest->LineNumber = Source->LineNumber;
@@ -423,9 +417,9 @@ CollateDebugRecords(debug_state* DebugState, u32 EventCount, debug_event* Events
 
 extern DEBUG_FRAME_END(DEBUGFrameEnd)
 {
-  GlobalCurrentEventArrayIndex = !GlobalCurrentEventArrayIndex;
-  u64 ArrayIndex_EventIndex = AtomicExchangeUInt64(&Global_DebugEventArrayIndex_DebugEventIndex,
-						   ((u64)GlobalCurrentEventArrayIndex << 32));
+  GlobalDebugTable.CurrentEventArrayIndex = !GlobalDebugTable.CurrentEventArrayIndex;
+  u64 ArrayIndex_EventIndex = AtomicExchangeUInt64(&GlobalDebugTable.EventArrayIndex_EventIndex,
+						   ((u64)GlobalDebugTable.CurrentEventArrayIndex << 32));
   u32 EventArrayIndex = ArrayIndex_EventIndex >> 32;
   u32 EventCount = ArrayIndex_EventIndex & 0xffffffff;
   
@@ -433,12 +427,9 @@ extern DEBUG_FRAME_END(DEBUGFrameEnd)
   if(DebugState)
     {
       DebugState->CounterCount = 0;
-#if 0
-      UpdateDebugRecords(DebugState, DebugRecords_Optimized_Count, DebugRecords_Optimized);
-      UpdateDebugRecords(DebugState, ArrayCount(DebugRecords_Main), DebugRecords_Main);
-#else
-      CollateDebugRecords(DebugState, EventCount, GlobalDebugEventArray[EventArrayIndex]);
-#endif
+
+      CollateDebugRecords(DebugState, EventCount, GlobalDebugTable.Events[EventArrayIndex]);
+
       DebugState->FrameEndInfos[DebugState->SnapshotIndex] = *Info;
 	
       ++DebugState->SnapshotIndex;

@@ -906,6 +906,12 @@ Linux32RecordTimestamp(debug_frame_end_info* Info, char* Name, r32 Seconds)
 int
 main(int ArgCount, char** Arguments)
 {
+  pthread_t thread_id = pthread_self();
+  //TODO: Check to see if we can do this with clang? Seems weird that we would not have that option
+  //__readfsdword(0x10);
+  //u64 value;
+  //__asm__ __volatile__("movl %%fs:%a[Offset], %k[value]" : [value] "=r" (value) : [Offset] "ir" (0x10));
+    
   linux32_state Linux32State = {};
 
   platform_work_queue HighPriorityQueue = {};

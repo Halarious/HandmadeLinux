@@ -323,6 +323,102 @@ typedef UPDATE_AND_RENDER(update_and_render);
 #define GET_SOUND_SAMPLES(name) void name(memory* Memory, sound_output_buffer* SoundBuffer)
 typedef UPDATE_AND_RENDER(get_sound_samples);
 
+
+#if COMPILER_MSVC
+#define CompletePreviousReadsBeforeFutureReads _ReadBarrier() ; 
+#define CompletePreviousWritesBeforeFutureWrites _WriteBarrier() 
+
+internal inline u32
+AtomicCompareExchangeUInt32(u32 volatile* Value, u32 New, u32 Expected)
+{
+  u32 Result = _InterlockedCompareExchange((long*)Value,
+					   New,
+					   Expected);
+  return(Result);
+}
+
+internal inline u64
+AtomicExchangeUInt64(u64 volatile* Value, u64 New)
+{
+  u64 Result = _InterlockedExchange((__int64*)Value,
+				    New);
+  return(Result);
+}
+
+internal inline u32
+AtomicAddUInt32(u32 volatile* Value, u32 Addend)
+{
+  u32 Result = _InterlockedExchangedAdd((long*)Value,
+					Addend);
+  return(Result);
+}
+
+internal inline u64
+AtomicAddUInt64(u32 volatile* Value, u32 Addend)
+{
+  u64 Result = _InterlockedExchangedAdd((__int64*)Value,
+					Addend);
+  return(Result);
+}
+
+internal inline u32
+GetThreadID()
+{
+  u32* ThreadLocalStorage = (u8*)__readgsqword(0x30);
+  u32 ThreadID = *(u32*)(ThreadLocalStorage + 0x48);
+  
+  return(ThreadID);
+}
+
+#elif COMPILER_LLVM
+#define CompletePreviousReadsBeforeFutureReads   asm volatile("" ::: "memory");
+#define CompletePreviousWritesBeforeFutureWrites asm volatile("" ::: "memory");
+
+internal inline u32
+AtomicCompareExchangeUInt32(u32 volatile* Value, u32 New, u32 Expected)
+{
+  u32 Result = __sync_val_compare_and_swap(Value,
+					   Expected,
+					   New);
+  return(Result);
+}
+
+internal inline u64
+AtomicExchangeUInt64(u64 volatile* Value, u64 New)
+{
+  u64 Result = __sync_lock_test_and_set(Value, New);
+  //u64 Result = __sync_swap(Value, New);
+  return(Result);
+}
+
+internal inline u32
+AtomicAddUInt32(u32 volatile* Value, u32 Addend)
+{
+  u32 Result = __sync_fetch_and_add(Value,
+				    Addend);
+  return(Result);
+}
+
+internal inline u64
+AtomicAddUInt64(u64 volatile* Value, u64 Addend)
+{
+  u64 Result = __sync_fetch_and_add(Value,
+				    Addend);
+  return(Result);
+}
+
+internal inline u32
+GetThreadID()
+{
+  u32 ThreadID;								\
+  __asm__ __volatile__("movl %%fs:%a[Offset], %k[ThreadID]" : [ThreadID] "=r" (ThreadID) : [Offset] "ir" (0x10)); \
+  return(ThreadID);
+}
+
+#else
+#error Intrinsics not defined for this compiler!
+#endif
+
 typedef struct
 {
   char* Name;
@@ -343,5 +439,103 @@ GetController(input *Input, u32 ControllerIndex)
 {
   controller_input *Result = &Input->Controllers[ControllerIndex];
   return(Result);
+}
+
+typedef struct
+{
+  char* FileName;
+  char* FunctionName;
+
+  u32 LineNumber;
+  u32 Reserved;
+  
+  u64 HitCount_CycleCount;  
+} debug_record;
+
+typedef enum
+  {
+    DebugEvent_BeginBlock,
+    DebugEvent_EndBlock,
+  } debug_event_type; 
+
+typedef struct
+{
+  u64 Clock;
+  u16 ThreadIndex;
+  u16 CoreIndex;
+  u16 DebugRecordIndex;
+  u8 TranslationUnit;
+  u8 Type;
+} debug_event;
+
+
+#define MAX_DEBUG_TRANSLATION_UNITS 3
+#define MAX_DEBUG_EVENT_COUNT (16* 65536)
+#define MAX_DEBUG_RECORD_COUNT (65536)
+
+typedef struct
+{
+  u32 CurrentEventArrayIndex;
+  u64 volatile EventArrayIndex_EventIndex;
+  debug_event Events[2][MAX_DEBUG_EVENT_COUNT];
+  debug_record Records[MAX_DEBUG_TRANSLATION_UNITS][MAX_DEBUG_RECORD_COUNT];
+} debug_table;
+
+extern debug_table GlobalDebugTable;
+
+inline void 
+RecordDebugEvent(RecordIndex, EventType)
+{
+  u64 ArrayIndex_EventIndex = AtomicAddUInt64(&GlobalDebugTable.EventArrayIndex_EventIndex, 1); 
+  u32 EventIndex = (ArrayIndex_EventIndex & 0xffffffff);		
+  Assert(EventIndex < MAX_DEBUG_EVENT_COUNT);			       
+  debug_event* Event = GlobalDebugTable.Events[ArrayIndex_EventIndex >> 32] + (EventIndex); 
+  Event->Clock = __builtin_readcyclecounter();				
+  Event->ThreadIndex = (u16) GetThreadID();				
+  Event->CoreIndex = 0;							
+  Event->DebugRecordIndex = (u16)RecordIndex;				
+  Event->TranslationUnit = TRANSLATION_UNIT_INDEX;		
+  Event->Type = (u8)EventType;
+}
+ 
+typedef struct
+{
+  int Counter;
+} timed_block;
+
+//NOTE: We are not doing anything with the line number passed as 'Number' since we don't do the constructor/destructor C++ method
+#define BEGIN_TIMED_BLOCK__(Number, ...) ConstructTimedBlock(__COUNTER__, __FILE__, __LINE__, (char*)__FUNCTION__, ## __VA_ARGS__)
+#define BEGIN_TIMED_BLOCK_(Number, ...) BEGIN_TIMED_BLOCK__(Number, ## __VA_ARGS__)
+#define BEGIN_TIMED_BLOCK(...) BEGIN_TIMED_BLOCK_(__LINE__, ## __VA_ARGS__)
+
+#define END_TIMED_BLOCK(timed_block) DestructTimedBlock(timed_block)
+
+/*
+timed_block
+ConstructTimedBlock(int Counter, char* FileName, int LineNumber, char* FunctionName, u32 HitCountInit);
+
+void
+DestructTimedBlock(timed_block Block);
+*/
+
+internal timed_block
+ConstructTimedBlock(int CounterInit, char* FileName, int LineNumber, char* FunctionName, u32 HitCountInit)
+{
+  timed_block Result = {CounterInit};
+
+  debug_record* Record = GlobalDebugTable.Records[TRANSLATION_UNIT_INDEX] + Result.Counter;
+  Record->FileName = FileName;
+  Record->FunctionName = FunctionName;
+  Record->LineNumber = LineNumber;
+  
+  RecordDebugEvent(Result.Counter, DebugEvent_BeginBlock);
+  
+  return(Result);
+}
+
+internal void
+DestructTimedBlock(timed_block Block)
+{
+  RecordDebugEvent(Block.Counter, DebugEvent_EndBlock); 
 }
 
