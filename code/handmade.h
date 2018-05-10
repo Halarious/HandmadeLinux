@@ -2,21 +2,6 @@
 
 #include "handmade_platform.h"
 #include "handmade_intrinsics.h"
-#include "handmade_debug.h"
-
-#define Minimum(A, B) ((A < B) ? A : B)
-#define Maximum(A, B) ((A > B) ? A : B)
-
-typedef struct
-{
-  r32 ScaleForPixelHeight;
-  
-  s32 Ascent;
-  s32 Descent;
-  s32 LineGap;
-
-  s32 VerticalAdvance;
-} font_metrics;
 
 typedef struct
 {
@@ -32,6 +17,22 @@ typedef struct
   memory_arena *Arena;
   memory_index Used;
 } temporary_memory;
+
+#include "handmade_debug.h"
+
+#define Minimum(A, B) ((A < B) ? A : B)
+#define Maximum(A, B) ((A > B) ? A : B)
+
+typedef struct
+{
+  r32 ScaleForPixelHeight;
+  
+  s32 Ascent;
+  s32 Descent;
+  s32 LineGap;
+
+  s32 VerticalAdvance;
+} font_metrics;
   
 typedef struct
 {

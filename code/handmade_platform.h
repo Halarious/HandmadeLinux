@@ -413,8 +413,6 @@ typedef struct
 
   u32 LineNumber;
   u32 Reserved;
-  
-  u64 HitCount_CycleCount;  
 } debug_record;
 
 typedef enum
@@ -434,7 +432,7 @@ typedef struct
   u8 Type;
 } debug_event;
 
-
+#define MAX_DEBUG_FRAME_COUNT 64
 #define MAX_DEBUG_TRANSLATION_UNITS 3
 #define MAX_DEBUG_EVENT_COUNT (16* 65536)
 #define MAX_DEBUG_RECORD_COUNT (65536)
@@ -443,7 +441,8 @@ struct debug_table
 {
   u32 CurrentEventArrayIndex;
   u64 volatile EventArrayIndex_EventIndex;
-  debug_event Events[64][MAX_DEBUG_EVENT_COUNT];
+  u32 EventCount[MAX_DEBUG_FRAME_COUNT];
+  debug_event Events[MAX_DEBUG_FRAME_COUNT][MAX_DEBUG_EVENT_COUNT];
 
   u32 RecordCount[MAX_DEBUG_TRANSLATION_UNITS];
   debug_record Records[MAX_DEBUG_TRANSLATION_UNITS][MAX_DEBUG_RECORD_COUNT];

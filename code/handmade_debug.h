@@ -5,7 +5,6 @@ typedef struct
   u64 CycleCount;  
 } debug_counter_snapshot;
 
-#define DEBUG_SNAPSHOT_COUNT 120
 typedef struct
 {
   char* FileName;
@@ -13,14 +12,35 @@ typedef struct
 
   u32 LineNumber;
 
-  debug_counter_snapshot Snapshots[DEBUG_SNAPSHOT_COUNT];
 } debug_counter_state;
-  
+
 typedef struct
 {
-  u32 SnapshotIndex;
-  u32 CounterCount;
-  debug_counter_state CounterStates[512];
+  u32 LaneIndex;
+  r32 MinT;
+  r32 MaxT;
+} debug_frame_region;
+
+typedef struct
+{
+  u64 BeginClock;
+  u64 EndClock;
+  u32 RegionCount;
+  debug_frame_region* Regions;
+} debug_frame;
+
+typedef struct
+{
+  bool32 Initialized;
+  
+  memory_arena CollateArena;
+  temporary_memory CollateTemp;
+  
+  u32 FrameBarLaneCount;
+  u32 FrameCount;
+  r32 FrameBarScale;	  
+
+  debug_frame* Frames;
 } debug_state;
 
 typedef struct render_group render_group;
