@@ -893,15 +893,9 @@ PLATFORM_DEALLOCATE_MEMORY(Linux32DeallocateMemory)
     }
 }
 
-internal inline void
-Linux32RecordTimestamp(debug_frame_end_info* Info, char* Name, r32 Seconds)
-{
-  Assert(Info->TimestampCount < ArrayCount(Info->Timestamps));
+global_variable debug_table GlobalDebugTable_;
+debug_table* GlobalDebugTable = &GlobalDebugTable_;
 
-  debug_frame_timestamp* Timestamp = Info->Timestamps + Info->TimestampCount++;
-  Timestamp->Name = Name;
-  Timestamp->Seconds = Seconds;
-}
 
 int
 main(int ArgCount, char** Arguments)
@@ -1107,8 +1101,10 @@ main(int ArgCount, char** Arguments)
 	  s64 LastCycleCount = __builtin_readcyclecounter();
 	  while(GlobalRunning)
 	    {
-	      debug_frame_end_info FrameEndInfo = {};
-
+	      FRAME_MARKER();
+	      
+	      BEGIN_TIMED_BLOCK(ExecutableRefresh);
+	      
 	      NewInputState->dtForFrame = TargetSecondsPerFrame;
 	      NewInputState->ExecutableReloaded = false;
 	      
@@ -1117,18 +1113,17 @@ main(int ArgCount, char** Arguments)
 		{
 		  Linux32CompleteAllWork(&HighPriorityQueue);
 		  Linux32CompleteAllWork(&LowPriorityQueue);
-		  
+
+		  GlobalDebugTable = &GlobalDebugTable_;
 		  Linux32UnloadCode(&Code);
 		  Code = Linux32LoadCode(SourceCodeSOFullPath,
 					 TempCodeSOFullPath,
 					 LockFullPath);
 		  NewInputState->ExecutableReloaded = true;
 		}
-	      
-	      struct timespec ExecutableReadyTime = SubtractTimeValues(Linux32GetWallClock(), LastCounter);
-	      r32 ExecutableReadySeconds = (r32)ExecutableReadyTime.tv_sec + ((r32)ExecutableReadyTime.tv_nsec / 1000000000.0f);
-	      Linux32RecordTimestamp(&FrameEndInfo, "ExecutableReady", ExecutableReadySeconds);
-	      
+	      END_TIMED_BLOCK(ExecutableRefresh);
+
+	      BEGIN_TIMED_BLOCK(InputProcessing);
 	      controller_input *OldKeyboardController = GetController(OldInputState, 0);
 	      controller_input *NewKeyboardController = GetController(NewInputState, 0);
 	      controller_input ZeroController = {};
@@ -1177,10 +1172,9 @@ main(int ArgCount, char** Arguments)
 		  }
 		}
 
-	      struct timespec InputProcessedTime = SubtractTimeValues(Linux32GetWallClock(), LastCounter);
-	      r32 InputProcessedSeconds = (r32)InputProcessedTime.tv_sec + ((r32)InputProcessedTime.tv_nsec / 1000000000.0f);
-	      Linux32RecordTimestamp(&FrameEndInfo, "InputProcessed", InputProcessedSeconds);
-	      
+	      END_TIMED_BLOCK(InputProcessing);
+
+	      BEGIN_TIMED_BLOCK(GameUpdate);
 	      if(!GlobalPause)
 		{
 		  offscreen_buffer Buffer = {};
@@ -1203,11 +1197,10 @@ main(int ArgCount, char** Arguments)
 		      //HandleDebugCycleCounters(&Memory);
 		    }
 		}
-	      	      
-	      struct timespec GameUpdatedTime = SubtractTimeValues(Linux32GetWallClock(), LastCounter);
-	      r32 GameUpdatedSeconds = (r32)GameUpdatedTime.tv_sec + ((r32)GameUpdatedTime.tv_nsec / 1000000000.0f);
-	      Linux32RecordTimestamp(&FrameEndInfo, "GameUpdated", GameUpdatedSeconds);
-	      
+
+	      END_TIMED_BLOCK(GameUpdate);
+
+	      BEGIN_TIMED_BLOCK(AudioUpdate);
 	      if(!GlobalPause)
 		{
 		  //TODO: Hey, we don't have audio yet
@@ -1217,10 +1210,9 @@ main(int ArgCount, char** Arguments)
 		  //TODO: Audio goes here!
 		}
 
-	      struct timespec AudioUpdatedTime = SubtractTimeValues(Linux32GetWallClock(), LastCounter);
-	      r32 AudioUpdatedSeconds = (r32)AudioUpdatedTime.tv_sec + ((r32)AudioUpdatedTime.tv_nsec / 1000000000.0f);
-	      Linux32RecordTimestamp(&FrameEndInfo, "AudioUpdated", AudioUpdatedSeconds);
-	      
+	      END_TIMED_BLOCK(AudioUpdate);
+
+	      BEGIN_TIMED_BLOCK(FrameWait);
 	      if(!GlobalPause)
 		{
 		  struct timespec WorkCounter = Linux32GetWallClock();
@@ -1263,10 +1255,9 @@ main(int ArgCount, char** Arguments)
 		    }
 		}
 
-	      struct timespec FrameWaitCompleteTime = SubtractTimeValues(Linux32GetWallClock(), LastCounter);
-	      r32 FrameWaitCompleteSeconds = (r32)FrameWaitCompleteTime.tv_sec + ((r32)FrameWaitCompleteTime.tv_nsec / 1000000000.0f);
-	      Linux32RecordTimestamp(&FrameEndInfo, "FrameWaitComplete", FrameWaitCompleteSeconds);
-	      
+	      END_TIMED_BLOCK(FrameWait);
+
+	      BEGIN_TIMED_BLOCK(FrameDisplay);
 	      DisplayBufferInWindow(DisplayInfo, &GlobalOffscreenBuffer);
 
 	      FlipWallClock = Linux32GetWallClock();
@@ -1280,10 +1271,9 @@ main(int ArgCount, char** Arguments)
 	      r32 MSPerFrame = ((r32)TimePerFrame.tv_sec * 1000.0f) + ((r32)TimePerFrame.tv_nsec / 1000000.0f);
 	      LastCounter = EndCounter;
 
+	      END_TIMED_BLOCK(FrameDisplay);
+
 #if HANDMADE_INTERNAL
-	      struct timespec EndOfFrameTime = SubtractTimeValues(EndCounter, LastCounter);
-	      r32 EndOfFrameSeconds = (r32)EndOfFrameTime.tv_sec + ((r32)EndOfFrameTime.tv_nsec / 1000000000.0f);
-	      Linux32RecordTimestamp(&FrameEndInfo, "EndOfFrame", EndOfFrameSeconds);
 	      
 	      s64 EndCycleCount = __builtin_readcyclecounter();	      
 	      s64 CyclesElapsed = EndCycleCount - LastCycleCount;
@@ -1297,10 +1287,14 @@ main(int ArgCount, char** Arguments)
 #endif
 	      if(Code.DEBUGFrameEnd)
 		{
-		  Code.DEBUGFrameEnd(&Memory, &FrameEndInfo);
+		  GlobalDebugTable = Code.DEBUGFrameEnd(&Memory);
+		  GlobalDebugTable->RecordCount[TRANSLATION_UNIT_INDEX] = __COUNTER__;
 		}
-#endif		  
-	   }
+	      GlobalDebugTable_.EventArrayIndex_EventIndex = 0;
+#endif
+	      
+	      // END_NAMED_BLOCK(Linux32Loop);
+	    }
 	}
       else
 	{

@@ -16,7 +16,7 @@ DrawRectangleQuickly(loaded_bitmap *Buffer,
 		     rectangle2i ClipRect,
 		     bool32 Even)
 {
-  timed_block TB_DrawRectangleQuickly = BEGIN_TIMED_BLOCK(1);
+  BEGIN_TIMED_FUNCTION(1);
 
   Color.rgb = V3MulS(Color.a, Color.rgb);
   
@@ -143,7 +143,7 @@ DrawRectangleQuickly(loaded_bitmap *Buffer,
       s32 MaxY = FillRect.MaxY;
       s32 MinX = FillRect.MinX;
       s32 MaxX = FillRect.MaxX;
-      timed_block TB_ProcessPixel = BEGIN_TIMED_BLOCK(GetClampedRectArea(FillRect) / 2);
+      BEGIN_NAMED_BLOCK(PixelFill, GetClampedRectArea(FillRect) / 2);
       for(int Y = MinY;
 	  Y < MaxY;
 	  Y += 2)
@@ -363,10 +363,10 @@ DrawRectangleQuickly(loaded_bitmap *Buffer,
 	  Row += RowAdvance; 
 	}
 
-      END_TIMED_BLOCK(TB_ProcessPixel);
+      END_NAMED_BLOCK(PixelFill);
     }
 
-  END_TIMED_BLOCK(TB_DrawRectangleQuickly);
+  END_TIMED_FUNCTION();
 }
 
 u32 DebugRecords_Optimized_Count = __COUNTER__;

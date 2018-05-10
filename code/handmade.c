@@ -574,7 +574,7 @@ typedef struct
 internal
 PLATFORM_WORK_QUEUE_CALLBACK(FillGroundChunkWork)
 {
-  timed_block TB_FillGroundChunkWork = BEGIN_TIMED_BLOCK(1);
+  BEGIN_TIMED_FUNCTION(1);
   
   fill_ground_chunk_work* Work = (fill_ground_chunk_work*) Data;
 
@@ -674,7 +674,7 @@ PLATFORM_WORK_QUEUE_CALLBACK(FillGroundChunkWork)
     
   EndTaskWithMemory(Work->Task);
 
-  END_TIMED_BLOCK(TB_FillGroundChunkWork);
+  END_TIMED_FUNCTION();
 }
 
 internal void
@@ -706,7 +706,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 #if HANDMADE_INTERNAL
   DebugGlobalMemory = Memory;
 #endif
-  timed_block TB_UpdateAndRender = BEGIN_TIMED_BLOCK(1);
+  BEGIN_TIMED_FUNCTION(1);
   
   u32 GroundBufferWidth = 256;
   u32 GroundBufferHeight = 256;
@@ -1750,7 +1750,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   CheckArena(&State->WorldArena);
   CheckArena(&TransState->TransientArena);
 
-  END_TIMED_BLOCK(TB_UpdateAndRender);
+  END_TIMED_FUNCTION();
   
   if(DEBUGRenderGroup)
     {

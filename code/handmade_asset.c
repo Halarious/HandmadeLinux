@@ -22,7 +22,7 @@ typedef struct
 internal void
 LoadAssetWorkDirectly(load_asset_work* Work)
 {
-  timed_block TB_LoadAssetWorkDirectly = BEGIN_TIMED_BLOCK(1);
+  BEGIN_TIMED_FUNCTION(1);
 
   Platform.ReadDataFromFile(Work->Handle, Work->Offset, Work->Size, Work->Destination);
   if(PlatformNoFileErrors(Work->Handle))
@@ -61,7 +61,7 @@ LoadAssetWorkDirectly(load_asset_work* Work)
 
   Work->Asset->State = Work->FinalState;
 
-  END_TIMED_BLOCK(TB_LoadAssetWorkDirectly);
+  END_TIMED_FUNCTION();
 }
 
 internal PLATFORM_WORK_QUEUE_CALLBACK(LoadAssetWork)
@@ -175,7 +175,7 @@ GenerationHasCompleted(assets* Assets, u32 CheckID)
 internal asset_memory_header*
 AcquireAssetMemory(assets* Assets, u32 Size, u32 AssetIndex)
 {
-  timed_block TB_AcquireAssetMemory = BEGIN_TIMED_BLOCK(1);
+  BEGIN_TIMED_FUNCTION(1);
 
   asset_memory_header* Result = 0;
 
@@ -244,7 +244,7 @@ AcquireAssetMemory(assets* Assets, u32 Size, u32 AssetIndex)
 
   EndAssetLock(Assets);  
 
-  END_TIMED_BLOCK(TB_AcquireAssetMemory);
+  END_TIMED_FUNCTION();
   
   return(Result);
 }
@@ -259,7 +259,7 @@ typedef struct
 void
 LoadBitmap(assets* Assets, bitmap_id ID, bool32 Immediate)
 {
-  timed_block TB_LoadBitmap = BEGIN_TIMED_BLOCK(1);
+  BEGIN_TIMED_FUNCTION(1);
 
   asset* Asset = Assets->Assets + ID.Value;
 
@@ -334,7 +334,7 @@ LoadBitmap(assets* Assets, bitmap_id ID, bool32 Immediate)
 	}
     }
 
-  END_TIMED_BLOCK(TB_LoadBitmap);
+  END_TIMED_FUNCTION();
 }
 
 void
