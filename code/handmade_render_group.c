@@ -1,3 +1,5 @@
+#define IGNORED_BEGIN_TIMED_FUNCTION(...) BEGIN_TIMED_FUNCTION(1)
+#define IGNORED_END_TIMED_FUNCTION(...) END_TIMED_FUNCTION()
 
 internal v4
 UnscaleAndBiasNormal(v4 Normal)
@@ -19,7 +21,7 @@ internal void
 DrawBitmap(loaded_bitmap *Buffer, loaded_bitmap *Bitmap,
 	   r32 RealX,  r32 RealY, r32 CAlpha)
 {
-  BEGIN_TIMED_FUNCTION(1);
+  IGNORED_BEGIN_TIMED_FUNCTION(1);
   
   s32 MinX = RoundReal32ToInt32(RealX);
   s32 MinY = RoundReal32ToInt32(RealY);
@@ -100,7 +102,7 @@ DrawBitmap(loaded_bitmap *Buffer, loaded_bitmap *Bitmap,
       DestRow   += Buffer->Pitch;
     }
 
-  END_TIMED_FUNCTION();
+  IGNORED_END_TIMED_FUNCTION();
 }
 
 internal void
@@ -150,7 +152,7 @@ DrawRectangle(loaded_bitmap *Buffer,
 	      rectangle2i ClipRect,
 	      bool32 Even)
 {
-  BEGIN_TIMED_FUNCTION(1);
+  IGNORED_BEGIN_TIMED_FUNCTION(1);
 
   r32 R = Color.r;
   r32 G = Color.g;
@@ -192,7 +194,7 @@ DrawRectangle(loaded_bitmap *Buffer,
       Row += 2*Buffer->Pitch; 
     }
 
-  END_TIMED_FUNCTION();
+  IGNORED_END_TIMED_FUNCTION();
 }
 
 internal inline v4
@@ -299,7 +301,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
 		    environment_map *Bottom,
 		    r32 PixelsToMeters)
 {
-  BEGIN_TIMED_FUNCTION(1);
+  IGNORED_BEGIN_TIMED_FUNCTION(1);
 
   Color.rgb = V3MulS(Color.a, Color.rgb);
   
@@ -538,7 +540,7 @@ DrawRectangleSlowly(loaded_bitmap *Buffer,
     }
   END_NAMED_BLOCK(PixelFill);
  
-  END_TIMED_FUNCTION();
+  IGNORED_END_TIMED_FUNCTION();
 }
 
 typedef struct
@@ -566,7 +568,7 @@ typedef struct
 internal void
 RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget, rectangle2i ClipRect, bool32 Even)
 {
-  BEGIN_TIMED_FUNCTION(1);
+  IGNORED_BEGIN_TIMED_FUNCTION(1);
 
   Assert(RenderGroup->InsideRender);
 
@@ -710,7 +712,7 @@ RenderGroupToOutput(render_group* RenderGroup, loaded_bitmap* OutputTarget, rect
 	}
     }
 
-  END_TIMED_FUNCTION();
+  IGNORED_END_TIMED_FUNCTION();
 }
 
 typedef struct
@@ -734,7 +736,7 @@ PLATFORM_WORK_QUEUE_CALLBACK(DoTiledRenderWork)
 internal void
 RenderGroupToOutput2(render_group* RenderGroup, loaded_bitmap* OutputTarget)
 {
-  BEGIN_TIMED_FUNCTION(1);
+  IGNORED_BEGIN_TIMED_FUNCTION(1);
 
   Assert(RenderGroup->InsideRender);
   Assert(((uintptr)OutputTarget->Memory & 15) == 0);
@@ -752,14 +754,14 @@ RenderGroupToOutput2(render_group* RenderGroup, loaded_bitmap* OutputTarget)
     
   DoTiledRenderWork(0, &Work);  
 
-  END_TIMED_FUNCTION();
+  IGNORED_END_TIMED_FUNCTION();
 }
 
 internal void
 TiledRenderGroupToOutput(platform_work_queue* RenderQueue,
 			 render_group* RenderGroup, loaded_bitmap* OutputTarget)
 {
-  BEGIN_TIMED_FUNCTION(1);
+  IGNORED_BEGIN_TIMED_FUNCTION(1);
 
   Assert(RenderGroup->InsideRender);
   
@@ -814,7 +816,7 @@ TiledRenderGroupToOutput(platform_work_queue* RenderQueue,
 
   Platform.CompleteAllWork(RenderQueue);
 
-  END_TIMED_FUNCTION();
+  IGNORED_END_TIMED_FUNCTION();
 }
 
 internal render_group*
@@ -851,7 +853,7 @@ AllocateRenderGroup(assets* Assets, memory_arena *Arena, u32 MaxPushBufferSize, 
 internal void
 BeginRender(render_group* Group)
 {
-  BEGIN_TIMED_FUNCTION(1);
+  IGNORED_BEGIN_TIMED_FUNCTION(1);
 
   if(Group)
     {
@@ -861,13 +863,13 @@ BeginRender(render_group* Group)
       Group->GenerationID = BeginGeneration(Group->Assets);
     }
 
-  END_TIMED_FUNCTION();  
+  IGNORED_END_TIMED_FUNCTION();  
 }
 
 internal void
 EndRender(render_group* Group)
 {
-  BEGIN_TIMED_FUNCTION(1);
+  IGNORED_BEGIN_TIMED_FUNCTION(1);
 
   if(Group)
     {
@@ -879,7 +881,7 @@ EndRender(render_group* Group)
       Group->PushBufferSize = 0;
     }
 
-  END_TIMED_FUNCTION();  
+  IGNORED_END_TIMED_FUNCTION();  
 }
 
 internal inline void
@@ -977,7 +979,7 @@ GetRenderEntityBasisP(render_transform* Transform, v3 OriginalP)
 internal inline void*
 PushRenderElement_(render_group *Group, u32 Size, render_group_entry_type Type)
 {
-  BEGIN_TIMED_FUNCTION(1);  
+  IGNORED_BEGIN_TIMED_FUNCTION(1);  
   
   Assert(Group->InsideRender);
   
@@ -997,7 +999,7 @@ PushRenderElement_(render_group *Group, u32 Size, render_group_entry_type Type)
       InvalidCodePath;
     }
 
-  END_TIMED_FUNCTION();  
+  IGNORED_END_TIMED_FUNCTION();  
   
   return(Result);
 }

@@ -386,8 +386,10 @@ AtomicAddUInt64(u64 volatile* Value, u64 Addend)
 internal inline u32
 GetThreadID()
 {
-  u32 ThreadID;								\
-  __asm__ __volatile__("movl %%fs:%a[Offset], %k[ThreadID]" : [ThreadID] "=r" (ThreadID) : [Offset] "ir" (0x10)); \
+  u32 ThreadID;
+  unsigned long TestID;
+  __asm__ __volatile__("movl %%fs:%a[Offset], %k[ThreadID]" : [ThreadID] "=r" (ThreadID) : [Offset] "ir" (0x10));
+  __asm__ __volatile__("movl %%fs:%a[Offset], %k[TestID]" : [TestID] "=r" (TestID) : [Offset] "ir" (0x10));
   return(ThreadID);
 }
 
@@ -465,11 +467,6 @@ RecordDebugEvent(RecordIndex, EventType)
   Event->TranslationUnit = TRANSLATION_UNIT_INDEX;		
   Event->Type = (u8)EventType;
 }
- 
-typedef struct
-{
-  int Counter;
-} timed_block;
 
 #define FRAME_MARKER()							\
   { 									\
@@ -493,20 +490,25 @@ typedef struct
 
 #define BEGIN_TIMED_BLOCK_(Counter, _FileName, _LineNumber, _BlockName)	\
   {debug_record* Record = GlobalDebugTable->Records[TRANSLATION_UNIT_INDEX] + Counter; \
-  Record->FileName = _FileName;					\
-  Record->LineNumber = _LineNumber;					\
-  Record->BlockName = _BlockName;					\
-  RecordDebugEvent(Counter, DebugEvent_BeginBlock);}
+    Record->FileName = _FileName;					\
+    Record->LineNumber = _LineNumber;					\
+    Record->BlockName = _BlockName;					\
+    RecordDebugEvent(Counter, DebugEvent_BeginBlock);}
 
-#define END_TIMED_BLOCK_(Counter) \
+#define END_TIMED_BLOCK_(Counter)			\
   RecordDebugEvent(Counter, DebugEvent_EndBlock);  
 
 #define BEGIN_TIMED_BLOCK(Name)						\
   int Counter_##Name = __COUNTER__;					\
   BEGIN_TIMED_BLOCK_(Counter_##Name, __FILE__, __LINE__, #Name);
-  
-#define END_TIMED_BLOCK(Name) \
+
+#define END_TIMED_BLOCK(Name)			\
   END_TIMED_BLOCK_(Counter_##Name);
+ 
+typedef struct
+{
+  int Counter;
+} timed_block;
 
 internal timed_block
 ConstructTimedBlock(int Counter, char* FileName, int LineNumber, char* BlockName, u32 HitCountInit)

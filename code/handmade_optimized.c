@@ -1,3 +1,7 @@
+#define IGNORED_BEGIN_TIMED_FUNCTION(...)
+#define IGNORED_END_TIMED_FUNCTION(...)
+#define IGNORED_BEGIN_NAMED_BLOCK(...)
+#define IGNORED_END_NAMED_BLOCK(...)
 
 #include "handmade.h"
 
@@ -16,7 +20,7 @@ DrawRectangleQuickly(loaded_bitmap *Buffer,
 		     rectangle2i ClipRect,
 		     bool32 Even)
 {
-  BEGIN_TIMED_FUNCTION(1);
+  IGNORED_BEGIN_TIMED_FUNCTION(1);
 
   Color.rgb = V3MulS(Color.a, Color.rgb);
   
@@ -143,7 +147,7 @@ DrawRectangleQuickly(loaded_bitmap *Buffer,
       s32 MaxY = FillRect.MaxY;
       s32 MinX = FillRect.MinX;
       s32 MaxX = FillRect.MaxX;
-      BEGIN_NAMED_BLOCK(PixelFill, GetClampedRectArea(FillRect) / 2);
+      IGNORED_BEGIN_NAMED_BLOCK(PixelFill, GetClampedRectArea(FillRect) / 2);
       for(int Y = MinY;
 	  Y < MaxY;
 	  Y += 2)
@@ -363,10 +367,10 @@ DrawRectangleQuickly(loaded_bitmap *Buffer,
 	  Row += RowAdvance; 
 	}
 
-      END_NAMED_BLOCK(PixelFill);
+      IGNORED_END_NAMED_BLOCK(PixelFill);
     }
 
-  END_TIMED_FUNCTION();
+  IGNORED_END_TIMED_FUNCTION();
 }
 
 u32 DebugRecords_Optimized_Count = __COUNTER__;

@@ -43,6 +43,24 @@ typedef struct
   memory_arena GlyphArena;
 } font;
 
+internal inline bool32
+StringsAreEqual(char* A, char* B)
+{
+  bool32 Result = (A == B);
+
+  if(A && B)
+    {
+      while(*A && *B && (*A == *B))
+	{
+	  ++A;
+	  ++B;
+	}
+
+      Result = ((*A == 0) && (*B == 0));
+    }
+  return(Result);
+}
+
 internal void
 InitializeArena(memory_arena* Arena, memory_index Size, void* StorageBase)
 {

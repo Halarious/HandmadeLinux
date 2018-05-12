@@ -667,6 +667,10 @@ ThreadProc(void* lpParameter)
 {
   platform_work_queue* Queue = (platform_work_queue*) lpParameter;
 
+  pthread_t LinuxThreadID = pthread_self();
+  u32 TestThreadID = GetThreadID();
+  Assert(TestThreadID == (u32)LinuxThreadID)
+  
   for(;;)
     {
       if(Linux32DoNextWorkQueueEntry(Queue))
@@ -895,7 +899,6 @@ PLATFORM_DEALLOCATE_MEMORY(Linux32DeallocateMemory)
 
 global_variable debug_table GlobalDebugTable_;
 debug_table* GlobalDebugTable = &GlobalDebugTable_;
-
 
 int
 main(int ArgCount, char** Arguments)
