@@ -21,11 +21,13 @@ typedef struct
   r32 MaxT;
 } debug_frame_region;
 
-#define MAX_REGIONS_PER_FRAME 256
+#define MAX_REGIONS_PER_FRAME 4096
 typedef struct
 {
   u64 BeginClock;
   u64 EndClock;
+  r32 WallSecondsElapsed;
+  
   u32 RegionCount;
   debug_frame_region* Regions;
 } debug_frame;

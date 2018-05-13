@@ -41,6 +41,12 @@
 
 - Day 169 continues the Win path for fonts in the test asset builder,
   and the stb path may be addressed later?
+
+- There still exists the bug in our asset_builder(?) that overwrittes or 
+  corrupts fonts written before other fornts
+
+- Day 187s fix of the bug may not be entirely what caused our problems,
+  we should investigate. On the other hand it might be.
  */
 
 #include "handmade.h"

@@ -426,9 +426,18 @@ typedef enum
 
 typedef struct
 {
-  u64 Clock;
   u16 ThreadID;
   u16 CoreIndex;
+} threadid_coreindex;
+  
+typedef struct
+{
+  u64 Clock;
+  union
+  {
+    threadid_coreindex TC;
+    r32 SecondsElapsed;
+  };
   u16 DebugRecordIndex;
   u8 TranslationUnit;
   u8 Type;
@@ -453,30 +462,35 @@ struct debug_table
 
 extern debug_table* GlobalDebugTable;
 
-internal inline void 
-RecordDebugEvent(RecordIndex, EventType)
-{
-  u64 ArrayIndex_EventIndex = AtomicAddUInt64(&GlobalDebugTable->EventArrayIndex_EventIndex, 1); 
-  u32 EventIndex = (ArrayIndex_EventIndex & 0xffffffff);		
-  Assert(EventIndex < MAX_DEBUG_EVENT_COUNT);			       
-  debug_event* Event = GlobalDebugTable->Events[ArrayIndex_EventIndex >> 32] + (EventIndex); 
-  Event->Clock = __builtin_readcyclecounter();				
-  Event->ThreadID = (u16) GetThreadID();				
-  Event->CoreIndex = 0;							
-  Event->DebugRecordIndex = (u16)RecordIndex;				
-  Event->TranslationUnit = TRANSLATION_UNIT_INDEX;		
-  Event->Type = (u8)EventType;
-}
-
-#define FRAME_MARKER()							\
-  { 									\
-  int Counter = __COUNTER__;						\
-  RecordDebugEvent(Counter, DebugEvent_FrameMarker);			\
-  debug_record* Record = GlobalDebugTable->Records[TRANSLATION_UNIT_INDEX] + Counter; \
-  Record->FileName = __FILE__;						\
-  Record->LineNumber = __LINE__;					\
-  Record->BlockName = "Frame Marker";}					\
+#define RecordDebugEventCommon(RecordIndex, EventType)			\
+  u64 ArrayIndex_EventIndex = AtomicAddUInt64(&GlobalDebugTable->EventArrayIndex_EventIndex, 1); \
+  u32 EventIndex = (ArrayIndex_EventIndex & 0xffffffff);		\
+  Assert(EventIndex < MAX_DEBUG_EVENT_COUNT);				\
+  debug_event* Event = GlobalDebugTable->Events[ArrayIndex_EventIndex >> 32] + (EventIndex); \
+  Event->Clock = __builtin_readcyclecounter();				\
+  Event->DebugRecordIndex = (u16)RecordIndex;				\
+  Event->TranslationUnit = TRANSLATION_UNIT_INDEX;			\
+  Event->Type = (u8)EventType;						\
   
+#define RecordDebugEvent(RecordIndex, EventType)	\
+  {							\
+    RecordDebugEventCommon(RecordIndex, EventType);	\
+    Event->TC.ThreadID = (u16) GetThreadID();		\
+    Event->TC.CoreIndex = 0;				\
+  }
+
+#define FRAME_MARKER(SecondsElapsedInit)				\
+  { 									\
+    int Counter = __COUNTER__;						\
+    RecordDebugEventCommon(Counter, DebugEvent_FrameMarker);		\
+    Event->SecondsElapsed = SecondsElapsedInit;				\
+    debug_record* Record = GlobalDebugTable->Records[TRANSLATION_UNIT_INDEX] + Counter; \
+    Record->FileName = __FILE__;					\
+    Record->LineNumber = __LINE__;					\
+    Record->BlockName = "Frame Marker";					\
+  }									\
+  
+#if HANDMADE_PROFILE
 
 //NOTE: We are not doing anything with the line number passed as 'Number' since we don't do the constructor/destructor C++ method
 #define BEGIN_NAMED_BLOCK__(Name, Number, ...) timed_block TB_##Name = ConstructTimedBlock(__COUNTER__, __FILE__, __LINE__, #Name, ## __VA_ARGS__)
@@ -524,4 +538,16 @@ DestructTimedBlock(timed_block Block)
 {
   END_TIMED_BLOCK_(Block.Counter);
 }
+
+#else
+#define BEGIN_NAMED_BLOCK(Name, ...) 
+#define END_NAMED_BLOCK(Name)
+
+#define BEGIN_TIMED_FUNCTION(...) 
+#define END_TIMED_FUNCTION() 
+
+#define BEGIN_TIMED_BLOCK(Name)
+#define END_TIMED_BLOCK(Name)
+
+#endif
 

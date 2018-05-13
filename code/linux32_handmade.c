@@ -553,6 +553,15 @@ Linux32GetWallClock()
   return(Result);
 }
 
+inline r32
+Linux32GetWallClockSeconds()
+{
+  struct timespec Time = Linux32GetWallClock();  
+  r32 Result = (r64)Time.tv_sec + ((r64)Time.tv_nsec / 1000000000.0f);   
+
+  return(Result);
+}
+
 #if 0
 internal void
 HandleDebugCycleCounters(memory* Memory)
@@ -1099,13 +1108,9 @@ main(int ArgCount, char** Arguments)
 	  //     whatnot.
 	  struct timespec LastCounter = Linux32GetWallClock();
 	  struct timespec FlipWallClock = Linux32GetWallClock();
-	  
-	  //TODO: This is LLVM only obviously
-	  s64 LastCycleCount = __builtin_readcyclecounter();
+
 	  while(GlobalRunning)
 	    {
-	      FRAME_MARKER();
-	      
 	      BEGIN_TIMED_BLOCK(ExecutableRefresh);
 	      
 	      NewInputState->dtForFrame = TargetSecondsPerFrame;
@@ -1269,34 +1274,30 @@ main(int ArgCount, char** Arguments)
 	      OldInputState    = NewInputState;
 	      NewInputState    = tempInput;
 
-	      struct timespec EndCounter = Linux32GetWallClock(); 
-	      struct timespec TimePerFrame = SubtractTimeValues(EndCounter, LastCounter);
-	      r32 MSPerFrame = ((r32)TimePerFrame.tv_sec * 1000.0f) + ((r32)TimePerFrame.tv_nsec / 1000000.0f);
-	      LastCounter = EndCounter;
-
 	      END_TIMED_BLOCK(FrameDisplay);
 
 #if HANDMADE_INTERNAL
-	      
-	      s64 EndCycleCount = __builtin_readcyclecounter();	      
-	      s64 CyclesElapsed = EndCycleCount - LastCycleCount;
-	      LastCycleCount = EndCycleCount;
-#if 0		  
-	      r32 FPS = 0.0f;
-	      r32 MCPF = ((r32)CyclesElapsed / (1000.0f * 1000.0f));
+	      BEGIN_TIMED_BLOCK(DebugCollation);
 
-	      //ElapsedTime = SubtractTimeValues(EndTime, LastTime);
-	      printf("%.02fms/f, %.02ff/s %.02fMc/f \n", MSPerFrame, FPS, MCPF);
-#endif
 	      if(Code.DEBUGFrameEnd)
 		{
 		  GlobalDebugTable = Code.DEBUGFrameEnd(&Memory);
-		  GlobalDebugTable->RecordCount[TRANSLATION_UNIT_INDEX] = __COUNTER__;
 		}
 	      GlobalDebugTable_.EventArrayIndex_EventIndex = 0;
+
+	      END_TIMED_BLOCK(DebugCollation);
 #endif
-	      
-	      // END_NAMED_BLOCK(Linux32Loop);
+
+	      struct timespec EndCounter = Linux32GetWallClock(); 
+	      struct timespec TimeElapsedForFrame = SubtractTimeValues(EndCounter, LastCounter);
+	      r32 SecondsElapsedForFrame = (r32)TimeElapsedForFrame.tv_sec + ((r32)TimeElapsedForFrame.tv_nsec/1000000000.0f); 
+	      FRAME_MARKER(SecondsElapsedForFrame);
+	      LastCounter = EndCounter;
+
+	      if(GlobalDebugTable)
+		{
+		  GlobalDebugTable->RecordCount[TRANSLATION_UNIT_INDEX] = __COUNTER__;
+		}
 	    }
 	}
       else
