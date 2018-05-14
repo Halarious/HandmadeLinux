@@ -1760,7 +1760,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   
   if(DEBUGRenderGroup)
     {
-      DEBUGOverlay(Memory);
+      DEBUGOverlay(Memory, Input);
 
       TiledRenderGroupToOutput(TransState->HighPriorityQueue,
 			       DEBUGRenderGroup, DrawBuffer);

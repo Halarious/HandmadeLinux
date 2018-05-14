@@ -16,6 +16,8 @@ typedef struct
 
 typedef struct
 {
+  debug_record* Record;
+  u64 CycleCount;
   u32 LaneIndex;
   r32 MinT;
   r32 MaxT;
@@ -54,6 +56,7 @@ struct debug_thread
 typedef struct
 {
   bool32 Initialized;
+  bool32 Paused;
   
   memory_arena CollateArena;
   temporary_memory CollateTemp;
@@ -75,7 +78,7 @@ internal void
 DEBUGReset(assets* Assets, u32 Width, u32 Height);
 
 internal void
-DEBUGOverlay(memory* Memory);
+DEBUGOverlay(memory* Memory, input* Input);
 
 
 

@@ -991,10 +991,10 @@ main(int ArgCount, char** Arguments)
   //s32 h = DisplayHeight(DisplayInfo.Display, DisplayInfo.Screen)/2;
   //s32 w = 960;
   //s32 h = 540;
-  //s32 w = 1280;
-  //s32 h = 720;
-  int w = 1960;
-  int h = 1080;
+  s32 w = 1280;
+  s32 h = 720;
+  //int w = 1960;
+  //int h = 1080;
   //s32 w = 1366;
   //s32 h = 768;
   //s32 w = 1279;
@@ -1156,27 +1156,39 @@ main(int ArgCount, char** Arguments)
 		  {
 		    u32    MaskReturn;
 		    int    IgnoredInt;
+		    s32    MouseX, MouseY;
 		    Window IgnoredWindow;
 		    XQueryPointer(DisplayInfo.Display, DisplayInfo.Window,
 				  &IgnoredWindow,         //Window *root_return,
 				  &IgnoredWindow,         //Window *child_return,
-				  &NewInputState->MouseX, //int *root_x_return,
-				  &NewInputState->MouseY, //int *root_y_return,
-				  &IgnoredInt,		  //int *win_x_return,
-				  &IgnoredInt,            //int *win_y_return,
+				  &IgnoredInt,            //int *root_x_return,
+				  &IgnoredInt,            //int *root_y_return,
+				  &MouseX,		  //int *win_x_return,
+				  &MouseY,                //int *win_y_return,
 				  &MaskReturn);
 
-		    Linux32ProcessKeyboardMessage(&NewInputState->MouseButtons[0],
-						  MaskReturn & Button1Mask);
-		    Linux32ProcessKeyboardMessage(&NewInputState->MouseButtons[1],
-						  MaskReturn & Button2Mask);
-		    Linux32ProcessKeyboardMessage(&NewInputState->MouseButtons[2],
-						  MaskReturn & Button3Mask);
-		    Linux32ProcessKeyboardMessage(&NewInputState->MouseButtons[3],
-						  MaskReturn & Button4Mask);
-		    Linux32ProcessKeyboardMessage(&NewInputState->MouseButtons[4],
-						  MaskReturn & Button5Mask);
+		    NewInputState->MouseX = (-0.5f*GlobalOffscreenBuffer.Width  + 0.5f)  + (r32)MouseX;
+		    NewInputState->MouseY = ( 0.5f*GlobalOffscreenBuffer.Height - 0.5f) - (r32)MouseY;
+		    NewInputState->MouseZ = 0;
 
+		    int LinuxButtonID[PlatformMouseButton_Count] =
+		      {
+			Button1Mask,
+			Button2Mask,
+			Button3Mask,
+			Button4Mask,
+			Button5Mask,
+		      };
+		    
+		    for(u32 MouseButtonIndex = 0;
+			MouseButtonIndex < PlatformMouseButton_Count;
+			++MouseButtonIndex)
+		      {
+			NewInputState->MouseButtons[MouseButtonIndex] = OldInputState->MouseButtons[MouseButtonIndex];
+			NewInputState->MouseButtons[MouseButtonIndex].HalfTransitionCount = 0;
+			Linux32ProcessKeyboardMessage(&NewInputState->MouseButtons[MouseButtonIndex],
+						      MaskReturn & LinuxButtonID[MouseButtonIndex]);
+		      }
 		  }
 		}
 
