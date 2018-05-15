@@ -18,12 +18,13 @@ typedef struct
 {
   debug_record* Record;
   u64 CycleCount;
-  u32 LaneIndex;
+  u16 LaneIndex;
+  u16 ColourIndex;
   r32 MinT;
   r32 MaxT;
 } debug_frame_region;
 
-#define MAX_REGIONS_PER_FRAME 4096
+#define MAX_REGIONS_PER_FRAME 4096*2
 typedef struct
 {
   u64 BeginClock;
@@ -38,6 +39,8 @@ typedef struct open_debug_block open_debug_block;
 struct open_debug_block
 {
   u32 StartingFrameIndex;
+  debug_record* Source;
+  
   debug_event* OpeningEvent;
   open_debug_block* Parent;
 
@@ -57,10 +60,14 @@ typedef struct
 {
   bool32 Initialized;
   bool32 Paused;
+
+  debug_record* ScopeToRecord;
   
   memory_arena CollateArena;
   temporary_memory CollateTemp;
-  
+
+  u32 CollationArrayIndex;
+  debug_frame* CollationFrame;
   u32 FrameBarLaneCount;
   u32 FrameCount;
   r32 FrameBarScale;	  
@@ -79,6 +86,9 @@ DEBUGReset(assets* Assets, u32 Width, u32 Height);
 
 internal void
 DEBUGOverlay(memory* Memory, input* Input);
+
+internal void
+RefreshCollation(debug_state* DebugState);
 
 
 

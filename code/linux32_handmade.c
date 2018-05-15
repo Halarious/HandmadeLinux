@@ -1231,7 +1231,7 @@ main(int ArgCount, char** Arguments)
 		}
 
 	      END_TIMED_BLOCK(AudioUpdate);
-
+#if 0
 	      BEGIN_TIMED_BLOCK(FrameWait);
 	      if(!GlobalPause)
 		{
@@ -1276,7 +1276,7 @@ main(int ArgCount, char** Arguments)
 		}
 
 	      END_TIMED_BLOCK(FrameWait);
-
+#endif
 	      BEGIN_TIMED_BLOCK(FrameDisplay);
 	      DisplayBufferInWindow(DisplayInfo, &GlobalOffscreenBuffer);
 
