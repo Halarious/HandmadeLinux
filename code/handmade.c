@@ -963,10 +963,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	}
 
       TransState->Assets = AllocateGameAssets(&TransState->TransientArena, Megabytes(16), TransState);
-
-      DEBUGRenderGroup = AllocateRenderGroup(TransState->Assets, &TransState->TransientArena, Megabytes(16), false);
       
-      State->Music = PlaySound(&State->AudioState, GetFirstSoundFrom(TransState->Assets, Asset_Music));
+      //State->Music = PlaySound(&State->AudioState, GetFirstSoundFrom(TransState->Assets, Asset_Music));
       
       TransState->GroundBufferCount = 256;
       TransState->GroundBuffers = PushArray(&TransState->TransientArena,
@@ -1017,11 +1015,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       TransState->IsInitialized = true;
     }
 
-  if(DEBUGRenderGroup)
-    {
-      BeginRender(DEBUGRenderGroup);
-      DEBUGReset(TransState->Assets, Buffer->Width, Buffer->Height);
-    }
+  DEBUGStart(TransState->Assets, Buffer->Width, Buffer->Height);
   
 #if 0
   if(Input->ExecutableReloaded)
@@ -1755,17 +1749,10 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   
   CheckArena(&State->WorldArena);
   CheckArena(&TransState->TransientArena);
+   
+  DEBUGEnd(Input, DrawBuffer);
 
   END_TIMED_FUNCTION();
-  
-  if(DEBUGRenderGroup)
-    {
-      DEBUGOverlay(Memory, Input);
-
-      TiledRenderGroupToOutput(TransState->HighPriorityQueue,
-			       DEBUGRenderGroup, DrawBuffer);
-      EndRender(DEBUGRenderGroup);
-    }
 }
 
 GET_SOUND_SAMPLES(GetSoundSamples)

@@ -1,4 +1,8 @@
 
+typedef struct render_group render_group;
+typedef struct assets assets;
+typedef struct loaded_bitmap loaded_bitmap;
+
 typedef struct
 {
   u32 HitCount;
@@ -59,8 +63,19 @@ struct debug_thread
 typedef struct
 {
   bool32 Initialized;
-  bool32 Paused;
 
+  platform_work_queue* HighPriorityQueue;
+  
+  memory_arena DebugArena;
+  struct render_group* RenderGroup;
+
+  r32 LeftEdge;
+  r32 AtY;
+  r32 FontScale;
+  font_id FontID;
+  r32 GlobalWidth;
+  r32 GlobalHeight;
+  
   debug_record* ScopeToRecord;
   
   memory_arena CollateArena;
@@ -71,21 +86,20 @@ typedef struct
   u32 FrameBarLaneCount;
   u32 FrameCount;
   r32 FrameBarScale;	  
-  
+  bool32 Paused;
+
+  rectangle2 ProfileRect;
+
   debug_frame* Frames;
   debug_thread* FirstThread;
   open_debug_block* FirstFreeBlock;
 } debug_state;
 
-typedef struct render_group render_group;
-global_variable struct render_group* DEBUGRenderGroup;
-
-typedef struct assets assets;
 internal void
-DEBUGReset(assets* Assets, u32 Width, u32 Height);
+DEBUGStart(assets* Assets, u32 Width, u32 Height);
 
 internal void
-DEBUGOverlay(memory* Memory, input* Input);
+DEBUGEnd(input* Input, loaded_bitmap* DrawBuffer);
 
 internal void
 RefreshCollation(debug_state* DebugState);

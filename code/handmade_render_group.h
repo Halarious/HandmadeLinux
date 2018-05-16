@@ -1,5 +1,5 @@
 
-typedef struct
+struct loaded_bitmap
 {
   void* Memory;
   
@@ -8,7 +8,7 @@ typedef struct
   s32 Width;
   s32 Height;
   s32 Pitch;  
-} loaded_bitmap;
+};
 
 typedef struct
 {
