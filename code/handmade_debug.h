@@ -2,6 +2,14 @@
 typedef struct render_group render_group;
 typedef struct assets assets;
 typedef struct loaded_bitmap loaded_bitmap;
+typedef struct loaded_font loaded_font;
+typedef struct hha_font hha_font;
+  
+typedef enum
+  {
+    DEBUGTextOp_DrawText,
+    DEBUGTextOp_SizeText,
+  } debug_text_op;
 
 typedef struct
 {
@@ -68,7 +76,13 @@ typedef struct
   
   memory_arena DebugArena;
   struct render_group* RenderGroup;
+  loaded_font* DebugFont;
+  hha_font* DebugFontInfo;
 
+  v2 MenuP;
+  bool32 MenuActive;
+  u32 HotMenuIndex;
+  
   r32 LeftEdge;
   r32 AtY;
   r32 FontScale;
@@ -88,6 +102,7 @@ typedef struct
   r32 FrameBarScale;	  
   bool32 Paused;
 
+  bool32 ProfileOn;
   rectangle2 ProfileRect;
 
   debug_frame* Frames;

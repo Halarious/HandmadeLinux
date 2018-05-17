@@ -6,13 +6,13 @@ typedef struct
   u32 ChannelCount;
 } loaded_sound;
 
-typedef struct
+struct loaded_font
 {
   hha_font_glyph* Glyphs;
   r32* HorizontalAdvance;
   u32 BitmapIDOffset;
   u16* UnicodeMap;
-} loaded_font;
+};
 
 typedef struct
 {

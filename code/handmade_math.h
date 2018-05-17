@@ -334,6 +334,12 @@ V2Clamp01(v2 V)
   return(Result);
 }
 
+internal inline v2
+Arm2(r32 Angle)
+{
+  v2 Result = {Cos(Angle), Sin(Angle)};
+  return(Result);
+}
 ///
 ///
 ///
@@ -552,6 +558,32 @@ V4Lerp(v4 A, r32 t, v4 B)
 ///
 ///
 
+internal inline rectangle2
+InvertedInfinityRectangle2()
+{
+  rectangle2 Result;
+
+  Result.Min.x = Real32Maximum;
+  Result.Min.y = Real32Maximum;
+  Result.Max.x = -Real32Maximum;
+  Result.Max.y = -Real32Maximum;
+
+  return(Result);
+}
+
+internal inline rectangle2
+Union2(rectangle2 A, rectangle2 B)
+{
+  rectangle2 Result;
+
+  Result.Min.x = (A.Min.x < B.Min.x) ? A.Min.x : B.Min.x;
+  Result.Min.y = (A.Min.y < B.Min.y) ? A.Min.y : B.Min.y;
+  Result.Max.x = (A.Max.x > B.Max.x) ? A.Max.x : B.Max.x;
+  Result.Max.y = (A.Max.y > B.Max.y) ? A.Max.y : B.Max.y;
+    
+  return(Result);
+}
+
 internal inline v2
 GetMinCorner2(rectangle2 Rect)
 {
@@ -620,6 +652,17 @@ AddRadiusTo2(rectangle2 A, v2 Radius)
 
   Result.Min = V2Sub(A.Min, Radius);
   Result.Max = V2Add(A.Max, Radius);
+
+  return(Result);  
+}
+
+internal inline rectangle2
+Offset2(rectangle2 R, v2 Offset)
+{
+  rectangle2 Result;
+
+  Result.Min = V2Add(R.Min, Offset);
+  Result.Max = V2Add(R.Max, Offset);
 
   return(Result);  
 }
@@ -833,7 +876,7 @@ Intersect(rectangle2i A, rectangle2i B)
 }
 
 internal inline rectangle2i
-Union(rectangle2i A, rectangle2i B)
+Union2i(rectangle2i A, rectangle2i B)
 {
   rectangle2i Result;
 
@@ -868,7 +911,7 @@ HasArea(rectangle2i A)
 }
 
 internal inline rectangle2i
-InvertedInfinityRectangle()
+InvertedInfinityRectangle2i()
 {
   rectangle2i Result;
 
@@ -879,7 +922,6 @@ InvertedInfinityRectangle()
 
   return(Result);
 }
-
 
 internal inline v4
 SRGB255ToLinear1(v4 C)

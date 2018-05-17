@@ -115,14 +115,14 @@ typedef struct
   u32 Chain;
 } hha_sound;
 
-typedef struct
+struct hha_font
 {
   u32 OnePastHighestCodePoint;
   u32 GlyphCount;
   r32 AscenderHeight;
   r32 DescenderHeight;
   r32 ExternalLeading;
-} hha_font;
+};
 
 typedef struct
 {
@@ -139,7 +139,7 @@ typedef struct
   {
     hha_bitmap Bitmap;
     hha_sound Sound;
-    hha_font Font;
+    struct hha_font Font;
   };
 } hha_asset; 
 

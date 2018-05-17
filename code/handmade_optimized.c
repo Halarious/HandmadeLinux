@@ -36,7 +36,7 @@ DrawRectangleQuickly(loaded_bitmap *Buffer,
   r32 InvXAxisLengthSq = 1.0f / V2LengthSq(XAxis);
   r32 InvYAxisLengthSq = 1.0f / V2LengthSq(YAxis);
 
-  rectangle2i FillRect = InvertedInfinityRectangle();
+  rectangle2i FillRect = InvertedInfinityRectangle2i();
   
   v2 P[4] = {Origin,
 	     V2Add(Origin, XAxis),

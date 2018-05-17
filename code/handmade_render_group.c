@@ -917,13 +917,6 @@ Orthographic(render_group* RenderGroup, s32 PixelWidth, s32 PixelHeight,
 
   RenderGroup->Transform.Orthographic = true;
 }
-
-typedef struct
-{
-  v2 P;
-  r32 Scale;
-  bool32 Valid;
-} entity_basis_p;
   
 internal inline entity_basis_p
 GetRenderEntityBasisP(render_transform* Transform, v3 OriginalP)
@@ -1004,24 +997,34 @@ PushRenderElement_(render_group *Group, u32 Size, render_group_entry_type Type)
   return(Result);
 }
 
+internal inline used_bitmap_dim
+GetBitmapDim(render_group *Group, loaded_bitmap* Bitmap, v3 Offset, r32 Height, v4 Color)
+{
+  used_bitmap_dim Result = {};
+  
+  Result.Size  = V2(Height * Bitmap->WidthOverHeight, Height);
+  Result.Align = V2Hadamard(Bitmap->AlignPercentage, Result.Size);
+  Result.P = V3Sub(Offset,
+	       ToV3(Result.Align, 0.0f));
+
+  Result.Basis = GetRenderEntityBasisP(&Group->Transform, Result.P);
+
+  return(Result);
+}
+
 internal inline void
 PushBitmap(render_group *Group, loaded_bitmap* Bitmap, v3 Offset, r32 Height, v4 Color)
 {
-  v2 Size  = V2(Height * Bitmap->WidthOverHeight, Height);
-  v2 Align = V2Hadamard(Bitmap->AlignPercentage, Size);
-  v3 P = V3Sub(Offset,
-	       ToV3(Align, 0.0f));
-  
-  entity_basis_p Basis = GetRenderEntityBasisP(&Group->Transform, P);
-  if(Basis.Valid)
+  used_bitmap_dim Dim = GetBitmapDim(Group, Bitmap, Offset, Height, Color);
+  if(Dim.Basis.Valid)
     {
       render_entry_bitmap* Entry = PushRenderElement(Group, render_entry_bitmap);
       if(Entry)
 	{
 	  Entry->Bitmap = Bitmap;
-	  Entry->P = Basis.P;  
+	  Entry->P = Dim.Basis.P;  
 	  Entry->Color = V4MulS(Group->GlobalAlpha, Color);
-	  Entry->Size  = V2MulS(Basis.Scale, Size);
+	  Entry->Size  = V2MulS(Dim.Basis.Scale, Dim.Size);
 	}
     }
 }

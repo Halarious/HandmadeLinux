@@ -122,6 +122,21 @@ PushRectOutline(render_group *Group, v3 Offset, v2 Dim, v4 Color);
 internal inline void
 Clear(render_group* Group, v4 Color);
 
+typedef struct
+{
+  v2 P;
+  r32 Scale;
+  bool32 Valid;
+} entity_basis_p;
+
+typedef struct
+{
+  entity_basis_p Basis;
+  v2 Size;
+  v2 Align;
+  v3 P;
+} used_bitmap_dim;
+
 void
 DrawRectangleQuickly(loaded_bitmap *Buffer,
 		     v2 Origin, v2 XAxis, v2 YAxis,
@@ -129,3 +144,5 @@ DrawRectangleQuickly(loaded_bitmap *Buffer,
 		     r32 PixelsToMeters,
 		     rectangle2i ClipRect,
 		     bool32 Even);
+
+
