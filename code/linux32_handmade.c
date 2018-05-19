@@ -6,6 +6,7 @@
 #include <X11/extensions/Xrandr.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <dirent.h>
@@ -346,25 +347,24 @@ DEBUG_PLATFORM_EXECUTE_SYSTEM_COMMAND(DEBUGExecuteSystemCommand)
 {
   debug_executing_process Result = {};
   
-  pid_t ForkReturn = fork();
-  if(ForkReturn != -1)
+  pid_t ProcessHandle = fork();
+  if(ProcessHandle != -1)
     {
-      if(!ForkReturn)
+      if(!ProcessHandle)
 	{
 	  execl(Command, Command, CommandLine, (char*)0);
 	  exit(0);
       	}
       else
 	{
-	  //Assert();
-	  //TODO: How do we get this on Linux?
-	  Result.OSHandle = 0;
+	  Assert(sizeof(Result.OSHandle) >= sizeof(ProcessHandle));	  
+	  Result.OSHandle = (u64)ProcessHandle;
 	}
     }
   else
     {
       int ErrorValue = errno;
-      //Result.OSHandle = INVALID_HANDLE_VALUE;
+      Result.OSHandle = 0;
     }
   
   return(Result);
@@ -372,6 +372,25 @@ DEBUG_PLATFORM_EXECUTE_SYSTEM_COMMAND(DEBUGExecuteSystemCommand)
 DEBUG_PLATFORM_GET_PROCESS_STATE(DEBUGGetProcessState)
 {
   debug_process_state Result = {};
+
+  if(Process.OSHandle != 0)
+    {
+      Result.StartedSuccessfully = true;
+
+      int status;
+      pid_t ProcessHandle = (pid_t)Process.OSHandle;
+      pid_t ReturnPID = waitpid(ProcessHandle, &status, WNOHANG);
+      if(ReturnPID && WIFEXITED(status))
+	{
+	  Assert(!WIFSIGNALED(status))
+	    
+	  Result.ReturnCode = WEXITSTATUS(status);
+	}
+      else
+	{
+	  Result.IsRunning = true;
+	}
+    }
   
   return(Result);
 }
