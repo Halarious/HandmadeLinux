@@ -342,6 +342,40 @@ DEBUG_PLATFORM_WRITE_ENTIRE_FILE(DEBUGPlatformWriteEntireFile)
   return(Result);
 }
 
+DEBUG_PLATFORM_EXECUTE_SYSTEM_COMMAND(DEBUGExecuteSystemCommand)
+{
+  debug_executing_process Result = {};
+  
+  pid_t ForkReturn = fork();
+  if(ForkReturn != -1)
+    {
+      if(!ForkReturn)
+	{
+	  execl(Command, Command, CommandLine, (char*)0);
+	  exit(0);
+      	}
+      else
+	{
+	  //Assert();
+	  //TODO: How do we get this on Linux?
+	  Result.OSHandle = 0;
+	}
+    }
+  else
+    {
+      int ErrorValue = errno;
+      //Result.OSHandle = INVALID_HANDLE_VALUE;
+    }
+  
+  return(Result);
+}
+DEBUG_PLATFORM_GET_PROCESS_STATE(DEBUGGetProcessState)
+{
+  debug_process_state Result = {};
+  
+  return(Result);
+}
+
 int CopyFile(const char *from, const char *to)
 {
     int fd_to, fd_from;
@@ -1077,7 +1111,9 @@ main(int ArgCount, char** Arguments)
       Memory.PlatformAPI.DEBUGReadEntireFile = DEBUGPlatformReadEntireFile;
       Memory.PlatformAPI.DEBUGFreeFileMemory = DEBUGPlatformFreeFileMemory;
       Memory.PlatformAPI.DEBUGWriteEntireFile = DEBUGPlatformWriteEntireFile;
-      
+      Memory.PlatformAPI.DEBUGExecuteSystemCommand = DEBUGExecuteSystemCommand;
+      Memory.PlatformAPI.DEBUGGetProcessState = DEBUGGetProcessState;  
+
       Linux32State.TotalSize   = (Memory.PermanentStorageSize +
 				  Memory.TransientStorageSize +
 				  Memory.DebugStorageSize);
@@ -1114,7 +1150,7 @@ main(int ArgCount, char** Arguments)
 	      BEGIN_TIMED_BLOCK(ExecutableRefresh);
 	      
 	      NewInputState->dtForFrame = TargetSecondsPerFrame;
-	      NewInputState->ExecutableReloaded = false;
+	      Memory.ExecutableReloaded = false;
 	      
 	      time_t NewSOLastWriteTime = Linux32GetLastWriteTime(SourceCodeSOFullPath);
 	      if(NewSOLastWriteTime != Code.SOLastWriteTime)
@@ -1127,7 +1163,7 @@ main(int ArgCount, char** Arguments)
 		  Code = Linux32LoadCode(SourceCodeSOFullPath,
 					 TempCodeSOFullPath,
 					 LockFullPath);
-		  NewInputState->ExecutableReloaded = true;
+		  Memory.ExecutableReloaded = true;
 		}
 	      END_TIMED_BLOCK(ExecutableRefresh);
 

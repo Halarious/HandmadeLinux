@@ -296,6 +296,23 @@ EndDebugStatistic(debug_statistic* Stat)
     }
 }
 
+#define HANDMADE_CONFIG_FILE_NAME "../code/handmade_config.h"
+internal inline void
+WriteHandmadeConfig(debug_state* DebugState, bool32 UseDebugCamera)
+{
+  char Temp[4096];
+  int TempSize = snprintf(Temp, sizeof(Temp), "#define DEBUGUI_UseDebugCamera %d\n",
+			  UseDebugCamera);
+
+  Platform.DEBUGWriteEntireFile(HANDMADE_CONFIG_FILE_NAME, TempSize , Temp);
+
+  if(!DebugState->Compiling)
+    {
+      DebugState->Compiling = true;
+      DebugState->Compiler = Platform.DEBUGExecuteSystemCommand("../code", "/bin/sh", "../code/build.linux");
+    }
+}
+
 internal void
 DrawDebugMainMenu(debug_state* DebugState, render_group* RenderGroup,
 		  v2 MouseP)
@@ -379,6 +396,21 @@ DEBUGEnd(input* Input, loaded_bitmap* DrawBuffer)
 	      {
 		DebugState->Paused = !DebugState->Paused;
 	      } break;
+	    }
+	  
+	  WriteHandmadeConfig(DebugState, !DEBUGUI_UseDebugCamera);
+	}
+
+      if(DebugState->Compiling)
+	{
+	  debug_process_state State = Platform.DEBUGGetProcessState(DebugState->Compiler);
+	  if(State.IsRunning)
+	    {
+	      DEBUGTextLine("COMPILING");
+	    }
+	  else
+	    {
+	      DebugState->Compiling = false;
 	    }
 	}
       
@@ -817,7 +849,7 @@ extern DEBUG_FRAME_END(DEBUGFrameEnd)
   
   u64 ArrayIndex_EventIndex = AtomicExchangeUInt64(&GlobalDebugTable->EventArrayIndex_EventIndex,
 						   ((u64)GlobalDebugTable->CurrentEventArrayIndex << 32));
-
+  
   u32 EventArrayIndex = ArrayIndex_EventIndex >> 32;
   u32 EventCount = ArrayIndex_EventIndex & 0xffffffff;
   GlobalDebugTable->EventCount[EventArrayIndex] = EventCount;
@@ -825,6 +857,12 @@ extern DEBUG_FRAME_END(DEBUGFrameEnd)
   debug_state* DebugState = DEBUGGetState(Memory);
   if(DebugState)
     {
+      if(Memory->ExecutableReloaded)
+	{
+	  RestartCollation(DebugState, GlobalDebugTable->CurrentEventArrayIndex);
+	}
+
+      
       if(!DebugState->Paused)
 	{
 	  if(DebugState->FrameCount >= MAX_DEBUG_EVENT_ARRAY_COUNT*4)

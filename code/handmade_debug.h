@@ -79,6 +79,9 @@ typedef struct
   loaded_font* DebugFont;
   hha_font* DebugFontInfo;
 
+  bool32 Compiling;
+  debug_executing_process Compiler;
+  
   v2 MenuP;
   bool32 MenuActive;
   u32 HotMenuIndex;

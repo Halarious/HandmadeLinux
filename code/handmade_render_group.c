@@ -930,7 +930,7 @@ GetRenderEntityBasisP(render_transform* Transform, v3 OriginalP)
       r32 OffsetZ = 0;
   
       r32 DistanceAboveTarget = Transform->DistanceAboveTarget;
-#if 0
+#if DEBUGUI_UseDebugCamera
       if(1)
 	{
 	  DistanceAboveTarget += 50.0f;

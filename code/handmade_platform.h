@@ -1,4 +1,6 @@
 
+#include "handmade_config.h"
+
 #if !defined(COMPILER_MSCV)
 #define COMPILER_MSCV 0
 #endif
@@ -121,6 +123,19 @@ typedef struct
   s64   ContentsSize;
 } loaded_file;
 
+typedef struct
+{
+  u64 OSHandle;
+} debug_executing_process;
+
+typedef struct
+{
+  bool32 StartedSuccessfully;
+  bool32 IsRunning;
+  s32 ReturnCode;
+
+} debug_process_state;
+
 #define DEBUG_PLATFORM_READ_ENTIRE_FILE(name) loaded_file name(char* Filename)
 typedef DEBUG_PLATFORM_READ_ENTIRE_FILE(debug_platform_read_entire_file);
 
@@ -129,6 +144,12 @@ typedef DEBUG_PLATFORM_FREE_FILE_MEMORY(debug_platform_free_file_memory);
 
 #define DEBUG_PLATFORM_WRITE_ENTIRE_FILE(name) bool32 name(char* Filename, u32 MemorySize, void* Memory)
 typedef DEBUG_PLATFORM_WRITE_ENTIRE_FILE(debug_platform_write_entire_file);
+
+#define DEBUG_PLATFORM_EXECUTE_SYSTEM_COMMAND(name) debug_executing_process name(char* Path, char* Command, char* CommandLine)
+typedef DEBUG_PLATFORM_EXECUTE_SYSTEM_COMMAND(debug_platform_execute_system_command);
+
+#define DEBUG_PLATFORM_GET_PROCESS_STATE(name) debug_process_state name(debug_executing_process Process)
+typedef DEBUG_PLATFORM_GET_PROCESS_STATE(debug_platform_get_process_state);
 
 extern struct memory* DebugGlobalMemory;
 
@@ -211,7 +232,6 @@ typedef struct
   r32 MouseY;
   r32 MouseZ;
 
-  bool32 ExecutableReloaded;
   r32 dtForFrame;
 
   controller_input Controllers[2];
@@ -292,6 +312,8 @@ typedef struct
   debug_platform_read_entire_file* DEBUGReadEntireFile;
   debug_platform_free_file_memory* DEBUGFreeFileMemory;
   debug_platform_write_entire_file* DEBUGWriteEntireFile;
+  debug_platform_execute_system_command* DEBUGExecuteSystemCommand;
+  debug_platform_get_process_state* DEBUGGetProcessState;
 } platform_api;
 
 typedef struct memory memory;
@@ -308,6 +330,8 @@ struct memory
 
   platform_work_queue* HighPriorityQueue;
   platform_work_queue* LowPriorityQueue;
+
+  bool32 ExecutableReloaded;
 
   platform_api PlatformAPI;
 };
