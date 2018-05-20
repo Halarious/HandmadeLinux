@@ -7,7 +7,7 @@ CommonLinkerFlags="-I /usr/include/freetype2 -I /usr/include/freetype2/freetype 
 mkdir ../build -p > /dev/null
 pushd ../build    > /dev/null
 
-clang $CommonCompilerFlags -DTRANSLATION_UNIT_INDEX=0 ../code/test_asset_builder.c $CommonLinkerFlags -o TestAssetBuilder
+#clang $CommonCompilerFlags -DTRANSLATION_UNIT_INDEX=0 ../code/test_asset_builder.c $CommonLinkerFlags -o TestAssetBuilder
 
 echo LOCK > lock.tmp
 clang $CommonCompilerFlags -DTRANSLATION_UNIT_INDEX=1 -O3 -c -o handmade_optimized.obj -fPIC ../code/handmade_optimized.c  

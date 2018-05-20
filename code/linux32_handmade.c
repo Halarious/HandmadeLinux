@@ -1264,7 +1264,18 @@ main(int ArgCount, char** Arguments)
 		    }
 		  if(Linux32State.InputPlaybackIndex)
 		    {
+		      input Temp = *NewInputState;
 		      Linux32PlaybackInput(&Linux32State, NewInputState);
+
+		      for(u32 MouseButtonIndex = 0;
+			  MouseButtonIndex < PlatformMouseButton_Count;
+			  ++MouseButtonIndex)
+			{
+			  NewInputState->MouseButtons[MouseButtonIndex] = Temp.MouseButtons[MouseButtonIndex];
+			}
+		      NewInputState->MouseX = Temp.MouseX;
+		      NewInputState->MouseY = Temp.MouseY;
+		      NewInputState->MouseZ = Temp.MouseZ;
 		    }
 		  if(Code.UpdateAndRender)
 		    {

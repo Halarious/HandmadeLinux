@@ -47,6 +47,10 @@
 
 - Day 187s fix of the bug may not be entirely what caused our problems,
   we should investigate. On the other hand it might be.
+
+- Day 193, this is actually an issue before this episode but we should investigate
+  out Linux mouse positioning, it seems to not correspond to the point of the cursor
+  but a weird right bottom edge(?)
  */
 
 #include "handmade.h"
@@ -614,7 +618,7 @@ PLATFORM_WORK_QUEUE_CALLBACK(FillGroundChunkWork)
 	  s32 ChunkZ = Work->ChunkP.ChunkZ;
   
 	  random_series Series = Seed(139*ChunkX + 593*ChunkY + 329*ChunkZ);
-#if 0
+#if DEBUGUI_GroundChunkCheckerboards
 	  v4 Color = V4(1, 0, 0, 1);
 	  if((ChunkX % 2) == (ChunkY % 2))
 	    {
@@ -1016,9 +1020,9 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
     }
 
   DEBUGStart(TransState->Assets, Buffer->Width, Buffer->Height);
-  
-#if 0
-  if(Input->ExecutableReloaded)
+
+#if DEBUGUI_RecomputeGroundChunksOnExeChange
+  if(Memory->ExecutableReloaded)
     {
       for(u32 GroundBufferIndex = 0;
 	  GroundBufferIndex < TransState->GroundBufferCount;
@@ -1122,10 +1126,11 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   DrawBuffer->Pitch  = Buffer->Pitch;
   DrawBuffer->Memory = Buffer->Memory;
 
-#if 0
+#if DEBUGUI_TestWeirdDrawBufferSize
   DrawBuffer->Width = 1279;
   DrawBuffer->Height = 719;
 #endif
+  
   render_group* RenderGroup = AllocateRenderGroup(TransState->Assets, &TransState->TransientArena, Megabytes(4), false);
   BeginRender(RenderGroup);
 
@@ -1163,7 +1168,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 			 Delta,
 			 GroundSideInMeters,
 			 V4(1.0f, 1.0f, 1.0f, 1.0f));
-#if 0
+#if DEBUGUI_GroundChunkOutlines
 	      PushRectOutline(RenderGroup,
 			      Delta,
 			      V2(GroundSideInMeters, GroundSideInMeters),
@@ -1357,8 +1362,8 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	      {
 		sim_entity *ClosestHero = 0;
 		r32 ClosestHeroDSq = Square(10.0f);
-
-#if 0
+		
+#if DEBUGUI_FamiliarFollowsHero
 		sim_entity *TestEntity = SimRegion->Entities;
 		for(u32 TestEntityIndex = 1;
 		    TestEntityIndex < SimRegion->EntityCount;
@@ -1423,7 +1428,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		PushBitmapByID(RenderGroup, HeroBitmaps.Cape,  V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 		PushBitmapByID(RenderGroup, HeroBitmaps.Head,  V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));	
 		DrawHitpoints(Entity, RenderGroup);
-#if 0
+#if DEBUGUI_ParticleTest
 		for(u32 ParticleSpawnIndex = 0;
 		    ParticleSpawnIndex < 1;
 		    ++ParticleSpawnIndex)
@@ -1451,7 +1456,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		    MatchVector.E[Tag_UnicodeCodepoint]  = (r32) Nothings[RandomChoice(&State->EffectsEntropy, ArrayCount(Nothings) - 1)];
 		    WeightVector.E[Tag_UnicodeCodepoint] = 1.0f;
 
-		    Particle->BitmapID = GetBestMatchBitmapFrom(TransState->Assets, Asset_Font, &MatchVector, &WeightVector);
+		    Particle->BitmapID = HeroBitmaps.Head;//GetBestMatchBitmapFrom(TransState->Assets, Asset_Font, &MatchVector, &WeightVector);
 		    //Particle->BitmapID = GetRandomBitmapFrom(TransState->Assets, Asset_Font, &State->EffectsEntropy);
 		  }
 
@@ -1483,7 +1488,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		    Cell->VelocityTimesDensity = V3Add(Cell->VelocityTimesDensity,
 						       V3MulS(Density, Particle->dP));
 		  }
-#if 0
+#if DEBUGUI_ParticleGrid
 		for(u32 Y = 0;
 		    Y < PARTICLE_CELL_DIM;
 		    ++Y)
@@ -1598,7 +1603,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		PushBitmapByID(RenderGroup, GetFirstBitmapFrom(TransState->Assets, Asset_Shadow), V3(0, 0, 0), 2.5f, V4(1.0f, 1.0f, 1.0f, 0.5f*ShadowAlpha + 0.2f*BobSin));
 		PushBitmapByID(RenderGroup, HeroBitmaps.Head, V3(0, 0, 0.25f*BobSin), 2.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
 	      } break;
-
+	      
 	    case EntityType_Monstar:
 	      {
 		DrawHitpoints(Entity, RenderGroup);
@@ -1608,7 +1613,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	      
 	    case EntityType_Space:
 	      {
-#if 0
+#if DEBUGUI_UseSpaceOutlines
 		for(u32 VolumeIndex = 0;
 		    VolumeIndex < Entity->Collision->VolumeCount;
 		    ++VolumeIndex)
@@ -1647,6 +1652,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       bool32 RowCheckerOn = false;
       s32 CheckerWidth = 16;
       s32 CheckerHeight = 16;
+      rectangle2i ClipRect = {0, 0, LOD->Width, LOD->Height};
       for(s32 Y = 0;
 	  Y < LOD->Height;
 	  Y += CheckerHeight)
@@ -1661,9 +1667,11 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	      v2 MaxP = V2Add(MinP,
 			      V2i(CheckerWidth, CheckerHeight));
 	      DrawRectangle(LOD,
-			    MinP,
-			    MaxP,
-			    Color);
+			    MinP, MaxP,
+			    Color,ClipRect, true);
+	      DrawRectangle(LOD,
+			    MinP, MaxP,
+			    Color,ClipRect, false);
 	      CheckerOn = !CheckerOn;
 	    }
 	  RowCheckerOn = !RowCheckerOn;

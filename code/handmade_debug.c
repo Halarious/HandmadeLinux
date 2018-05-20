@@ -1,6 +1,8 @@
 
 #include <stdio.h>
 
+#include "handmade_debug_variables.h"
+
 internal void
 RestartCollation(debug_state* DebugState, u32 InvalidEventArrayIndex);
 
@@ -39,7 +41,9 @@ DEBUGStart(assets* Assets, u32 Width, u32 Height)
 	{
 	  DebugState->HighPriorityQueue = DebugGlobalMemory->HighPriorityQueue;
 	  InitializeArena(&DebugState->DebugArena, DebugGlobalMemory->DebugStorageSize - sizeof(debug_state), DebugState + 1);
-      
+
+	  DEBUGCreateVariables(DebugState);
+	  
 	  DebugState->RenderGroup  = AllocateRenderGroup(Assets,
 							 &DebugState->DebugArena,
 							 Megabytes(16), false);
@@ -298,13 +302,44 @@ EndDebugStatistic(debug_statistic* Stat)
 
 #define HANDMADE_CONFIG_FILE_NAME "../code/handmade_config.h"
 internal inline void
-WriteHandmadeConfig(debug_state* DebugState, bool32 UseDebugCamera)
+WriteHandmadeConfig(debug_state* DebugState)
 {
   char Temp[4096];
-  int TempSize = snprintf(Temp, sizeof(Temp), "#define DEBUGUI_UseDebugCamera %d\n",
-			  UseDebugCamera);
+  char* At = Temp;
+  char* End = Temp + sizeof(Temp);
 
-  Platform.DEBUGWriteEntireFile(HANDMADE_CONFIG_FILE_NAME, TempSize , Temp);
+  debug_variable* Var = DebugState->RootGroup->Group.FirstChild;
+  while(Var)
+    {
+      if(Var->Type == DebugVariable_Boolean)
+	{
+	  At += snprintf(At, (size_t)(End - At),
+			 "#define DEBUGUI_%s %d\n",
+			 Var->Name, Var->Bool32);
+	}
+      
+      if(Var->Type == DebugVariable_Group)
+	{
+	  Var = Var->Group.FirstChild;
+	}
+      else
+	{
+	  while(Var)
+	    {
+	      if(Var->Next)
+		{
+		  Var = Var->Next;
+		  break;
+		}
+	      else
+		{
+		  Var = Var->Parent;
+		}
+	    }
+	}
+    }
+  
+  Platform.DEBUGWriteEntireFile(HANDMADE_CONFIG_FILE_NAME, (u32)(At - Temp), Temp);
 
   if(!DebugState->Compiling)
     {
@@ -317,28 +352,20 @@ internal void
 DrawDebugMainMenu(debug_state* DebugState, render_group* RenderGroup,
 		  v2 MouseP)
 {
-  char* MenuItems[] =
-    {
-      "Toggle Profiler Graph",
-      "Toggle Debug Collation",
-      "Toggle Framerate Counter",
-      "Mark Loop Point",
-      "Draw Entity Bounds",
-      "Toogle World Chunk Bounds",
-    };
-
-  u32 NewHotMenuIndex = ArrayCount(MenuItems);
+#if 0
+  u32 NewHotMenuIndex = ArrayCount(DebugVariableList);
   r32 BestDistanceSq = Real32Maximum;
 
-  r32 MenuRadius = 200.0f;
-  r32 AngleStep = Tau32 / (r32)ArrayCount(MenuItems);
+  r32 MenuRadius = 300.0f;
+  r32 AngleStep = Tau32 / (r32)ArrayCount(DebugVariableList);
   for(u32 MenuItemIndex = 0;
-      MenuItemIndex <  ArrayCount(MenuItems);
+      MenuItemIndex <  ArrayCount(DebugVariableList);
       ++MenuItemIndex)
     {
-      char* Text = MenuItems[MenuItemIndex];
-
-      v4 ItemColour = V4(1.0f, 1.0f, 1.0f, 1.0f);
+      debug_variable* Var = DebugVariableList + MenuItemIndex;
+      char* Text = Var->Name;
+      
+      v4 ItemColour = Var->Value ? V4(1.0f, 1.0f, 1.0f, 1.0f) : V4(0.5f, 0.5f, 0.5f, 1.0f);
       if(MenuItemIndex == DebugState->HotMenuIndex)
 	{
 	  ItemColour = V4(1.0f, 1.0f, 0.0f, 1.0f);
@@ -358,7 +385,15 @@ DrawDebugMainMenu(debug_state* DebugState, render_group* RenderGroup,
       DEBUGTextOutAt(V2Sub(TextP, V2MulS(0.5f, GetDim2(TextBounds))), Text, ItemColour);
     }
 
-  DebugState->HotMenuIndex = NewHotMenuIndex;
+  if(V2LengthSq(V2Sub(MouseP, DebugState->MenuP)) > Square(MenuRadius))
+    {
+      DebugState->HotMenuIndex = NewHotMenuIndex;
+    }
+  else
+    {
+      DebugState->HotMenuIndex = ArrayCount(DebugVariableList);
+    }
+#endif
 }
 
 internal void
@@ -375,6 +410,7 @@ DEBUGEnd(input* Input, loaded_bitmap* DrawBuffer)
       
       v2 MouseP = V2(Input->MouseX, Input->MouseY); 
 
+#if 0
       if(Input->MouseButtons[PlatformMouseButton_Right].EndedDown)
 	{
 	  if(Input->MouseButtons[PlatformMouseButton_Right].HalfTransitionCount > 0)
@@ -386,20 +422,15 @@ DEBUGEnd(input* Input, loaded_bitmap* DrawBuffer)
       else if(Input->MouseButtons[PlatformMouseButton_Right].HalfTransitionCount > 0)
 	{
 	  DrawDebugMainMenu(DebugState, RenderGroup, MouseP);
-	  switch(DebugState->HotMenuIndex)
+	  if(DebugState->HotMenuIndex < ArrayCount(DebugVariableList))
 	    {
-	    case 0:
-	      {
-		DebugState->ProfileOn = !DebugState->ProfileOn;
-	      } break;
-	    case 1:
-	      {
-		DebugState->Paused = !DebugState->Paused;
-	      } break;
+	      DebugVariableList[DebugState->HotMenuIndex].Value =
+		!DebugVariableList[DebugState->HotMenuIndex].Value;
 	    }
 	  
-	  WriteHandmadeConfig(DebugState, !DEBUGUI_UseDebugCamera);
+	  WriteHandmadeConfig(DebugState);
 	}
+#endif
 
       if(DebugState->Compiling)
 	{

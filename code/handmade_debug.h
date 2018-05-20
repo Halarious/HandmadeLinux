@@ -1,4 +1,33 @@
 
+typedef struct debug_variable debug_variable;
+
+typedef enum
+  {
+    DebugVariable_Boolean,
+    DebugVariable_Group,
+  } debug_variable_type;
+
+typedef struct 
+{
+  bool32 Expanded;
+  debug_variable* FirstChild;
+  debug_variable* LastChild;
+} debug_variable_group;
+
+struct debug_variable
+{
+  debug_variable_type Type;
+  char* Name;
+  debug_variable* Next;
+  debug_variable* Parent;
+
+  union
+  {
+    bool32 Bool32;
+    debug_variable_group Group;
+  };
+};
+
 typedef struct render_group render_group;
 typedef struct assets assets;
 typedef struct loaded_bitmap loaded_bitmap;
@@ -75,6 +104,9 @@ typedef struct
   platform_work_queue* HighPriorityQueue;
   
   memory_arena DebugArena;
+
+  debug_variable* RootGroup;
+  
   struct render_group* RenderGroup;
   loaded_font* DebugFont;
   hha_font* DebugFontInfo;
