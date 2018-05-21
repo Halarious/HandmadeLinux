@@ -594,3 +594,14 @@ DestructTimedBlock(timed_block Block)
 
 #endif
 
+internal inline u32
+StringLength(char* String)
+{
+  u32 Count = 0;
+  while(*String++)
+    {
+      ++Count;
+    }
+
+  return(Count);
+}

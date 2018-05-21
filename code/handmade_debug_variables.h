@@ -12,7 +12,7 @@ DEBUGAddVariable(debug_variable_definition_context* Context, debug_variable_type
 {
   debug_variable* Var = PushStruct(Context->Arena, debug_variable);  
   Var->Type = Type;
-  Var->Name = Name;
+  Var->Name = (char*) PushCopy(Context->Arena, StringLength(Name) + 1, Name);
   Var->Next = 0;
     
   debug_variable* Group = Context->Group;
@@ -47,8 +47,26 @@ DEBUGBeginVariableGroup(debug_variable_definition_context* Context, char* Name)
 internal debug_variable*
 DEBUGAddBoolVariable(debug_variable_definition_context* Context, char* Name, bool32 Value)
 {
-  debug_variable* Var = DEBUGAddVariable(Context, DebugVariable_Boolean, Name);
+  debug_variable* Var = DEBUGAddVariable(Context, DebugVariable_Bool32, Name);
   Var->Bool32 = Value;
+
+  return(Var);
+}
+
+internal debug_variable*
+DEBUGAddReal32Variable(debug_variable_definition_context* Context, char* Name, r32 Value)
+{
+  debug_variable* Var = DEBUGAddVariable(Context, DebugVariable_Real32, Name);
+  Var->Real32 = Value;
+
+  return(Var);
+}
+
+internal debug_variable*
+DEBUGAddV4Variable(debug_variable_definition_context* Context, char* Name, v4 Value)
+{
+  debug_variable* Var = DEBUGAddVariable(Context, DebugVariable_V4, Name);
+  Var->Vector4 = Value;
 
   return(Var);
 }
@@ -70,38 +88,44 @@ DEBUGCreateVariables(debug_state* DebugState)
   Context.Group = DEBUGBeginVariableGroup(&Context, "Root");
 
 
-#define DEBUG_VARIABLE_LISTING(Name) DEBUGAddBoolVariable(&Context, #Name, DEBUGUI_##Name)
+#define DEBUG_VARIABLE_LISTING_BOOL(Name) DEBUGAddBoolVariable(&Context, #Name, DEBUGUI_##Name)
+#define DEBUG_VARIABLE_LISTING_REAL32(Name) DEBUGAddReal32Variable(&Context, #Name, DEBUGUI_##Name)
+#define DEBUG_VARIABLE_LISTING_V4(Name) DEBUGAddV4Variable(&Context, #Name, DEBUGUI_##Name)
 
   DEBUGBeginVariableGroup(&Context, "Ground Chunks");
-  DEBUG_VARIABLE_LISTING(GroundChunkCheckerboards);
-  DEBUG_VARIABLE_LISTING(GroundChunkOutlines);
-  DEBUG_VARIABLE_LISTING(RecomputeGroundChunksOnExeChange);
+  DEBUG_VARIABLE_LISTING_BOOL(GroundChunkCheckerboards);
+  DEBUG_VARIABLE_LISTING_BOOL(GroundChunkOutlines);
+  DEBUG_VARIABLE_LISTING_BOOL(RecomputeGroundChunksOnExeChange);
   DEBUGEndVariableGroup(&Context);
 
   DEBUGBeginVariableGroup(&Context, "Particles");
-  DEBUG_VARIABLE_LISTING(ParticleTest);
-  DEBUG_VARIABLE_LISTING(ParticleGrid);
+  DEBUG_VARIABLE_LISTING_BOOL(ParticleTest);
+  DEBUG_VARIABLE_LISTING_BOOL(ParticleGrid);
   DEBUGEndVariableGroup(&Context);
 
   DEBUGBeginVariableGroup(&Context, "Renderer");
   {
-    DEBUG_VARIABLE_LISTING(TestWeirdDrawBufferSize);
-    DEBUG_VARIABLE_LISTING(ShowLightingSamples);
+    DEBUG_VARIABLE_LISTING_BOOL(TestWeirdDrawBufferSize);
+    DEBUG_VARIABLE_LISTING_BOOL(ShowLightingSamples);
   
     DEBUGBeginVariableGroup(&Context, "Camera");
     {
-      DEBUG_VARIABLE_LISTING(UseDebugCamera);
-      DEBUG_VARIABLE_LISTING(UseRoomBasedCamera);
+      DEBUG_VARIABLE_LISTING_BOOL(UseDebugCamera);
+      DEBUG_VARIABLE_LISTING_REAL32(DebugCameraDistance);
+      DEBUG_VARIABLE_LISTING_BOOL(UseRoomBasedCamera);
     }
     DEBUGEndVariableGroup(&Context);
   }
   DEBUGEndVariableGroup(&Context);
   
-  DEBUG_VARIABLE_LISTING(FamiliarFollowsHero);
-  DEBUG_VARIABLE_LISTING(UseSpaceOutlines);
+  DEBUG_VARIABLE_LISTING_BOOL(FamiliarFollowsHero);
+  DEBUG_VARIABLE_LISTING_BOOL(UseSpaceOutlines);
+  DEBUG_VARIABLE_LISTING_V4(FauxV4);
 
-#undef DEBUG_VARIABLE_LISTING
-
+#undef DEBUG_VARIABLE_LISTING_BOOL
+#undef DEBUG_VARIABLE_LISTING_REAL32
+#undef DEBUG_VARIABLE_LISTING_V4
+   
   DebugState->RootGroup = Context.Group;
 }
 

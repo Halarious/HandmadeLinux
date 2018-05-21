@@ -933,7 +933,7 @@ GetRenderEntityBasisP(render_transform* Transform, v3 OriginalP)
 #if DEBUGUI_UseDebugCamera
       if(1)
 	{
-	  DistanceAboveTarget += 50.0f;
+	  DistanceAboveTarget += DEBUGUI_DebugCameraDistance;
 	}
 #endif
   

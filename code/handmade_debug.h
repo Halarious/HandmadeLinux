@@ -3,7 +3,25 @@ typedef struct debug_variable debug_variable;
 
 typedef enum
   {
-    DebugVariable_Boolean,
+    DEBUGVarToText_AddDebugUI = 0x1,
+    DEBUGVarToText_AddName = 0x2,
+    DEBUGVarToText_FloatSuffix = 0x4,
+    DEBUGVarToText_LineFeedEnd = 0x8,
+    DEBUGVarToText_NullTerminator = 0x10,
+    DEBUGVarToText_Colon = 0x20,
+    DEBUGVarToText_PrettyBools = 0x40,
+  } debug_variable_to_text_flag;
+
+typedef enum
+  {
+    DebugVariable_Bool32,
+    DebugVariable_Int32,
+    DebugVariable_UInt32,
+    DebugVariable_Real32,
+    DebugVariable_V2,
+    DebugVariable_V3,
+    DebugVariable_V4,
+    
     DebugVariable_Group,
   } debug_variable_type;
 
@@ -24,6 +42,12 @@ struct debug_variable
   union
   {
     bool32 Bool32;
+    s32 Int32;
+    u32 UInt32;
+    r32 Real32;
+    v2  Vector2;
+    v3  Vector3;
+    v4  Vector4;
     debug_variable_group Group;
   };
 };
@@ -116,7 +140,8 @@ typedef struct
   
   v2 MenuP;
   bool32 MenuActive;
-  u32 HotMenuIndex;
+
+  debug_variable* HotVariable;
   
   r32 LeftEdge;
   r32 AtY;
