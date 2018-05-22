@@ -32,6 +32,12 @@ typedef struct
   debug_variable* LastChild;
 } debug_variable_group;
 
+typedef struct
+{
+  v2 UIP;
+  debug_variable* Group;
+} debug_variable_hierarchy;
+
 struct debug_variable
 {
   debug_variable_type Type;
@@ -121,6 +127,17 @@ struct debug_thread
   debug_thread* Next;
 };
 
+typedef enum
+  {
+    DebugInteraction_None,
+
+    DebugInteraction_NOP,
+    
+    DebugInteraction_DragValue,
+    DebugInteraction_ToggleValue,
+    DebugInteraction_TearValue,
+  } debug_interaction;
+
 typedef struct
 {
   bool32 Initialized;
@@ -129,8 +146,6 @@ typedef struct
   
   memory_arena DebugArena;
 
-  debug_variable* RootGroup;
-  
   struct render_group* RenderGroup;
   loaded_font* DebugFont;
   hha_font* DebugFontInfo;
@@ -141,7 +156,14 @@ typedef struct
   v2 MenuP;
   bool32 MenuActive;
 
-  debug_variable* HotVariable;
+  debug_variable *RootGroup;
+  debug_variable_hierarchy Hierarchy;
+
+  debug_interaction Interaction;
+  v2 LastMouseP;
+  debug_variable* Hot;
+  debug_variable* InteractingWith;
+  debug_variable* NextHot;
   
   r32 LeftEdge;
   r32 AtY;

@@ -78,6 +78,9 @@ DEBUGStart(assets* Assets, u32 Width, u32 Height)
       DebugState->LeftEdge = -0.5f * (r32)Width;
 
       DebugState->AtY = 0.5f * (r32)Height - DebugState->FontScale*GetStartingBaselineY(DebugState->DebugFontInfo);    
+
+      DebugState->Hierarchy.Group = DebugState->RootGroup;
+      DebugState->Hierarchy.UIP = V2(DebugState->LeftEdge, DebugState->AtY);
     }
   END_TIMED_FUNCTION();
 }
@@ -477,14 +480,14 @@ internal void
 DrawDebugMainMenu(debug_state* DebugState, render_group* RenderGroup,
 		  v2 MouseP)
 {
-  r32 AtX = DebugState->LeftEdge;
-  r32 AtY = DebugState->AtY;
+  r32 AtX = DebugState->Hierarchy.UIP.x;
+  r32 AtY = DebugState->Hierarchy.UIP.y;
   r32 LineAdvance = GetLineAdvanceFor(DebugState->DebugFontInfo);
 
-  DebugState->HotVariable = 0;
+  DebugState->NextHot = 0;
   
   u32 Depth = 0;
-  debug_variable* Var = DebugState->RootGroup->Group.FirstChild;
+  debug_variable* Var = DebugState->Hierarchy.Group->Group.FirstChild;
   while(Var)
     {
       v4 ItemColour = V4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -500,10 +503,14 @@ DrawDebugMainMenu(debug_state* DebugState, render_group* RenderGroup,
       rectangle2 TextBounds = DEBUGGetTextSize(DebugState, Text);
       if(IsInRectangle2(Offset2(TextBounds, TextP), MouseP))
 	{
-	  ItemColour = V4(1.0f, 1.0f, 0.0f, 1.0f);
-	  DebugState->HotVariable = Var;
+	  DebugState->NextHot = Var;
 	}
-      
+
+      if(DebugState->Hot == Var)
+	{
+	  ItemColour = V4(1.0f, 1.0f, 0.0f, 1.0f);
+	}
+            
       DEBUGTextOutAt(TextP, Text, ItemColour);      
       AtY -= LineAdvance*DebugState->FontScale;
 
@@ -576,6 +583,190 @@ DrawDebugMainMenu(debug_state* DebugState, render_group* RenderGroup,
 }
 
 internal void
+DEBUGBeginInteract(debug_state* DebugState, input* Input, v2 MouseP)
+{
+  if(DebugState->Hot)
+    {
+      switch(DebugState->Hot->Type)
+	{
+	case(DebugVariable_Bool32):
+	  {
+	    DebugState->Interaction = DebugInteraction_ToggleValue;
+	  } break;
+
+	case(DebugVariable_Real32):
+	  {
+	    DebugState->Interaction = DebugInteraction_DragValue;
+	  } break;
+
+	case(DebugVariable_Group):
+	  {
+	    DebugState->Interaction = DebugInteraction_ToggleValue;
+	  } break;
+
+	case(DebugVariable_Int32):
+	  {
+	  } break;
+
+	case(DebugVariable_UInt32):
+	  {
+	  } break;
+
+	case(DebugVariable_V2):
+	  {
+	  } break;
+
+	case(DebugVariable_V3):
+	  {
+	  } break;
+
+	case(DebugVariable_V4):
+	  {
+	  } break;
+	}
+  
+      if(DebugState->Interaction)
+	{
+	  DebugState->InteractingWith = DebugState->Hot;
+	}
+    }
+  else
+    {
+      DebugState->Interaction = DebugInteraction_NOP;
+    }
+}
+internal void
+DEBUGEndInteract(debug_state* DebugState, input* Input, v2 MouseP)
+{
+  if(DebugState->Interaction == DebugInteraction_NOP)
+    {
+      debug_variable* Var = DebugState->InteractingWith;
+
+      Assert(Var);
+      switch(DebugState->Interaction)
+	{
+	case(DebugInteraction_DragValue):
+	  {
+	  } break;
+
+	case(DebugInteraction_ToggleValue):
+	  {
+	    switch(Var->Type)
+	      {
+	      case(DebugVariable_Bool32):
+		{
+		  Var->Bool32 = !Var->Bool32;
+		} break;
+
+	      case(DebugVariable_Group):
+		{
+		  Var->Group.Expanded = !Var->Group.Expanded;
+		} break;
+
+	      default:
+		{
+		}
+	      }
+
+	  } break;
+
+	case(DebugInteraction_TearValue):
+	  {
+	  } break;
+
+	default: {}
+	}
+  
+      WriteHandmadeConfig(DebugState);
+    }
+
+  DebugState->Interaction = DebugInteraction_None;
+  DebugState->InteractingWith = 0;
+}
+
+internal void
+DEBUGInteract(debug_state* DebugState, input* Input, v2 MouseP)
+{
+  v2 dMouseP = V2Sub(MouseP, DebugState->LastMouseP);
+  
+#if 0
+  if(Input->MouseButtons[PlatformMouseButton_Right].EndedDown)
+    {
+      if(Input->MouseButtons[PlatformMouseButton_Right].HalfTransitionCount > 0)
+	{
+	  DebugState->MenuP = MouseP;
+	}
+      DrawDebugMainMenu(DebugState, RenderGroup, MouseP);
+    }
+  else if(Input->MouseButtons[PlatformMouseButton_Right].HalfTransitionCount > 0)
+#endif
+    
+    if(DebugState->Interaction)
+      {
+	debug_variable* Var = DebugState->InteractingWith;
+	switch(DebugState->Interaction)
+	  {
+	  case(DebugInteraction_ToggleValue):
+	    {
+	    } break;
+
+	  case(DebugInteraction_DragValue):
+	    {
+	      switch(Var->Type)
+		{
+		case(DebugVariable_Real32):
+		  {
+		    Var->Real32 += 0.1f*dMouseP.y;
+		  } break;
+		
+		default:
+		  {
+		  }
+		}
+	    } break;
+
+	  case(DebugInteraction_TearValue):
+	    {
+	    } break;
+
+	  default: {}
+	  }	
+
+	for(u32 TransitionIndex = Input->MouseButtons[PlatformMouseButton_Left].HalfTransitionCount;
+	    TransitionIndex > 1;
+	    --TransitionIndex)
+	  {
+	    DEBUGEndInteract(DebugState, Input, MouseP);
+	    DEBUGBeginInteract(DebugState, Input, MouseP);
+	  }
+
+	if(!Input->MouseButtons[PlatformMouseButton_Left].EndedDown)
+	  {
+	    DEBUGEndInteract(DebugState, Input, MouseP);	    
+	  }
+      }
+    else
+      {
+	DebugState->Hot = DebugState->NextHot;
+
+	for(u32 TransitionIndex = Input->MouseButtons[PlatformMouseButton_Left].HalfTransitionCount;
+	    TransitionIndex > 1;
+	    --TransitionIndex)
+	  {
+	    DEBUGBeginInteract(DebugState, Input, MouseP);
+	    DEBUGEndInteract(DebugState, Input, MouseP);
+	  }
+
+	if(Input->MouseButtons[PlatformMouseButton_Left].EndedDown)
+	  {
+	    DEBUGBeginInteract(DebugState, Input, MouseP);
+	  }
+      }
+	
+  DebugState->LastMouseP = MouseP;
+}
+
+internal void
 DEBUGEnd(input* Input, loaded_bitmap* DrawBuffer)
 {
   BEGIN_TIMED_FUNCTION(1);
@@ -584,48 +775,14 @@ DEBUGEnd(input* Input, loaded_bitmap* DrawBuffer)
   if(DebugState)
     {
       render_group* RenderGroup = DebugState->RenderGroup;
-      
+
+      debug_variable* NextHot = 0;
       debug_record* HotRecord = 0;
       
       v2 MouseP = V2(Input->MouseX, Input->MouseY); 
-      
       DrawDebugMainMenu(DebugState, RenderGroup, MouseP);
-#if 0
-      if(Input->MouseButtons[PlatformMouseButton_Right].EndedDown)
-	{
-	  if(Input->MouseButtons[PlatformMouseButton_Right].HalfTransitionCount > 0)
-	    {
-	      DebugState->MenuP = MouseP;
-	    }
-	  DrawDebugMainMenu(DebugState, RenderGroup, MouseP);
-	}
-      else if(Input->MouseButtons[PlatformMouseButton_Right].HalfTransitionCount > 0)
-#else
-      if(WasPressed(Input->MouseButtons[PlatformMouseButton_Left]))
-#endif
-	{
-	  if(DebugState->HotVariable)
-	    {
-	      debug_variable* Var = DebugState->HotVariable; 
-	      switch(Var->Type)
-		{
-		case(DebugVariable_Bool32):
-		  {
-		    Var->Bool32 = !Var->Bool32;
-		  } break;
-
-		case(DebugVariable_Group):
-		  {
-		    Var->Group.Expanded = !Var->Group.Expanded;
-		  } break;
-
-		  InvalidCase;
-		}
-
-	      WriteHandmadeConfig(DebugState);
-	    }
-	}
-
+      DEBUGInteract(DebugState, Input, MouseP);
+      
       if(DebugState->Compiling)
 	{
 	  debug_process_state State = Platform.DEBUGGetProcessState(DebugState->Compiler);
