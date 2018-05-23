@@ -21,9 +21,19 @@ typedef enum
     DebugVariable_V2,
     DebugVariable_V3,
     DebugVariable_V4,
+
+    DebugVariable_CounterThreadList,
+    //DebugVariable_CounterFunctionList,
     
     DebugVariable_Group,
   } debug_variable_type;
+
+internal inline bool32
+DEBUGShouldBeWritten(debug_variable_type Type)
+{
+  bool32 Result = (Type != DebugVariable_CounterThreadList);
+  return(Result);
+}
 
 typedef struct 
 {
@@ -37,6 +47,11 @@ typedef struct
   v2 UIP;
   debug_variable* Group;
 } debug_variable_hierarchy;
+
+typedef struct
+{
+  v2 Dimension;
+} debug_profile_setting;
 
 struct debug_variable
 {
@@ -55,6 +70,7 @@ struct debug_variable
     v3  Vector3;
     v4  Vector4;
     debug_variable_group Group;
+    debug_profile_setting Profile;
   };
 };
 
@@ -136,6 +152,8 @@ typedef enum
     DebugInteraction_DragValue,
     DebugInteraction_ToggleValue,
     DebugInteraction_TearValue,
+
+    DebugInteraction_ResizeProfile,
   } debug_interaction;
 
 typedef struct
@@ -161,11 +179,14 @@ typedef struct
 
   debug_interaction Interaction;
   v2 LastMouseP;
+  debug_interaction HotInteraction;
   debug_variable* Hot;
   debug_variable* InteractingWith;
+  debug_interaction NextHotInteraction;
   debug_variable* NextHot;
-  
+    
   r32 LeftEdge;
+  r32 RightEdge;
   r32 AtY;
   r32 FontScale;
   font_id FontID;
@@ -183,9 +204,6 @@ typedef struct
   u32 FrameCount;
   r32 FrameBarScale;	  
   bool32 Paused;
-
-  bool32 ProfileOn;
-  rectangle2 ProfileRect;
 
   debug_frame* Frames;
   debug_thread* FirstThread;
