@@ -54,12 +54,12 @@ DEBUGStart(assets* Assets, u32 Width, u32 Height)
 	  DEBUGBeginVariableGroup(&Context, "By Thread");
 	  debug_variable* ThreadList =
 	    DEBUGAddVariable(&Context, DebugVariable_CounterThreadList, "");
-	  ThreadList->Profile.Dimension = V2(1024.0f, 100.f);
+	  ThreadList->Profile.Dimension = V2(1024.0f, 100.0f);
 	  DEBUGEndVariableGroup(&Context);
 	  DEBUGBeginVariableGroup(&Context, "By Function");
 	  debug_variable* FunctionList =
 	    DEBUGAddVariable(&Context, DebugVariable_CounterThreadList, "");
-	  FunctionList->Profile.Dimension = V2(1024.0f, 200.f);
+	  FunctionList->Profile.Dimension = V2(1024.0f, 200.0f);
 	  DEBUGEndVariableGroup(&Context);
 	  DEBUGEndVariableGroup(&Context);
 
@@ -628,7 +628,7 @@ DrawDebugMainMenu(debug_state* DebugState, render_group* RenderGroup,
 	{
 	case(DebugVariable_CounterThreadList):
 	  {
-	    v2 MinCorner = V2(AtX + Depth*2.0f*LineAdvance, AtY - Var->Profile.Dimension.x);
+	    v2 MinCorner = V2(AtX + Depth*2.0f*LineAdvance, AtY - Var->Profile.Dimension.y);
 	    v2 MaxCorner = V2(MinCorner.x  + Var->Profile.Dimension.x, AtY);
 	    v2 SizeP = V2(MaxCorner.x, MinCorner.y);
 	    Bounds = RectMinMax2(MinCorner, MaxCorner);
@@ -639,7 +639,7 @@ DrawDebugMainMenu(debug_state* DebugState, render_group* RenderGroup,
 			   (IsHot && (DebugState->HotInteraction == DebugInteraction_ResizeProfile)) ?
 			   V4(1.0f, 1.0f, 0.0f, 1.0f) : V4(1.0f, 1.0f, 1.0f, 1.0f));
 
-	    if(IsInRectangle2(Bounds, MouseP))
+	    if(IsInRectangle2(SizeBox, MouseP))
 	      {
 		DebugState->NextHotInteraction = DebugInteraction_ResizeProfile;
 		DebugState->NextHot = Var;
@@ -1073,6 +1073,8 @@ DEBUGEnd(input* Input, loaded_bitmap* DrawBuffer)
 			       DebugState->RenderGroup, DrawBuffer);
       EndRender(DebugState->RenderGroup);
     }
+
+  END_TIMED_FUNCTION();
 }
 
 #define DebugRecords_Main_Count __COUNTER__
