@@ -1,5 +1,6 @@
 
 typedef struct debug_variable debug_variable;
+typedef struct debug_variable_reference debug_variable_reference;
 
 typedef enum
   {
@@ -38,27 +39,36 @@ DEBUGShouldBeWritten(debug_variable_type Type)
 typedef struct 
 {
   bool32 Expanded;
-  debug_variable* FirstChild;
-  debug_variable* LastChild;
+  debug_variable_reference* FirstChild;
+  debug_variable_reference* LastChild;
 } debug_variable_group;
 
-typedef struct
+typedef struct debug_variable_hierarchy debug_variable_hierarchy;
+struct debug_variable_hierarchy
 {
   v2 UIP;
-  debug_variable* Group;
-} debug_variable_hierarchy;
+  debug_variable_reference* Group;
+
+  debug_variable_hierarchy* Next;
+  debug_variable_hierarchy* Prev;
+};
 
 typedef struct
 {
   v2 Dimension;
 } debug_profile_setting;
 
+struct debug_variable_reference
+{
+  debug_variable* Var;
+  debug_variable_reference* Next;
+  debug_variable_reference* Parent;
+}; 
+
 struct debug_variable
 {
   debug_variable_type Type;
   char* Name;
-  debug_variable* Next;
-  debug_variable* Parent;
 
   union
   {
@@ -154,6 +164,7 @@ typedef enum
     DebugInteraction_TearValue,
 
     DebugInteraction_ResizeProfile,
+    DebugInteraction_MoveHierarchy,
   } debug_interaction;
 
 typedef struct
@@ -174,8 +185,8 @@ typedef struct
   v2 MenuP;
   bool32 MenuActive;
 
-  debug_variable *RootGroup;
-  debug_variable_hierarchy Hierarchy;
+  debug_variable_reference *RootGroup;
+  debug_variable_hierarchy HierarchySentinel;
 
   debug_interaction Interaction;
   v2 LastMouseP;
@@ -184,7 +195,10 @@ typedef struct
   debug_variable* InteractingWith;
   debug_interaction NextHotInteraction;
   debug_variable* NextHot;
-    
+  debug_variable_hierarchy* NextHotHierarchy;
+  
+  debug_variable_hierarchy* DraggingHierarchy;
+  
   r32 LeftEdge;
   r32 RightEdge;
   r32 AtY;

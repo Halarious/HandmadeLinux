@@ -1244,6 +1244,7 @@ main(int ArgCount, char** Arguments)
 			Linux32ProcessKeyboardMessage(&NewInputState->MouseButtons[MouseButtonIndex],
 						      MaskReturn & LinuxButtonID[MouseButtonIndex]);
 		      }
+		    
 		  }
 		}
 

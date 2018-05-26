@@ -944,7 +944,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
       State->IsInitialized = true;
     }
-  
+
   Assert(sizeof(transient_state) <= Memory->TransientStorageSize);
   transient_state* TransState
     = (transient_state*) Memory->TransientStorage;
