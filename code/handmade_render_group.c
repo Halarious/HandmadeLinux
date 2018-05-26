@@ -998,12 +998,13 @@ PushRenderElement_(render_group *Group, u32 Size, render_group_entry_type Type)
 }
 
 internal inline used_bitmap_dim
-GetBitmapDim(render_group *Group, loaded_bitmap* Bitmap, v3 Offset, r32 Height, v4 Color)
+GetBitmapDim(render_group *Group, loaded_bitmap* Bitmap, v3 Offset, r32 Height, r32 CAlign)
 {
   used_bitmap_dim Result = {};
   
   Result.Size  = V2(Height * Bitmap->WidthOverHeight, Height);
-  Result.Align = V2Hadamard(Bitmap->AlignPercentage, Result.Size);
+  Result.Align = V2MulS(CAlign,
+			V2Hadamard(Bitmap->AlignPercentage, Result.Size));
   Result.P = V3Sub(Offset,
 	       ToV3(Result.Align, 0.0f));
 
@@ -1013,9 +1014,9 @@ GetBitmapDim(render_group *Group, loaded_bitmap* Bitmap, v3 Offset, r32 Height, 
 }
 
 internal inline void
-PushBitmap(render_group *Group, loaded_bitmap* Bitmap, v3 Offset, r32 Height, v4 Color)
+PushBitmap(render_group *Group, loaded_bitmap* Bitmap, v3 Offset, r32 Height, v4 Color, r32 CAlign)
 {
-  used_bitmap_dim Dim = GetBitmapDim(Group, Bitmap, Offset, Height, Color);
+  used_bitmap_dim Dim = GetBitmapDim(Group, Bitmap, Offset, Height, CAlign);
   if(Dim.Basis.Valid)
     {
       render_entry_bitmap* Entry = PushRenderElement(Group, render_entry_bitmap);
@@ -1030,7 +1031,7 @@ PushBitmap(render_group *Group, loaded_bitmap* Bitmap, v3 Offset, r32 Height, v4
 }
 
 internal inline void
-PushBitmapByID(render_group *Group, bitmap_id ID, v3 Offset, r32 Height, v4 Color)
+PushBitmapByID(render_group *Group, bitmap_id ID, v3 Offset, r32 Height, v4 Color, r32 CAlign)
 {
   loaded_bitmap* Bitmap = GetBitmap(Group->Assets, ID, Group->GenerationID);
   if(Group->RendersInBackground && !Bitmap)
@@ -1041,7 +1042,7 @@ PushBitmapByID(render_group *Group, bitmap_id ID, v3 Offset, r32 Height, v4 Colo
 
   if(Bitmap)
     {
-      PushBitmap(Group, Bitmap, Offset, Height, Color);
+      PushBitmap(Group, Bitmap, Offset, Height, Color, CAlign);
     }
   else
     {

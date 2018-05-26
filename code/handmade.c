@@ -641,7 +641,7 @@ PLATFORM_WORK_QUEUE_CALLBACK(FillGroundChunkWork)
 	      v2 P = V2Add(Center, Offset);
       
 	      PushBitmapByID(RenderGroup, Stamp, ToV3(P, 0.0f),
-			     2.0f, Color);
+			     2.0f, Color, 1.0f);
 	    }
 	}
     }
@@ -672,7 +672,7 @@ PLATFORM_WORK_QUEUE_CALLBACK(FillGroundChunkWork)
 	      v2 P = V2Add(Center, Offset);
       
 	      PushBitmapByID(RenderGroup, Stamp, ToV3(P, 0.0f),
-			     0.1f, V4(1.0f, 1.0f, 1.0f, 1.0f));
+			     0.1f, V4(1.0f, 1.0f, 1.0f, 1.0f), 1.0f);
 	    }
 	}
     }
@@ -1167,7 +1167,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	      PushBitmap(RenderGroup, Bitmap,
 			 Delta,
 			 GroundSideInMeters,
-			 V4(1.0f, 1.0f, 1.0f, 1.0f));
+			 V4(1.0f, 1.0f, 1.0f, 1.0f), 1.0f);
 #if DEBUGUI_GroundChunkOutlines
 	      PushRectOutline(RenderGroup,
 			      Delta,
@@ -1423,10 +1423,10 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	    case EntityType_Hero:
 	      {
 		r32 HeroSizeC = 2.5f;
-		PushBitmapByID(RenderGroup, GetFirstBitmapFrom(TransState->Assets, Asset_Shadow), V3(0, 0, 0), HeroSizeC*1.0f, V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
-		PushBitmapByID(RenderGroup, HeroBitmaps.Torso, V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));
-		PushBitmapByID(RenderGroup, HeroBitmaps.Cape,  V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));
-		PushBitmapByID(RenderGroup, HeroBitmaps.Head,  V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f));	
+		PushBitmapByID(RenderGroup, GetFirstBitmapFrom(TransState->Assets, Asset_Shadow), V3(0, 0, 0), HeroSizeC*1.0f, V4(1.0f, 1.0f, 1.0f, ShadowAlpha), 1.0f);
+		PushBitmapByID(RenderGroup, HeroBitmaps.Torso, V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f), 1.0f);
+		PushBitmapByID(RenderGroup, HeroBitmaps.Cape,  V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f), 1.0f);
+		PushBitmapByID(RenderGroup, HeroBitmaps.Head,  V3(0, 0, 0), HeroSizeC*1.2f, V4(1.0f, 1.0f, 1.0f, 1.0f), 1.0f);	
 		DrawHitpoints(Entity, RenderGroup);
 #if DEBUGUI_ParticleTest
 		for(u32 ParticleSpawnIndex = 0;
@@ -1582,7 +1582,7 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
 	    case EntityType_Wall:
 	      {
-		PushBitmapByID(RenderGroup, GetFirstBitmapFrom(TransState->Assets, Asset_Tree), V3(0, 0, 0), 2.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
+		PushBitmapByID(RenderGroup, GetFirstBitmapFrom(TransState->Assets, Asset_Tree), V3(0, 0, 0), 2.5f, V4(1.0f, 1.0f, 1.0f, 1.0f), 1.0f);
 	      } break;
 
 	    case EntityType_Stairwell:
@@ -1593,22 +1593,22 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
 	    case EntityType_Sword:
 	      {
-		PushBitmapByID(RenderGroup, GetFirstBitmapFrom(TransState->Assets, Asset_Shadow), V3(0, 0, 0), 0.5f, V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
-		PushBitmapByID(RenderGroup, GetFirstBitmapFrom(TransState->Assets, Asset_Sword), V3(0, 0, 0), 0.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
+		PushBitmapByID(RenderGroup, GetFirstBitmapFrom(TransState->Assets, Asset_Shadow), V3(0, 0, 0), 0.5f, V4(1.0f, 1.0f, 1.0f, ShadowAlpha), 1.0f);
+		PushBitmapByID(RenderGroup, GetFirstBitmapFrom(TransState->Assets, Asset_Sword), V3(0, 0, 0), 0.5f, V4(1.0f, 1.0f, 1.0f, 1.0f), 1.0f);
 	      } break;
 
 	    case EntityType_Familiar:
 	      {
 		r32 BobSin = Sin(2.0f * Entity->tBob);
-		PushBitmapByID(RenderGroup, GetFirstBitmapFrom(TransState->Assets, Asset_Shadow), V3(0, 0, 0), 2.5f, V4(1.0f, 1.0f, 1.0f, 0.5f*ShadowAlpha + 0.2f*BobSin));
-		PushBitmapByID(RenderGroup, HeroBitmaps.Head, V3(0, 0, 0.25f*BobSin), 2.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
+		PushBitmapByID(RenderGroup, GetFirstBitmapFrom(TransState->Assets, Asset_Shadow), V3(0, 0, 0), 2.5f, V4(1.0f, 1.0f, 1.0f, 0.5f*ShadowAlpha + 0.2f*BobSin), 1.0f);
+		PushBitmapByID(RenderGroup, HeroBitmaps.Head, V3(0, 0, 0.25f*BobSin), 2.5f, V4(1.0f, 1.0f, 1.0f, 1.0f), 1.0f);
 	      } break;
 	      
 	    case EntityType_Monstar:
 	      {
 		DrawHitpoints(Entity, RenderGroup);
-		PushBitmapByID(RenderGroup, GetFirstBitmapFrom(TransState->Assets, Asset_Shadow), V3(0, 0, 0), 4.5f, V4(1.0f, 1.0f, 1.0f, ShadowAlpha));
-		PushBitmapByID(RenderGroup, HeroBitmaps.Torso, V3(0, 0, 0), 4.5f, V4(1.0f, 1.0f, 1.0f, 1.0f));
+		PushBitmapByID(RenderGroup, GetFirstBitmapFrom(TransState->Assets, Asset_Shadow), V3(0, 0, 0), 4.5f, V4(1.0f, 1.0f, 1.0f, ShadowAlpha), 1.0f);
+		PushBitmapByID(RenderGroup, HeroBitmaps.Torso, V3(0, 0, 0), 4.5f, V4(1.0f, 1.0f, 1.0f, 1.0f), 1.0f);
 	      } break;
 	      
 	    case EntityType_Space:

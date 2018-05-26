@@ -16,7 +16,7 @@
     #define DEBUGUI_FamiliarFollowsHero 0
     #define DEBUGUI_UseSpaceOutlines 0
     #define DEBUGUI_FauxV4 V4(1.000000, 2.000000, 3.000000, 4.000000)
-    #define DEBUGUI_UseDebugCamera 1
     //#define DEBUGUI_Profile 
         //#define DEBUGUI_By Thread 
         //#define DEBUGUI_By Function 
+      //#define DEBUGUI_By Function 

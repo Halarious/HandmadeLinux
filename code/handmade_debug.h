@@ -25,6 +25,7 @@ typedef enum
 
     DebugVariable_CounterThreadList,
     //DebugVariable_CounterFunctionList,
+    DebugVariable_BitmapDisplay,
     
     DebugVariable_Group,
   } debug_variable_type;
@@ -32,7 +33,8 @@ typedef enum
 internal inline bool32
 DEBUGShouldBeWritten(debug_variable_type Type)
 {
-  bool32 Result = (Type != DebugVariable_CounterThreadList);
+  bool32 Result = ((Type != DebugVariable_CounterThreadList) &&
+		   (Type != DebugVariable_BitmapDisplay));
   return(Result);
 }
 
@@ -65,6 +67,13 @@ struct debug_variable_reference
   debug_variable_reference* Parent;
 }; 
 
+typedef struct
+{
+  bitmap_id ID;
+  v2 Dim;
+  bool32 Alpha;
+} debug_bitmap_display;
+
 struct debug_variable
 {
   debug_variable_type Type;
@@ -81,6 +90,7 @@ struct debug_variable
     v4  Vector4;
     debug_variable_group Group;
     debug_profile_setting Profile;
+    debug_bitmap_display BitmapDisplay;
   };
 };
 
@@ -158,14 +168,29 @@ typedef enum
     DebugInteraction_None,
 
     DebugInteraction_NOP,
+
+    DebugInteraction_AutoModifyVariable,
     
     DebugInteraction_DragValue,
     DebugInteraction_ToggleValue,
     DebugInteraction_TearValue,
 
-    DebugInteraction_ResizeProfile,
-    DebugInteraction_MoveHierarchy,
-  } debug_interaction;
+    DebugInteraction_Resize,
+    DebugInteraction_Move,
+  } debug_interaction_type;
+
+typedef struct
+{
+  debug_interaction_type Type;  
+
+  union
+  {
+    void* Generic;
+    debug_variable* Var;
+    debug_variable_hierarchy* Hierarchy;
+    v2* P;
+  };
+} debug_interaction;
 
 typedef struct
 {
@@ -188,17 +213,11 @@ typedef struct
   debug_variable_reference *RootGroup;
   debug_variable_hierarchy HierarchySentinel;
 
-  debug_interaction Interaction;
   v2 LastMouseP;
+  debug_interaction Interaction;
   debug_interaction HotInteraction;
-  debug_variable* Hot;
-  debug_variable* InteractingWith;
   debug_interaction NextHotInteraction;
-  debug_variable* NextHot;
-  debug_variable_hierarchy* NextHotHierarchy;
-  
-  debug_variable_hierarchy* DraggingHierarchy;
-  
+      
   r32 LeftEdge;
   r32 RightEdge;
   r32 AtY;

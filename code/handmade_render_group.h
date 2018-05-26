@@ -111,7 +111,7 @@ struct render_group
 //NOTE: Renderer "API"
 
 internal inline void
-PushBitmap(render_group *Group, loaded_bitmap* Bitmap, v3 Offset, r32 Height, v4 Color);
+PushBitmap(render_group *Group, loaded_bitmap* Bitmap, v3 Offset, r32 Height, v4 Color, r32 CAlign);
 
 internal inline void
 PushRect(render_group *Group, v3 Offset, v2 Dim, v4 Color);

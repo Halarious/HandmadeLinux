@@ -119,6 +119,17 @@ DEBUGAddV4Variable(debug_variable_definition_context* Context, char* Name, v4 Va
   return(Ref);
 }
 
+internal debug_variable_reference*
+DEBUGAddBitmapVariable(debug_variable_definition_context* Context, char* Name, bitmap_id Value)
+{
+  debug_variable_reference* Ref = DEBUGAddVariable(Context, DebugVariable_BitmapDisplay, Name);
+  Ref->Var->BitmapDisplay.ID = Value;
+  Ref->Var->BitmapDisplay.Dim = V2(25.0f, 25.0f);
+  Ref->Var->BitmapDisplay.Alpha = true;
+  
+  return(Ref);
+}
+
 internal void
 DEBUGEndVariableGroup(debug_variable_definition_context* Context)
 {
@@ -136,6 +147,7 @@ DEBUGCreateVariables(debug_variable_definition_context* Context)
 #define DEBUG_VARIABLE_LISTING_BOOL(Name) DEBUGAddBoolVariable(Context, #Name, DEBUGUI_##Name)
 #define DEBUG_VARIABLE_LISTING_REAL32(Name) DEBUGAddReal32Variable(Context, #Name, DEBUGUI_##Name)
 #define DEBUG_VARIABLE_LISTING_V4(Name) DEBUGAddV4Variable(Context, #Name, DEBUGUI_##Name)
+#define DEBUG_VARIABLE_LISTING_BITMAP(Name) DEBUGAddBitmapVariable(Context, #Name, DEBUGUI_##Name)
 
   DEBUGBeginVariableGroup(Context, "Ground Chunks");
   DEBUG_VARIABLE_LISTING_BOOL(GroundChunkCheckerboards);
@@ -167,10 +179,10 @@ DEBUGCreateVariables(debug_variable_definition_context* Context)
   DEBUG_VARIABLE_LISTING_BOOL(UseSpaceOutlines);
   DEBUG_VARIABLE_LISTING_V4(FauxV4);
 
-  DEBUGAddVariableReferenceWithContext(Context, UseDebugCamRef->Var);
 #undef DEBUG_VARIABLE_LISTING_BOOL
 #undef DEBUG_VARIABLE_LISTING_REAL32
 #undef DEBUG_VARIABLE_LISTING_V4
+#undef DEBUG_VARIABLE_LISTING_BITMAP
 }
 
 /*
