@@ -4,11 +4,13 @@ typedef struct
   debug_state* State;
   memory_arena* Arena;
 
-  debug_variable_reference* Group;
+  debug_variable* Group;
+  u32 VarCount;
+  debug_variable* Vars[64];
 } debug_variable_definition_context; 
 
 internal debug_variable*
-DEBUGAddUnreferencedVariable(debug_state* DebugState, debug_variable_type Type, char* Name)
+DEBUGAddVariable(debug_state* DebugState, debug_variable_type Type, char* Name)
 {
   debug_variable* Var = PushStruct(&DebugState->DebugArena, debug_variable);  
   Var->Type = Type;
@@ -17,117 +19,62 @@ DEBUGAddUnreferencedVariable(debug_state* DebugState, debug_variable_type Type, 
   return(Var);
 }
 
-internal debug_variable_reference* 
-DEBUGAddVariableReference(debug_state* DebugState, debug_variable_reference* GroupRef, debug_variable* Var)
+internal debug_variable* 
+DEBUGAddVariableWithContext(debug_variable_definition_context* Context, debug_variable_type Type, char* Name)
 {
-  debug_variable_reference* Ref = PushStruct(&DebugState->DebugArena, debug_variable_reference);  
-  Ref->Var = Var;
-  Ref->Next = 0;
-
-  Ref->Parent = GroupRef;
-  debug_variable* Group = Ref->Parent ? Ref->Parent->Var : 0;
+  Assert(Context->VarCount < ArrayCount(Context->Vars));
   
-  if(Group)
-    {
-      if(Group->Group.LastChild)
-	{
-	  Group->Group.LastChild = Group->Group.LastChild->Next = Ref;
-	}
-      else
-	{
-	  Group->Group.LastChild = Group->Group.FirstChild = Ref;
-	}
-    }
-
-  return(Ref);
-}
-
-internal debug_variable_reference* 
-DEBUGAddVariableReferenceWithContext(debug_variable_definition_context* Context, debug_variable* Var)
-{
-  debug_variable_reference* Ref = DEBUGAddVariableReference(Context->State, Context->Group, Var);  
-
-  return(Ref);
-}
-
-internal debug_variable_reference* 
-DEBUGAddVariable(debug_variable_definition_context* Context, debug_variable_type Type, char* Name)
-{
-  debug_variable* Var = DEBUGAddUnreferencedVariable(Context->State, Type, Name);
-  debug_variable_reference* Ref = DEBUGAddVariableReferenceWithContext(Context, Var);
-
-  return(Ref);
+  debug_variable* Var = DEBUGAddVariable(Context->State, Type, Name);
+  Context->Vars[Context->VarCount++] = Var;
+  
+  return(Var);
 }
 
 internal debug_variable*
-DEBUGAddRootGroupInternal(debug_state* DebugState, char* Name)
-{
-  debug_variable* Group = DEBUGAddUnreferencedVariable(DebugState, DebugVariable_Group, Name);
-
-  Group->Group.Expanded = true;
-  Group->Group.FirstChild = Group->Group.LastChild = 0;
-  
-  return(Group);
-}
-
-internal debug_variable_reference*
-DEBUGAddRootGroup(debug_state* DebugState, char* Name)
-{
-  debug_variable_reference* GroupRef =
-    DEBUGAddVariableReference(DebugState, 0,
-			      DEBUGAddRootGroupInternal(DebugState, Name));
-  return(GroupRef);
-}
-
-internal debug_variable_reference*
 DEBUGBeginVariableGroup(debug_variable_definition_context* Context, char* Name)
 {
-  debug_variable_reference* Group =
-    DEBUGAddVariableReferenceWithContext(Context,
-					 DEBUGAddRootGroupInternal(Context->State, Name));    
-  Group->Var->Group.Expanded = false;
+  debug_variable* Group = DEBUGAddVariableWithContext(Context, DebugVariable_VarArray, Name);    
+  Group->VarArray.Count = 0;
 
-  Context->Group = Group;
-
+  
+  
   return(Group);
 }
 
-internal debug_variable_reference*
+internal debug_variable*
 DEBUGAddBoolVariable(debug_variable_definition_context* Context, char* Name, bool32 Value)
 {
-  debug_variable_reference* Ref = DEBUGAddVariable(Context, DebugVariable_Bool32, Name);
-  Ref->Var->Bool32 = Value;
+  debug_variable* Var = DEBUGAddVariableWithContext(Context, DebugVariable_Bool32, Name);
+  Var->Bool32 = Value;
 
-  return(Ref);
+  return(Var);
 }
 
-internal debug_variable_reference*
+internal debug_variable*
 DEBUGAddReal32Variable(debug_variable_definition_context* Context, char* Name, r32 Value)
 {
-  debug_variable_reference* Ref = DEBUGAddVariable(Context, DebugVariable_Real32, Name);
-  Ref->Var->Real32 = Value;
+  debug_variable* Var = DEBUGAddVariableWithContext(Context, DebugVariable_Real32, Name);
+  Var->Real32 = Value;
 
-  return(Ref);
+  return(Var);
 }
 
-internal debug_variable_reference*
+internal debug_variable*
 DEBUGAddV4Variable(debug_variable_definition_context* Context, char* Name, v4 Value)
 {
-  debug_variable_reference* Ref = DEBUGAddVariable(Context, DebugVariable_V4, Name);
-  Ref->Var->Vector4 = Value;
+  debug_variable* Var = DEBUGAddVariableWithContext(Context, DebugVariable_V4, Name);
+  Var->Vector4 = Value;
 
-  return(Ref);
+  return(Var);
 }
 
-internal debug_variable_reference*
+internal debug_variable*
 DEBUGAddBitmapVariable(debug_variable_definition_context* Context, char* Name, bitmap_id Value)
 {
-  debug_variable_reference* Ref = DEBUGAddVariable(Context, DebugVariable_BitmapDisplay, Name);
-  Ref->Var->BitmapDisplay.ID = Value;
-  Ref->Var->BitmapDisplay.Dim = V2(25.0f, 25.0f);
-  Ref->Var->BitmapDisplay.Alpha = true;
+  debug_variable* Var = DEBUGAddVariableWithContext(Context, DebugVariable_BitmapDisplay, Name);
+  Var->BitmapDisplay.ID = Value;
   
-  return(Ref);
+  return(Var);
 }
 
 internal void
@@ -142,7 +89,7 @@ internal void
 DEBUGCreateVariables(debug_variable_definition_context* Context)
 {
 
-  debug_variable_reference* UseDebugCamRef = 0;
+  debug_variable* UseDebugCamRef = 0;
   
 #define DEBUG_VARIABLE_LISTING_BOOL(Name) DEBUGAddBoolVariable(Context, #Name, DEBUGUI_##Name)
 #define DEBUG_VARIABLE_LISTING_REAL32(Name) DEBUGAddReal32Variable(Context, #Name, DEBUGUI_##Name)

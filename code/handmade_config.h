@@ -10,7 +10,7 @@
         #define DEBUGUI_TestWeirdDrawBufferSize 0
         #define DEBUGUI_ShowLightingSamples 0
         //#define DEBUGUI_Camera 
-            #define DEBUGUI_UseDebugCamera 1
+            #define DEBUGUI_UseDebugCamera 0
             #define DEBUGUI_DebugCameraDistance 50.199963f
             #define DEBUGUI_UseRoomBasedCamera 0
     #define DEBUGUI_FamiliarFollowsHero 0

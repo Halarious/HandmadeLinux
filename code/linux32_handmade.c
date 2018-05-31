@@ -270,6 +270,8 @@ HandleEvents(XEvent *Event, linux32_state *Linux32State,
     }
 }
 
+#if HANDMADE_INTERNAL
+
 DEBUG_PLATFORM_FREE_FILE_MEMORY(DEBUGPlatformFreeFileMemory)
 {
   if(LoadedFile->Contents)
@@ -394,6 +396,7 @@ DEBUG_PLATFORM_GET_PROCESS_STATE(DEBUGGetProcessState)
   
   return(Result);
 }
+#endif
 
 int CopyFile(const char *from, const char *to)
 {
@@ -959,8 +962,10 @@ PLATFORM_DEALLOCATE_MEMORY(Linux32DeallocateMemory)
     }
 }
 
+#if HANDMADE_INTERNAL
 global_variable debug_table GlobalDebugTable_;
 debug_table* GlobalDebugTable = &GlobalDebugTable_;
+#endif
 
 int
 main(int ArgCount, char** Arguments)
@@ -1126,13 +1131,15 @@ main(int ArgCount, char** Arguments)
 
       Memory.PlatformAPI.AllocateMemory = Linux32AllocateMemory;
       Memory.PlatformAPI.DeallocateMemory = Linux32DeallocateMemory;
-      
+
+#if HANDMADE_INTERNAL
       Memory.PlatformAPI.DEBUGReadEntireFile = DEBUGPlatformReadEntireFile;
       Memory.PlatformAPI.DEBUGFreeFileMemory = DEBUGPlatformFreeFileMemory;
       Memory.PlatformAPI.DEBUGWriteEntireFile = DEBUGPlatformWriteEntireFile;
       Memory.PlatformAPI.DEBUGExecuteSystemCommand = DEBUGExecuteSystemCommand;
       Memory.PlatformAPI.DEBUGGetProcessState = DEBUGGetProcessState;  
-
+#endif
+      
       Linux32State.TotalSize   = (Memory.PermanentStorageSize +
 				  Memory.TransientStorageSize +
 				  Memory.DebugStorageSize);
@@ -1177,7 +1184,9 @@ main(int ArgCount, char** Arguments)
 		  Linux32CompleteAllWork(&HighPriorityQueue);
 		  Linux32CompleteAllWork(&LowPriorityQueue);
 
+#if HANDMADE_INTERNAL
 		  GlobalDebugTable = &GlobalDebugTable_;
+#endif
 		  Linux32UnloadCode(&Code);
 		  Code = Linux32LoadCode(SourceCodeSOFullPath,
 					 TempCodeSOFullPath,
@@ -1251,14 +1260,15 @@ main(int ArgCount, char** Arguments)
 	      END_TIMED_BLOCK(InputProcessing);
 
 	      BEGIN_TIMED_BLOCK(GameUpdate);
+
+	      offscreen_buffer Buffer = {};
+	      Buffer.Memory = GlobalOffscreenBuffer.BitmapMemory;
+	      Buffer.Width  = GlobalOffscreenBuffer.Width;
+	      Buffer.Height = GlobalOffscreenBuffer.Height;
+	      Buffer.Pitch  = GlobalOffscreenBuffer.Pitch;
+
 	      if(!GlobalPause)
 		{
-		  offscreen_buffer Buffer = {};
-		  Buffer.Memory = GlobalOffscreenBuffer.BitmapMemory;
-		  Buffer.Width  = GlobalOffscreenBuffer.Width;
-		  Buffer.Height = GlobalOffscreenBuffer.Height;
-		  Buffer.Pitch  = GlobalOffscreenBuffer.Pitch;
-
 		  if(Linux32State.InputRecordingIndex)
 		    {
 		      Linux32RecordInput(&Linux32State, NewInputState);
@@ -1298,6 +1308,20 @@ main(int ArgCount, char** Arguments)
 		}
 
 	      END_TIMED_BLOCK(AudioUpdate);
+	      
+#if HANDMADE_INTERNAL
+	      BEGIN_TIMED_BLOCK(DebugCollation);
+
+	      if(Code.DEBUGFrameEnd)
+		{
+		  GlobalDebugTable = Code.DEBUGFrameEnd(&Memory, NewInputState, &Buffer);
+		}
+	      GlobalDebugTable_.EventArrayIndex_EventIndex = 0;
+
+	      END_TIMED_BLOCK(DebugCollation);
+#endif
+
+
 #if 0
 	      BEGIN_TIMED_BLOCK(FrameWait);
 	      if(!GlobalPause)
@@ -1355,28 +1379,18 @@ main(int ArgCount, char** Arguments)
 
 	      END_TIMED_BLOCK(FrameDisplay);
 
-#if HANDMADE_INTERNAL
-	      BEGIN_TIMED_BLOCK(DebugCollation);
-
-	      if(Code.DEBUGFrameEnd)
-		{
-		  GlobalDebugTable = Code.DEBUGFrameEnd(&Memory);
-		}
-	      GlobalDebugTable_.EventArrayIndex_EventIndex = 0;
-
-	      END_TIMED_BLOCK(DebugCollation);
-#endif
-
 	      struct timespec EndCounter = Linux32GetWallClock(); 
 	      struct timespec TimeElapsedForFrame = SubtractTimeValues(EndCounter, LastCounter);
 	      r32 SecondsElapsedForFrame = (r32)TimeElapsedForFrame.tv_sec + ((r32)TimeElapsedForFrame.tv_nsec/1000000000.0f); 
 	      FRAME_MARKER(SecondsElapsedForFrame);
 	      LastCounter = EndCounter;
 
+#if HANDMADE_INTERNAL
 	      if(GlobalDebugTable)
 		{
 		  GlobalDebugTable->RecordCount[TRANSLATION_UNIT_INDEX] = __COUNTER__;
 		}
+#endif
 	    }
 	}
       else
@@ -1391,3 +1405,5 @@ main(int ArgCount, char** Arguments)
   
   return(0);
 }
+
+

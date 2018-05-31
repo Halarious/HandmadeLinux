@@ -1,6 +1,7 @@
 
 typedef struct debug_variable debug_variable;
-typedef struct debug_variable_reference debug_variable_reference;
+typedef struct debug_tree debug_tree;
+typedef struct debug_view debug_view;
 
 typedef enum
   {
@@ -25,9 +26,10 @@ typedef enum
 
     DebugVariable_CounterThreadList,
     //DebugVariable_CounterFunctionList,
+
     DebugVariable_BitmapDisplay,
     
-    DebugVariable_Group,
+    DebugVariable_VarArray,
   } debug_variable_type;
 
 internal inline bool32
@@ -38,41 +40,62 @@ DEBUGShouldBeWritten(debug_variable_type Type)
   return(Result);
 }
 
-typedef struct 
+typedef struct
 {
-  bool32 Expanded;
-  debug_variable_reference* FirstChild;
-  debug_variable_reference* LastChild;
-} debug_variable_group;
+  v2 Dim;
+} debug_view_inline_block;
 
-typedef struct debug_variable_hierarchy debug_variable_hierarchy;
-struct debug_variable_hierarchy
+typedef enum
+  {
+    DebugViewType_Basic,
+    DebugView_InlineBlock,
+    DebugView_Collaspible,
+  } debug_view_type;
+
+typedef struct
+  {
+    bool32 ExpandedAlways;
+    bool32 ExpandedAltView;
+  } debug_view_collapsible;
+
+struct debug_view
+{
+  debug_tree* Tree;
+  debug_variable* Var;
+  debug_view* NextInHash;
+
+  debug_view_type Type;
+  union
+  {
+    debug_view_inline_block InlineBlock;
+    debug_view_collapsible Collapsible;
+  };
+}; 
+
+struct debug_tree
 {
   v2 UIP;
-  debug_variable_reference* Group;
+  debug_variable* Group;
 
-  debug_variable_hierarchy* Next;
-  debug_variable_hierarchy* Prev;
+  debug_tree* Next;
+  debug_tree* Prev;
 };
 
 typedef struct
 {
-  v2 Dimension;
+  int Placeholder;
 } debug_profile_setting;
-
-struct debug_variable_reference
-{
-  debug_variable* Var;
-  debug_variable_reference* Next;
-  debug_variable_reference* Parent;
-}; 
 
 typedef struct
 {
   bitmap_id ID;
-  v2 Dim;
-  bool32 Alpha;
 } debug_bitmap_display;
+
+typedef struct
+{
+  u32 Count;
+  debug_variable* Vars;
+} debug_variable_array;
 
 struct debug_variable
 {
@@ -88,18 +111,12 @@ struct debug_variable
     v2  Vector2;
     v3  Vector3;
     v4  Vector4;
-    debug_variable_group Group;
     debug_profile_setting Profile;
     debug_bitmap_display BitmapDisplay;
+    debug_variable_array VarArray;
   };
 };
 
-typedef struct render_group render_group;
-typedef struct assets assets;
-typedef struct loaded_bitmap loaded_bitmap;
-typedef struct loaded_font loaded_font;
-typedef struct hha_font hha_font;
-  
 typedef enum
   {
     DEBUGTextOp_DrawText,
@@ -187,7 +204,7 @@ typedef struct
   {
     void* Generic;
     debug_variable* Var;
-    debug_variable_hierarchy* Hierarchy;
+    debug_tree* Tree;
     v2* P;
   };
 } debug_interaction;
@@ -210,8 +227,9 @@ typedef struct
   v2 MenuP;
   bool32 MenuActive;
 
-  debug_variable_reference *RootGroup;
-  debug_variable_hierarchy HierarchySentinel;
+  debug_variable *RootGroup;
+  debug_view* ViewHash[4096];
+  debug_tree TreeSentinel;
 
   v2 LastMouseP;
   debug_interaction Interaction;
@@ -243,14 +261,6 @@ typedef struct
   open_debug_block* FirstFreeBlock;
 } debug_state;
 
-internal void
-DEBUGStart(assets* Assets, u32 Width, u32 Height);
-
-internal void
-DEBUGEnd(input* Input, loaded_bitmap* DrawBuffer);
-
-internal void
-RefreshCollation(debug_state* DebugState);
 
 
 

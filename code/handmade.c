@@ -706,6 +706,19 @@ FillGroundChunk(transient_state *TransState, state *State, ground_buffer *Ground
     }
 }
 
+internal assets*
+DEBUGGetGameAssets(memory* Memory)
+{
+  assets* Assets = 0;
+  transient_state* TransState  = (transient_state*) Memory->TransientStorage;
+  if(TransState->IsInitialized)
+    {
+      Assets = TransState->Assets;
+    }
+
+  return(Assets);
+}
+
 #if HANDMADE_INTERNAL
 memory* DebugGlobalMemory;
 #endif
@@ -1018,8 +1031,6 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
       
       TransState->IsInitialized = true;
     }
-
-  DEBUGStart(TransState->Assets, Buffer->Width, Buffer->Height);
 
 #if DEBUGUI_RecomputeGroundChunksOnExeChange
   if(Memory->ExecutableReloaded)
@@ -1757,8 +1768,6 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   
   CheckArena(&State->WorldArena);
   CheckArena(&TransState->TransientArena);
-   
-  DEBUGEnd(Input, DrawBuffer);
 
   END_TIMED_FUNCTION();
 }
@@ -1771,4 +1780,12 @@ GET_SOUND_SAMPLES(GetSoundSamples)
   OutputPlayingSounds(&State->AudioState, SoundBuffer, TranState->Assets, &TranState->TransientArena);
 }
 
+#if HANDMADE_INTERNAL
 #include "handmade_debug.c"
+#else
+extern DEBUG_FRAME_END(DEBUGFrameEnd)
+{
+  return(0);
+}
+#endif
+

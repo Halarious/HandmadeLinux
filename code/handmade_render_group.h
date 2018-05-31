@@ -1,4 +1,10 @@
 
+typedef struct render_group render_group;
+typedef struct assets assets;
+typedef struct loaded_bitmap loaded_bitmap;
+typedef struct loaded_font loaded_font;
+typedef struct hha_font hha_font;
+
 struct loaded_bitmap
 {
   void* Memory;

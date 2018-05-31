@@ -308,12 +308,14 @@ typedef struct
 
   platform_allocate_memory* AllocateMemory;
   platform_deallocate_memory* DeallocateMemory;
-  
+
+#if HANDMADE_INTERNAL
   debug_platform_read_entire_file* DEBUGReadEntireFile;
   debug_platform_free_file_memory* DEBUGFreeFileMemory;
   debug_platform_write_entire_file* DEBUGWriteEntireFile;
   debug_platform_execute_system_command* DEBUGExecuteSystemCommand;
   debug_platform_get_process_state* DEBUGGetProcessState;
+#endif
 } platform_api;
 
 typedef struct memory memory;
@@ -441,7 +443,7 @@ GetThreadID()
 #endif
 
 typedef struct debug_table debug_table;
-#define DEBUG_FRAME_END(name) debug_table* name(memory* Memory)
+#define DEBUG_FRAME_END(name) debug_table* name(memory* Memory, input* Input, offscreen_buffer* Buffer)
 typedef DEBUG_FRAME_END(debug_frame_end);
 
 internal inline controller_input*
@@ -450,6 +452,8 @@ GetController(input *Input, u32 ControllerIndex)
   controller_input *Result = &Input->Controllers[ControllerIndex];
   return(Result);
 }
+
+#if HANDMADE_INTERNAL
 
 typedef struct
 {
@@ -532,8 +536,6 @@ extern debug_table* GlobalDebugTable;
     Record->LineNumber = __LINE__;					\
     Record->BlockName = "Frame Marker";					\
   }									\
-  
-#if HANDMADE_PROFILE
 
 //NOTE: We are not doing anything with the line number passed as 'Number' since we don't do the constructor/destructor C++ method
 #define BEGIN_NAMED_BLOCK__(Name, Number, ...) timed_block TB_##Name = ConstructTimedBlock(__COUNTER__, __FILE__, __LINE__, #Name, ## __VA_ARGS__)
@@ -583,14 +585,17 @@ DestructTimedBlock(timed_block Block)
 }
 
 #else
+
 #define BEGIN_NAMED_BLOCK(Name, ...) 
 #define END_NAMED_BLOCK(Name)
 
 #define BEGIN_TIMED_FUNCTION(...) 
 #define END_TIMED_FUNCTION() 
 
-#define BEGIN_TIMED_BLOCK(Name)
-#define END_TIMED_BLOCK(Name)
+#define BEGIN_TIMED_BLOCK(...)
+#define END_TIMED_BLOCK(...)
+
+#define FRAME_MARKER(...)
 
 #endif
 

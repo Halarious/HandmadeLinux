@@ -20,8 +20,6 @@ typedef struct
   memory_index Used;
 } temporary_memory;
 
-#include "handmade_debug.h"
-
 #define Minimum(A, B) ((A < B) ? A : B)
 #define Maximum(A, B) ((A > B) ? A : B)
 
