@@ -1,7 +1,7 @@
 #!/bin/bash
 
 CommonCompilerFlags="-g -O0 -ffast-math -Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-value -Wno-missing-braces -Wno-undefined-internal" 
-CommonCompilerFlags="-DHANDMADE_INTERNAL=0 $CommonCompilerFlags"
+CommonCompilerFlags="-DHANDMADE_INTERNAL=1 $CommonCompilerFlags"
 CommonLinkerFlags="-I /usr/include/freetype2 -I /usr/include/freetype2/freetype -ldl -lX11 -lXrandr -lm -lpthread -lXft -lfreetype" 
 
 mkdir ../build -p > /dev/null

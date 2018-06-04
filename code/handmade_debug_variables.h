@@ -1,12 +1,13 @@
 
+#define DEBUG_MAX_VARIABLE_STACK_DEPTH 64
+
 typedef struct
 {
   debug_state* State;
   memory_arena* Arena;
 
-  debug_variable* Group;
-  u32 VarCount;
-  debug_variable* Vars[64];
+  u32 GroupDepth;
+  debug_variable* GroupStack[DEBUG_MAX_VARIABLE_STACK_DEPTH];
 } debug_variable_definition_context; 
 
 internal debug_variable*
@@ -19,24 +20,34 @@ DEBUGAddVariable(debug_state* DebugState, debug_variable_type Type, char* Name)
   return(Var);
 }
 
+internal void
+DEBUGAddVariableToGroup(debug_state* DebugState, debug_variable* Group, debug_variable* Add)
+{
+    debug_variable_link* Link = PushStruct(&DebugState->DebugArena, debug_variable_link);
+    DLIST_INSERT(&Group->VarGroup, Link);
+}
+
 internal debug_variable* 
 DEBUGAddVariableWithContext(debug_variable_definition_context* Context, debug_variable_type Type, char* Name)
 {
-  Assert(Context->VarCount < ArrayCount(Context->Vars));
-  
   debug_variable* Var = DEBUGAddVariable(Context->State, Type, Name);
-  Context->Vars[Context->VarCount++] = Var;
-  
+  debug_variable* Parent = Context->GroupStack[Context->GroupDepth];
+  if(Parent)
+    {
+      DEBUGAddVariableToGroup(Context->State, Parent, Var);  
+    }
+    
   return(Var);
 }
 
 internal debug_variable*
 DEBUGBeginVariableGroup(debug_variable_definition_context* Context, char* Name)
 {
-  debug_variable* Group = DEBUGAddVariableWithContext(Context, DebugVariable_VarArray, Name);    
-  Group->VarArray.Count = 0;
+  debug_variable* Group = DEBUGAddVariableWithContext(Context, DebugVariable_VarGroup, Name);    
+  DLIST_INIT(&Group->VarGroup);
 
-  
+  Assert(Context->GroupDepth < (ArrayCount(Context->GroupStack) - 1))
+  Context->GroupStack[++Context->GroupDepth] = Group;
   
   return(Group);
 }
@@ -80,16 +91,13 @@ DEBUGAddBitmapVariable(debug_variable_definition_context* Context, char* Name, b
 internal void
 DEBUGEndVariableGroup(debug_variable_definition_context* Context)
 {
-  Assert(Context->Group);
-  
-  Context->Group = Context->Group->Parent;
+  Assert(Context->GroupDepth > 0);
+  --Context->GroupDepth;
 }
 
 internal void
 DEBUGCreateVariables(debug_variable_definition_context* Context)
 {
-
-  debug_variable* UseDebugCamRef = 0;
   
 #define DEBUG_VARIABLE_LISTING_BOOL(Name) DEBUGAddBoolVariable(Context, #Name, DEBUGUI_##Name)
 #define DEBUG_VARIABLE_LISTING_REAL32(Name) DEBUGAddReal32Variable(Context, #Name, DEBUGUI_##Name)
@@ -114,7 +122,7 @@ DEBUGCreateVariables(debug_variable_definition_context* Context)
   
     DEBUGBeginVariableGroup(Context, "Camera");
     {
-      UseDebugCamRef = DEBUG_VARIABLE_LISTING_BOOL(UseDebugCamera);
+      DEBUG_VARIABLE_LISTING_BOOL(UseDebugCamera);
       DEBUG_VARIABLE_LISTING_REAL32(DebugCameraDistance);
       DEBUG_VARIABLE_LISTING_BOOL(UseRoomBasedCamera);
     }

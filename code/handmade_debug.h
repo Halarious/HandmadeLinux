@@ -1,5 +1,6 @@
 
 typedef struct debug_variable debug_variable;
+typedef struct debug_variable_link debug_variable_link;
 typedef struct debug_tree debug_tree;
 typedef struct debug_view debug_view;
 
@@ -29,7 +30,7 @@ typedef enum
 
     DebugVariable_BitmapDisplay,
     
-    DebugVariable_VarArray,
+    DebugVariable_VarGroup,
   } debug_variable_type;
 
 internal inline bool32
@@ -91,11 +92,12 @@ typedef struct
   bitmap_id ID;
 } debug_bitmap_display;
 
-typedef struct
+struct debug_variable_link
 {
-  u32 Count;
-  debug_variable* Vars;
-} debug_variable_array;
+  debug_variable_link* Next;
+  debug_variable_link* Prev;
+  debug_variable* Var;
+};
 
 struct debug_variable
 {
@@ -113,7 +115,7 @@ struct debug_variable
     v4  Vector4;
     debug_profile_setting Profile;
     debug_bitmap_display BitmapDisplay;
-    debug_variable_array VarArray;
+    debug_variable_link VarGroup;
   };
 };
 

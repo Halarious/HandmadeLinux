@@ -3,7 +3,7 @@
 - Investigate frame skippage, it seems Casey doesn't have it as often
 - Controller input, there is code in the old engine which was taken 
   from SDL but never fully investigated for best results (also hotplugging
-  was not really a thing but seemed easish to implement.
+  was not really a thing but seemed easyish to implement.
 - Fullscreen support, not that much of a pain but wanted some time to
   learn about it because it's a lot of Xlib stuff that isn't well 
   documented
