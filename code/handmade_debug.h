@@ -48,6 +48,8 @@ typedef struct
 
 typedef enum
   {
+    DebugViewType_Unknown,
+    
     DebugViewType_Basic,
     DebugView_InlineBlock,
     DebugView_Collaspible,
@@ -59,10 +61,14 @@ typedef struct
     bool32 ExpandedAltView;
   } debug_view_collapsible;
 
+typedef struct
+{
+  void* Value[2];
+} debug_id;
+
 struct debug_view
 {
-  debug_tree* Tree;
-  debug_variable* Var;
+  debug_id ID;
   debug_view* NextInHash;
 
   debug_view_type Type;
@@ -200,6 +206,7 @@ typedef enum
 
 typedef struct
 {
+  debug_id ID;
   debug_interaction_type Type;  
 
   union
