@@ -1231,8 +1231,8 @@ main(int ArgCount, char** Arguments)
 				  &MouseY,                //int *win_y_return,
 				  &MaskReturn);
 
-		    NewInputState->MouseX = (-0.5f*GlobalOffscreenBuffer.Width  + 0.5f)  + (r32)MouseX;
-		    NewInputState->MouseY = ( 0.5f*GlobalOffscreenBuffer.Height - 0.5f) - (r32)MouseY;
+		    NewInputState->MouseX = (r32)MouseX;
+		    NewInputState->MouseY = (r32)((GlobalOffscreenBuffer.Height - 1) - MouseY);
 		    NewInputState->MouseZ = 0;
 
 		    int LinuxButtonID[PlatformMouseButton_Count] =

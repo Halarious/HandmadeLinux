@@ -1168,31 +1168,34 @@ CoordinateSystem(render_group* Group, v2 Origin, v2 XAxis, v2 YAxis,
 #endif
 }
 
-#if 0
-internal inline v2
-CompleteUnproject()
-{  
+internal inline v3
+Unproject(render_group* Group, v2 PixelsXY)
+{
+  render_transform* Transform = &Group->Transform;
+
+  v2 UnprojectedXY;
   if(!Transform->Orthographic)
     {
       v2 A  = V2MulS(1.0f / Transform->MetersToPixels,
-		     V2Sub(FinalP, Transform->ScreenCenter));
+		     V2Sub(PixelsXY, Transform->ScreenCenter));
       
-      v2 Result = V3MulS((Transform->DistanceAboveTarget - P.z)/Transform->FocalLength, A);
+      UnprojectedXY = V2MulS((Transform->DistanceAboveTarget - Transform->OffsetP.z)/Transform->FocalLength, A);
       
     }
   else
     {
-      Result.P = V2Add(Transform->ScreenCenter,
-		       V2MulS(Transform->MetersToPixels,
-			      P.xy));
+      UnprojectedXY = V2MulS(1.0f / Transform->MetersToPixels,
+			V2Sub(PixelsXY, Transform->ScreenCenter));
     }
 
-  Result = V2Sub(Result, Transform->OffsetP);
+  v3 Result = ToV3(UnprojectedXY, Transform->OffsetP.z);
+  Result = V3Sub(Result, Transform->OffsetP);
+
+  return(Result);
 }
-#endif
 
 inline internal v2
-Unproject(render_group* Group, v2 ProjectedXY, r32 AtDistanceFromCamera)
+UnprojectOld(render_group* Group, v2 ProjectedXY, r32 AtDistanceFromCamera)
 {
   v2 WorldXY = V2MulS((AtDistanceFromCamera / Group->Transform.FocalLength), ProjectedXY);
   return(WorldXY);
@@ -1201,7 +1204,7 @@ Unproject(render_group* Group, v2 ProjectedXY, r32 AtDistanceFromCamera)
 inline internal rectangle2
 GetCameraRectangleAtDistance(render_group* Group, r32 DistanceFromCamera)
 {
-  v2 RawXY = Unproject(Group, Group->MonitorHalfDimInMeters, DistanceFromCamera);
+  v2 RawXY = UnprojectOld(Group, Group->MonitorHalfDimInMeters, DistanceFromCamera);
 
   rectangle2 Result = RectCenterHalfDim2(V2(0,0), RawXY);
   

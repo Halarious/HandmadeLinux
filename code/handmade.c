@@ -1646,42 +1646,60 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 	    }
 
 #if DEBUGUI_DrawEntityOutlines
-
+#if 0
 	  RenderGroup->Transform.OffsetP = V3(0.0f, 0.0f, 0.0f);
 	  RenderGroup->Transform.Scale   = 1.0f; 
-	  v2 MetersMouseP = V2MulS(1.0f/RenderGroup->Transform.MetersToPixels, MouseP);
-	  
-	  r32 LocalZ = 10.0f;
-	  v2 WorldMouseP = Unproject(RenderGroup, MetersMouseP, LocalZ);
-	  RenderGroup->Transform.OffsetP = ToV3(WorldMouseP, RenderGroup->Transform.DistanceAboveTarget - LocalZ);
+	  	  
+	  r32 LocalZ = 3.0f;
+	  v3 WorldMouseP = Unproject(RenderGroup, MouseP, LocalZ);
+	  RenderGroup->Transform.OffsetP = WorldMouseP;
 	  PushRect(RenderGroup, V3(0.0f, 0.0f, 0.0f), V2(1.0f, 1.0f), V4(0.0f, 1.0f, 1.0f, 1.0f));
+#endif
+	  for(u32 VolumeIndex = 0;
+	      VolumeIndex < Entity->Collision->VolumeCount;
+	      ++VolumeIndex)
+	    {
+	      sim_entity_collision_volume *Volume = Entity->Collision->Volumes + VolumeIndex;
+
+	      v3 LocalMouseP = Unproject(RenderGroup, MouseP);
 
 #if 0
-	  if(EntityIndex == 10)
-	    {
-	      for(u32 VolumeIndex = 0;
-		  VolumeIndex < Entity->Collision->VolumeCount;
-		  ++VolumeIndex)
-		{
-		  v4 OutlineColour = V4(1, 0, 1, 1);
-		  sim_entity_collision_volume *Volume = Entity->Collision->Volumes + VolumeIndex;
-
-		  r32 LocalZ = RenderGroup->Transform.OffsetP.z + Volume->OffsetP.z; 
-		  v2 LocalMouseP = V2Sub(Unproject(RenderGroup, MetersMouseP, LocalZ), V2Add(RenderGroup->Transform.OffsetP.xy,
-											    Volume->OffsetP.xy));
-		  PushRect(RenderGroup, ToV3(LocalMouseP, Volume->OffsetP.z), V2(1.0f, 1.0f), V4(0.0f, 1.0f, 1.0f, 1.0f));
-
-		  if(((LocalMouseP.x > -0.5f*Volume->Dim.x) && (LocalMouseP.x < 0.5f*Volume->Dim.x) &&
-		      (LocalMouseP.y > -0.5f*Volume->Dim.y) && (LocalMouseP.y < 0.5f*Volume->Dim.y)))
-		    {
-		      OutlineColour = V4(1.0f, 1.0f, 0.0f, 1.0f);
-		    }
+	      PushRect(RenderGroup, ToV3(LocalMouseP.xy, 0.0f), V2(1.0f, 1.0f), V4(0.0f, 1.0f, 1.0f, 1.0f));
+#endif
 	      
+	      if(((LocalMouseP.x > -0.5f*Volume->Dim.x) && (LocalMouseP.x < 0.5f*Volume->Dim.x) &&
+		  (LocalMouseP.y > -0.5f*Volume->Dim.y) && (LocalMouseP.y < 0.5f*Volume->Dim.y)))
+		{
+		  v4 OutlineColour = V4(1.0f, 1.0f, 0.0f, 1.0f);
 		  PushRectOutline(RenderGroup, V3Sub(Volume->OffsetP, V3(0.0f, 0.0f, 0.5f*Volume->Dim.z)), Volume->Dim.xy, OutlineColour, 0.05f);
+
+		  DEBUG_BEGIN_HOT_ELEMENT(Entity);
+		  DEBUG_VALUE(Entity->StorageIndex);
+		  DEBUG_VALUE(Entity->Updateable);
+		  DEBUG_VALUE(Entity->Type);
+		  DEBUG_VALUE(Entity->P);
+		  DEBUG_VALUE(Entity->dP);
+		  DEBUG_VALUE(Entity->DistanceLimit);
+		  DEBUG_VALUE(Entity->FacingDirection);
+		  DEBUG_VALUE(Entity->tBob);
+		  DEBUG_VALUE(Entity->dAbsTileZ);
+		  DEBUG_VALUE(Entity->HitPointMax);
+		  DEBUG_BEGIN_ARRAY(Entity->HitPoint);
+		  for(u32 HitPointIndex = 0;
+		      HitPointIndex < Entity->HitPointMax;
+		      ++HitPointIndex)
+		    {
+		      DEBUG_VALUE(Entity->HitPoint[HitPointIndex]);
+		    }
+		  DEBUG_END_ARRAY();
+		  DEBUG_VALUE(Entity->Sword);
+		  DEBUG_VALUE(Entity->WalkableDim);
+		  DEBUG_VALUE(Entity->WalkableHeight);
+		  DEBUG_END_HOT_ELEMENT();
 		}
+
 	    }
 #endif
-#endif	  
 	}
     }
 

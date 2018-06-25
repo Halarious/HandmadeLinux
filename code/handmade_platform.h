@@ -584,6 +584,13 @@ DestructTimedBlock(timed_block Block)
   END_TIMED_BLOCK_(Block.Counter);
 }
 
+#define DEBUG_BEGIN_HOT_ELEMENT(...)
+#define DEBUG_VALUE(...)
+#define DEBUG_BEGIN_ARRAY(...)
+#define DEBUG_END_ARRAY(...)
+#define DEBUG_END_HOT_ELEMENT(...)
+
+
 #else
 
 #define BEGIN_NAMED_BLOCK(Name, ...) 
