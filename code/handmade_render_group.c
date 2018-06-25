@@ -899,6 +899,8 @@ Perspective(render_group* RenderGroup, s32 PixelWidth, s32 PixelHeight,
 				      0.5f*PixelHeight);
 
   RenderGroup->Transform.Orthographic = false;
+  RenderGroup->Transform.OffsetP = V3(0.0f, 0.0f, 0.0f);
+  RenderGroup->Transform.Scale = 1.0f;
 }
 
 internal inline void
@@ -916,6 +918,8 @@ Orthographic(render_group* RenderGroup, s32 PixelWidth, s32 PixelHeight,
 				      0.5f*PixelHeight);
 
   RenderGroup->Transform.Orthographic = true;
+  RenderGroup->Transform.OffsetP = V3(0.0f, 0.0f, 0.0f);
+  RenderGroup->Transform.Scale = 1.0f;
 }
   
 internal inline entity_basis_p
@@ -1097,10 +1101,8 @@ PushRect_Rect2(render_group *Group, rectangle2 Rectangle, r32 Z, v4 Color)
 }
 
 internal inline void
-PushRectOutline(render_group *Group, v3 Offset, v2 Dim, v4 Color)
+PushRectOutline(render_group *Group, v3 Offset, v2 Dim, v4 Color, r32 Thickness)
 {
-  r32 Thickness = 0.1f;
-    
   PushRect(Group,
 	   V3Sub(Offset, V3(0.0f, 0.5f*Dim.y, 0.0f)),
 	   V2(Dim.x, Thickness),
@@ -1165,6 +1167,29 @@ CoordinateSystem(render_group* Group, v2 Origin, v2 XAxis, v2 YAxis,
     }
 #endif
 }
+
+#if 0
+internal inline v2
+CompleteUnproject()
+{  
+  if(!Transform->Orthographic)
+    {
+      v2 A  = V2MulS(1.0f / Transform->MetersToPixels,
+		     V2Sub(FinalP, Transform->ScreenCenter));
+      
+      v2 Result = V3MulS((Transform->DistanceAboveTarget - P.z)/Transform->FocalLength, A);
+      
+    }
+  else
+    {
+      Result.P = V2Add(Transform->ScreenCenter,
+		       V2MulS(Transform->MetersToPixels,
+			      P.xy));
+    }
+
+  Result = V2Sub(Result, Transform->OffsetP);
+}
+#endif
 
 inline internal v2
 Unproject(render_group* Group, v2 ProjectedXY, r32 AtDistanceFromCamera)

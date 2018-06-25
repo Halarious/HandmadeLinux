@@ -123,7 +123,7 @@ internal inline void
 PushRect(render_group *Group, v3 Offset, v2 Dim, v4 Color);
 
 internal inline void
-PushRectOutline(render_group *Group, v3 Offset, v2 Dim, v4 Color);
+PushRectOutline(render_group *Group, v3 Offset, v2 Dim, v4 Color, r32 Thickness);
 
 internal inline void
 Clear(render_group* Group, v4 Color);

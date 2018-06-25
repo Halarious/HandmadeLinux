@@ -1141,15 +1141,19 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
   DrawBuffer->Width = 1279;
   DrawBuffer->Height = 719;
 #endif
+
+  v2 MouseP = {Input->MouseX, Input->MouseY};
   
   render_group* RenderGroup = AllocateRenderGroup(TransState->Assets, &TransState->TransientArena, Megabytes(4), false);
   BeginRender(RenderGroup);
 
   r32 WidthOfMonitor = 0.635f;
   r32 MetersToPixels = (r32)DrawBuffer->Width * WidthOfMonitor;
+  
   r32 FocalLength = 0.6f;
   r32 DistanceAboveGround = 9.0f;
   Perspective(RenderGroup, DrawBuffer->Width, DrawBuffer->Height, MetersToPixels, FocalLength, DistanceAboveGround);
+
   Clear(RenderGroup, V4(0.25f, 0.25f, 0.25f, 1.0f));
   
   v2 ScreenCenter = V2(0.5f * (r32)DrawBuffer->Width,
@@ -1263,10 +1267,10 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 
   v3 CameraP = Subtract(World, &State->CameraP, &SimCenterP);
   
-  PushRectOutline(RenderGroup, V3(0.0f, 0.0f, 0.0f), GetDim2(ScreenBounds), V4(1.0f, 1.0f, 0.0f, 1.0f));
-  //PushRectOutline(RenderGroup, V3(0.0f, 0.0f, 0.0f), GetDim(CameraBoundsInMeters).xy, V4(1.0f, 1.0f, 1.0f, 1.0f));
-  PushRectOutline(RenderGroup, V3(0.0f, 0.0f, 0.0f), GetDim(SimBounds).xy, V4(0.0f, 1.0f, 1.0f, 1.0f));
-  PushRectOutline(RenderGroup, V3(0.0f, 0.0f, 0.0f), GetDim(SimRegion->Bounds).xy, V4(1.0f, 0.0f, 1.0f, 1.0f));
+  PushRectOutline(RenderGroup, V3(0.0f, 0.0f, 0.0f), GetDim2(ScreenBounds), V4(1.0f, 1.0f, 0.0f, 1.0f), 0.1f);
+  //PushRectOutline(RenderGroup, V3(0.0f, 0.0f, 0.0f), GetDim(CameraBoundsInMeters).xy, V4(1.0f, 1.0f, 1.0f, 1.0f), 0.1f);
+  PushRectOutline(RenderGroup, V3(0.0f, 0.0f, 0.0f), GetDim(SimBounds).xy, V4(0.0f, 1.0f, 1.0f, 1.0f), 0.1f);
+  PushRectOutline(RenderGroup, V3(0.0f, 0.0f, 0.0f), GetDim(SimRegion->Bounds).xy, V4(1.0f, 0.0f, 1.0f, 1.0f), 0.1f);
   for(u32 EntityIndex = 0;
       EntityIndex < SimRegion->EntityCount;
       ++EntityIndex)
@@ -1640,6 +1644,44 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		InvalidCodePath;
 	      } break;
 	    }
+
+#if DEBUGUI_DrawEntityOutlines
+
+	  RenderGroup->Transform.OffsetP = V3(0.0f, 0.0f, 0.0f);
+	  RenderGroup->Transform.Scale   = 1.0f; 
+	  v2 MetersMouseP = V2MulS(1.0f/RenderGroup->Transform.MetersToPixels, MouseP);
+	  
+	  r32 LocalZ = 10.0f;
+	  v2 WorldMouseP = Unproject(RenderGroup, MetersMouseP, LocalZ);
+	  RenderGroup->Transform.OffsetP = ToV3(WorldMouseP, RenderGroup->Transform.DistanceAboveTarget - LocalZ);
+	  PushRect(RenderGroup, V3(0.0f, 0.0f, 0.0f), V2(1.0f, 1.0f), V4(0.0f, 1.0f, 1.0f, 1.0f));
+
+#if 0
+	  if(EntityIndex == 10)
+	    {
+	      for(u32 VolumeIndex = 0;
+		  VolumeIndex < Entity->Collision->VolumeCount;
+		  ++VolumeIndex)
+		{
+		  v4 OutlineColour = V4(1, 0, 1, 1);
+		  sim_entity_collision_volume *Volume = Entity->Collision->Volumes + VolumeIndex;
+
+		  r32 LocalZ = RenderGroup->Transform.OffsetP.z + Volume->OffsetP.z; 
+		  v2 LocalMouseP = V2Sub(Unproject(RenderGroup, MetersMouseP, LocalZ), V2Add(RenderGroup->Transform.OffsetP.xy,
+											    Volume->OffsetP.xy));
+		  PushRect(RenderGroup, ToV3(LocalMouseP, Volume->OffsetP.z), V2(1.0f, 1.0f), V4(0.0f, 1.0f, 1.0f, 1.0f));
+
+		  if(((LocalMouseP.x > -0.5f*Volume->Dim.x) && (LocalMouseP.x < 0.5f*Volume->Dim.x) &&
+		      (LocalMouseP.y > -0.5f*Volume->Dim.y) && (LocalMouseP.y < 0.5f*Volume->Dim.y)))
+		    {
+		      OutlineColour = V4(1.0f, 1.0f, 0.0f, 1.0f);
+		    }
+	      
+		  PushRectOutline(RenderGroup, V3Sub(Volume->OffsetP, V3(0.0f, 0.0f, 0.5f*Volume->Dim.z)), Volume->Dim.xy, OutlineColour, 0.05f);
+		}
+	    }
+#endif
+#endif	  
 	}
     }
 
@@ -1758,6 +1800,9 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 #endif
 
 #endif
+
+  Orthographic(RenderGroup, DrawBuffer->Width, DrawBuffer->Height, 1.0f);
+  PushRectOutline(RenderGroup, ToV3(MouseP, 0.0f), V2(2.0f, 2.0f), V4(1.0f, 1.0f, 1.0f, 1.0f), 0.1f);
   
   TiledRenderGroupToOutput(TransState->HighPriorityQueue, RenderGroup, DrawBuffer);
   EndRender(RenderGroup);

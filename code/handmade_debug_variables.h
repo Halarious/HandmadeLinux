@@ -121,6 +121,10 @@ DEBUGCreateVariables(debug_variable_definition_context* Context)
 #define DEBUG_VARIABLE_LISTING_V4(Name) DEBUGAddV4Variable(Context, #Name, DEBUGUI_##Name)
 #define DEBUG_VARIABLE_LISTING_BITMAP(Name) DEBUGAddBitmapVariable(Context, #Name, DEBUGUI_##Name)
 
+  DEBUGBeginVariableGroup(Context, "Entities");
+  DEBUG_VARIABLE_LISTING_BOOL(DrawEntityOutlines);
+  DEBUGEndVariableGroup(Context);  
+  
   DEBUGBeginVariableGroup(Context, "Ground Chunks");
   DEBUG_VARIABLE_LISTING_BOOL(GroundChunkCheckerboards);
   DEBUG_VARIABLE_LISTING_BOOL(GroundChunkOutlines);
