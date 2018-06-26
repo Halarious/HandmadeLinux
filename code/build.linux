@@ -7,6 +7,7 @@ CommonLinkerFlags="-I /usr/include/freetype2 -I /usr/include/freetype2/freetype 
 mkdir ../build -p > /dev/null
 pushd ../build    > /dev/null
 
+clang $CommonCompilerFlags  ../code/simple_preprocessor.c $CommonLinkerFlags -o SimplePreprocessor
 #clang $CommonCompilerFlags -DTRANSLATION_UNIT_INDEX=0 ../code/test_asset_builder.c $CommonLinkerFlags -o TestAssetBuilder
 
 echo LOCK > lock.tmp

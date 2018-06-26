@@ -1,5 +1,7 @@
 #if !defined(HANDMADE_H)
 
+#define introspect(params)
+
 #include "handmade_platform.h"
 #include "handmade_intrinsics.h"
 #include "handmade_math.h"

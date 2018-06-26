@@ -49,7 +49,7 @@ typedef struct
   sim_entity_collision_volume *Volumes;
 } sim_entity_collision_volume_group;
   
-struct sim_entity
+introspect(category:"regular butter") struct sim_entity
 {
   world_chunk *OldChunk;
   u32 StorageIndex;
