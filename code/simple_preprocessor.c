@@ -72,6 +72,8 @@ IsWhitespace(char C)
 {
   bool Result = ((C == ' ')  ||
 		 (C == '\t') ||
+		 (C == '\v') ||
+		 (C == '\f') ||
 		 IsEndOfLine(C));
   return(Result);
 }
@@ -79,8 +81,8 @@ IsWhitespace(char C)
 static inline bool
 IsAlpha(char C)
 {
-  bool Result = (((C >= 'a') && (C >= 'z')) ||
-		 ((C >= 'A') && (C >= 'Z')));
+  bool Result = (((C >= 'a') && (C <= 'z')) ||
+		 ((C >= 'A') && (C <= 'Z')));
   return(Result);
 }
 
@@ -164,7 +166,8 @@ GetToken(tokenizer* Tokenizer)
   ++Tokenizer->At;
   switch(C)
     {
-    case('\n'):{Token.Type = Token_EndOfStream;}   break;
+    case('\0'):{Token.Type = Token_EndOfStream;}   break;
+
     case('('): {Token.Type = Token_OpenParen;}     break;
     case(')'): {Token.Type = Token_CloseParen;}    break;
     case(':'): {Token.Type = Token_Colon;}         break;
@@ -202,7 +205,7 @@ GetToken(tokenizer* Tokenizer)
       {
 	if(IsAlpha(C))
 	  {
-	    Token.Type   = Token_Identifier;
+	    Token.Type = Token_Identifier;
 	    while((IsAlpha( Tokenizer->At[0])) ||
 		  (IsNumber(Tokenizer->At[0])) ||
 		  (Tokenizer->At[0] == '_'))
@@ -254,6 +257,7 @@ ParseIntrospectionParams(tokenizer* Tokenizer)
 static void
 ParseMember(tokenizer* Tokenizer, token MemberTypeToken)
 {
+#if 1
   bool Parsing = true;
   bool IsPointer = false;
   while(Parsing)
@@ -268,7 +272,9 @@ ParseMember(tokenizer* Tokenizer, token MemberTypeToken)
 
 	case(Token_Identifier):
 	  {
-	    printf("DEBUG_VALUE(%.*s);\n", (int)Token.Length, Token.Text);
+	    printf("{Type_%.*s, \"%.*s\"},\n",
+		   (int)MemberTypeToken.Length, MemberTypeToken.Text,
+		   (int)Token.Length, Token.Text);
 	  } break;
 	  
 	case(Token_Semicolon):
@@ -283,6 +289,27 @@ ParseMember(tokenizer* Tokenizer, token MemberTypeToken)
 	  }
 	}
     }
+#else
+  token Token = GetToken(Tokenizer);
+  switch(Token.Type)
+    {
+    case(Token_Asterisk):
+      {
+	IsPointer = true;
+	ParseMember(Tokenizer, Token);
+      } break;
+
+    case(Token_Identifier):
+      {
+	printf("DEBUG_VALUE(%.*s);\n", (int)Token.Length, Token.Text);
+      } break;
+      
+    default:
+      {
+	    
+      }
+    }
+#endif
 }
 
 static void
@@ -291,6 +318,8 @@ ParseStruct(tokenizer* Tokenizer)
   token NameToken = GetToken(Tokenizer);
   if(RequireToken(Tokenizer, Token_OpenBrace))
     {
+      printf("member_definition MembersOf_%.*s[] = \n", (int)NameToken.Length, NameToken.Text);
+      printf("{\n");
       for(;;)
 	{
 	  token MemberToken = GetToken(Tokenizer);
@@ -303,6 +332,7 @@ ParseStruct(tokenizer* Tokenizer)
 	      ParseMember(Tokenizer, MemberToken);
 	    }
 	}
+      printf("}\n");
     }
 }
 
