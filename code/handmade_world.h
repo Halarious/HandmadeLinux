@@ -1,12 +1,13 @@
 
-typedef struct
+typedef struct world_position world_position;
+introspect(category:"world") struct world_position
 {  
   s32 ChunkX;
   s32 ChunkY;
   s32 ChunkZ;
 
   v3 Offset_;
-} world_position; 
+}; 
 
 typedef struct world_entity_block world_entity_block;
 struct world_entity_block

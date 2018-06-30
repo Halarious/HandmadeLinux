@@ -94,7 +94,8 @@ typedef struct
   u32 Index;
 }sim_entity_hash; 
 
-typedef struct
+typedef struct sim_region sim_region;
+introspect(category:"regular butter") struct sim_region
 {
   world *World;
   r32 MaxEntityRadius;
@@ -109,4 +110,4 @@ typedef struct
   sim_entity *Entities;
   
   sim_entity_hash Hash[4096]; 
-} sim_region;
+};

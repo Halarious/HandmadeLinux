@@ -9,6 +9,9 @@ pushd ../build    > /dev/null
 
 clang $CommonCompilerFlags  ../code/simple_preprocessor.c $CommonLinkerFlags -o SimplePreprocessor
 #clang $CommonCompilerFlags -DTRANSLATION_UNIT_INDEX=0 ../code/test_asset_builder.c $CommonLinkerFlags -o TestAssetBuilder
+pushd ../code > /dev/null
+../build/SimplePreprocessor > handmade_generated.h
+popd          > /dev/null
 
 echo LOCK > lock.tmp
 clang $CommonCompilerFlags -DTRANSLATION_UNIT_INDEX=1 -O3 -c -o handmade_optimized.obj -fPIC ../code/handmade_optimized.c  

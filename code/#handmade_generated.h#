@@ -1,0 +1,44 @@
+member_definition MembersOf_sim_entity[] = 
+{
+    {MetaType_world_chunk, "OldChunk", (u32)&((sim_entity *)0)->OldChunk},
+    {MetaType_u32, "StorageIndex", (u32)&((sim_entity *)0)->StorageIndex},
+    {MetaType_bool32, "Updatable", (u32)&((sim_entity *)0)->Updatable},
+    {MetaType_entity_type, "Type", (u32)&((sim_entity *)0)->Type},
+    {MetaType_u32, "Flags", (u32)&((sim_entity *)0)->Flags},
+    {MetaType_v3, "P", (u32)&((sim_entity *)0)->P},
+    {MetaType_v3, "dP", (u32)&((sim_entity *)0)->dP},
+    {MetaType_r32, "DistanceLimit", (u32)&((sim_entity *)0)->DistanceLimit},
+    {MetaType_sim_entity_collision_volume_group, "Collision", (u32)&((sim_entity *)0)->Collision},
+    {MetaType_r32, "FacingDirection", (u32)&((sim_entity *)0)->FacingDirection},
+    {MetaType_r32, "tBob", (u32)&((sim_entity *)0)->tBob},
+    {MetaType_u32, "HitPointMax", (u32)&((sim_entity *)0)->HitPointMax},
+    {MetaType_hit_point, "HitPoints", (u32)&((sim_entity *)0)->HitPoints},
+    {MetaType_entity_reference, "Sword", (u32)&((sim_entity *)0)->Sword},
+    {MetaType_v2, "WalkableDim", (u32)&((sim_entity *)0)->WalkableDim},
+    {MetaType_r32, "WalkableHeight", (u32)&((sim_entity *)0)->WalkableHeight},
+};
+member_definition MembersOf_sim_region[] = 
+{
+    {MetaType_world, "World", (u32)&((sim_region *)0)->World},
+    {MetaType_r32, "MaxEntityRadius", (u32)&((sim_region *)0)->MaxEntityRadius},
+    {MetaType_r32, "MaxEntityVelocity", (u32)&((sim_region *)0)->MaxEntityVelocity},
+    {MetaType_world_position, "Origin", (u32)&((sim_region *)0)->Origin},
+    {MetaType_rectangle3, "Bounds", (u32)&((sim_region *)0)->Bounds},
+    {MetaType_rectangle3, "UpdatableBounds", (u32)&((sim_region *)0)->UpdatableBounds},
+    {MetaType_u32, "MaxEntityCount", (u32)&((sim_region *)0)->MaxEntityCount},
+    {MetaType_u32, "EntityCount", (u32)&((sim_region *)0)->EntityCount},
+    {MetaType_sim_entity, "Entities", (u32)&((sim_region *)0)->Entities},
+    {MetaType_sim_entity_hash, "Hash", (u32)&((sim_region *)0)->Hash},
+};
+member_definition MembersOf_rectangle2[] = 
+{
+    {MetaType_v2, "Min", (u32)&((rectangle2 *)0)->Min},
+    {MetaType_v2, "Max", (u32)&((rectangle2 *)0)->Max},
+};
+member_definition MembersOf_rectangle3[] = 
+{
+    {MetaType_v3, "Min", (u32)&((rectangle3 *)0)->Min},
+    {MetaType_v3, "Max", (u32)&((rectangle3 *)0)->Max},
+};
+#define META_HANDLE_TYPE_DUMP(MemberPtr) \
+    case(MetaType_rectangle3, MemberPtr); } break; 

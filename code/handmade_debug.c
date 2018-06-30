@@ -1414,6 +1414,101 @@ DEBUGStart(debug_state* DebugState, assets* Assets, u32 Width, u32 Height)
 }
 
 internal void
+DEBUGDumpStruct(u32 MemberCount, member_definition* MemberDefs, void* StructPtr, u32 IndentLevel)
+{    
+  for(u32 MemberIndex = 0;
+      MemberIndex < MemberCount;
+      ++MemberIndex)
+    {
+      char  TextBufferBase[256];
+      char* TextBuffer = TextBufferBase;
+      for(u32 Indent = 0;
+	  Indent < IndentLevel;
+	  ++Indent)
+	{
+	  *TextBuffer++ = ' ';
+	  *TextBuffer++ = ' ';
+	  *TextBuffer++ = ' ';
+	  *TextBuffer++ = ' ';
+	}
+      
+      TextBuffer[0] = 0;
+      size_t TextBufferLeft = (TextBufferBase + sizeof(TextBufferBase)) - TextBuffer;
+
+      member_definition* Member = MemberDefs + MemberIndex;
+
+      void* MemberPtr = ((u8*)StructPtr + Member->Offset);
+      if(Member->Flags & MetaMemberFlag_IsPointer)
+	{
+	  MemberPtr = *(void**)MemberPtr;
+	}
+
+      if(MemberPtr)
+	{
+	  switch(Member->Type)
+	    {
+    
+	    case(MetaType_s32):
+	      {
+		snprintf(TextBuffer, TextBufferLeft,
+			 "%s: %d",
+			 Member->Name, *(s32*)MemberPtr);
+	      } break;
+
+	    case(MetaType_u32):
+	      {
+		snprintf(TextBuffer, TextBufferLeft,
+			 "%s: %u",
+			 Member->Name, *(u32*)MemberPtr);
+	      } break;
+
+	    case(MetaType_bool32):
+	      {
+		snprintf(TextBuffer, TextBufferLeft,
+			 "%s: %u",
+			 Member->Name, *(bool32*)MemberPtr);
+	      } break;
+	
+	    case(MetaType_r32):
+	      {
+		snprintf(TextBuffer, TextBufferLeft,
+			 "%s: %f",
+			 Member->Name, *(r32*)MemberPtr);
+	      } break;
+
+	  
+	    case(MetaType_v3):
+	      {
+		snprintf(TextBuffer, TextBufferLeft,
+			 "%s: {%f, %f, %f}", Member->Name,
+			 ((v3*)MemberPtr)->x,
+			 ((v3*)MemberPtr)->y,
+			 ((v3*)MemberPtr)->z);
+	      } break;
+	  
+	    case(MetaType_v2):
+	      {
+		snprintf(TextBuffer, TextBufferLeft,
+			 "%s: {%f, %f}", Member->Name,
+			 ((v3*)MemberPtr)->x,
+			 ((v3*)MemberPtr)->y);
+	      } break;
+	  
+	      META_HANDLE_TYPE_DUMP(MemberPtr, IndentLevel + 1);
+		  
+	    default: {}
+	    }
+	}
+      
+      if(TextBuffer[0] != 0)
+	{
+	  DEBUGTextLine(TextBufferBase);
+	}
+    }
+  
+}
+
+internal void
 DEBUGEnd(debug_state* DebugState, input* Input, loaded_bitmap* DrawBuffer)
 {
   BEGIN_TIMED_FUNCTION(1);
@@ -1425,7 +1520,25 @@ DEBUGEnd(debug_state* DebugState, input* Input, loaded_bitmap* DrawBuffer)
   v2 MouseP = Unproject(DebugState->RenderGroup, V2(Input->MouseX, Input->MouseY)).xy;
   DEBUGDrawMainMenu(DebugState, RenderGroup, MouseP);
   DEBUGInteract(DebugState, Input, MouseP);
-      
+
+  sim_entity TestEntity = {};
+  TestEntity.DistanceLimit = 10.0f;
+  TestEntity.tBob = 0.1f;
+  TestEntity.FacingDirection = 360.0f;
+
+  sim_region TestRegion = {};
+  TestRegion.MaxEntityRadius = 25.0f;
+  TestRegion.MaxEntityVelocity = 9.98f;
+  TestRegion.MaxEntityCount = 3;
+  TestRegion.EntityCount    = 2;
+  TestRegion.Bounds = RectMinMax(V3(1, 2, 3), V3(4, 5, 6));
+  TestRegion.UpdatableBounds = RectMinMax(V3(10, 20, 30), V3(40, 50, 60));
+  
+  DEBUGTextLine("sim_entity:");
+  DEBUGDumpStruct(ArrayCount(MembersOf_sim_entity), MembersOf_sim_entity, &TestEntity, 0);
+  DEBUGTextLine("sim_region:");
+  DEBUGDumpStruct(ArrayCount(MembersOf_sim_region), MembersOf_sim_region, &TestRegion, 0);
+  
   if(DebugState->Compiling)
     {
       debug_process_state State = Platform.DEBUGGetProcessState(DebugState->Compiler);

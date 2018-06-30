@@ -60,6 +60,7 @@
 #include "handmade_entity.c"
 #include "handmade_asset.c"
 #include "handmade_audio.c"
+#include "handmade_meta.c"
 
 internal void
 ClearBitmap(loaded_bitmap* Bitmap)

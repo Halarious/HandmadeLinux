@@ -108,11 +108,12 @@ typedef union
   r32 E[4];
 } v4;
 
-typedef struct
+typedef struct rectangle2 rectangle2;
+introspect(category:"math") struct rectangle2 
 {
   v2 Min;
   v2 Max;
-} rectangle2;
+};
 
 typedef struct
 {
@@ -120,11 +121,12 @@ typedef struct
   s32 MaxX, MaxY;
 } rectangle2i;
 
-typedef struct
+typedef struct rectangle3 rectangle3;
+introspect(category:"math") struct rectangle3
 {
   v3 Min;
   v3 Max;
-} rectangle3;
+};
 
 internal inline v2
 V2i(u32 X, u32 Y)

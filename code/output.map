@@ -1,0 +1,497 @@
+
+Allocating common symbols
+Common symbol       size              file
+
+DebugGlobalMemory   0x8               /tmp/handmade-c58058.o
+
+Discarded input sections
+
+ .text          0x0000000000000000        0x0 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+ .data          0x0000000000000000        0x0 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+ .bss           0x0000000000000000        0x0 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+ .data          0x0000000000000000        0x0 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtbeginS.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtbeginS.o
+ .text          0x0000000000000000        0x0 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtfastmath.o
+ .data          0x0000000000000000        0x0 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtfastmath.o
+ .bss           0x0000000000000000        0x0 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtfastmath.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtfastmath.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /tmp/handmade-c58058.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 handmade_optimized.obj
+ .text          0x0000000000000000        0x0 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtendS.o
+ .data          0x0000000000000000        0x0 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtendS.o
+ .bss           0x0000000000000000        0x0 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtendS.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtendS.o
+ .text          0x0000000000000000        0x0 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crtn.o
+ .data          0x0000000000000000        0x0 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crtn.o
+ .bss           0x0000000000000000        0x0 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crtn.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crtn.o
+
+Memory Configuration
+
+Name             Origin             Length             Attributes
+*default*        0x0000000000000000 0xffffffffffffffff
+
+Linker script and memory map
+
+LOAD /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+LOAD /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtbeginS.o
+LOAD /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtfastmath.o
+LOAD /tmp/handmade-c58058.o
+LOAD handmade_optimized.obj
+LOAD /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/libgcc.a
+LOAD /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/libgcc_s.so
+START GROUP
+LOAD /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/libgcc_s.so.1
+LOAD /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/libgcc.a
+END GROUP
+LOAD /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/libc.so
+START GROUP
+LOAD /usr/lib/libc.so.6
+LOAD /usr/lib/libc_nonshared.a
+LOAD /usr/lib/ld-linux-x86-64.so.2
+END GROUP
+LOAD /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/libgcc.a
+LOAD /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/libgcc_s.so
+START GROUP
+LOAD /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/libgcc_s.so.1
+LOAD /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/libgcc.a
+END GROUP
+LOAD /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtendS.o
+LOAD /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crtn.o
+                0x0000000000000190                . = (SEGMENT_START ("text-segment", 0x0) + SIZEOF_HEADERS)
+
+.note.gnu.build-id
+ *(.note.gnu.build-id)
+
+.hash           0x0000000000000190       0xbc
+ *(.hash)
+ .hash          0x0000000000000190       0xbc /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+
+.gnu.hash
+ *(.gnu.hash)
+
+.dynsym         0x0000000000000250      0x2a0
+ *(.dynsym)
+ .dynsym        0x0000000000000250      0x2a0 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+
+.dynstr         0x00000000000004f0      0x17b
+ *(.dynstr)
+ .dynstr        0x00000000000004f0      0x17b /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+
+.gnu.version    0x000000000000066c       0x38
+ *(.gnu.version)
+ .gnu.version   0x000000000000066c       0x38 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+
+.gnu.version_d  0x00000000000006a8        0x0
+ *(.gnu.version_d)
+ .gnu.version_d
+                0x00000000000006a8        0x0 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+
+.gnu.version_r  0x00000000000006a8       0x30
+ *(.gnu.version_r)
+ .gnu.version_r
+                0x00000000000006a8       0x30 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+
+.rela.dyn       0x00000000000006d8      0x120
+ *(.rela.init)
+ *(.rela.text .rela.text.* .rela.gnu.linkonce.t.*)
+ .rela.text     0x00000000000006d8        0x0 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+ *(.rela.fini)
+ *(.rela.rodata .rela.rodata.* .rela.gnu.linkonce.r.*)
+ *(.rela.data .rela.data.* .rela.gnu.linkonce.d.*)
+ .rela.data.rel.local
+                0x00000000000006d8       0x18 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+ .rela.data     0x00000000000006f0       0x18 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+ *(.rela.tdata .rela.tdata.* .rela.gnu.linkonce.td.*)
+ *(.rela.tbss .rela.tbss.* .rela.gnu.linkonce.tb.*)
+ *(.rela.ctors)
+ *(.rela.dtors)
+ *(.rela.got)
+ .rela.got      0x0000000000000708       0xa8 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+ *(.rela.bss .rela.bss.* .rela.gnu.linkonce.b.*)
+ *(.rela.ldata .rela.ldata.* .rela.gnu.linkonce.l.*)
+ *(.rela.lbss .rela.lbss.* .rela.gnu.linkonce.lb.*)
+ *(.rela.lrodata .rela.lrodata.* .rela.gnu.linkonce.lr.*)
+ *(.rela.ifunc)
+ .rela.fini_array
+                0x00000000000007b0       0x18 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+ .rela.init_array
+                0x00000000000007c8       0x30 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+
+.rela.plt       0x00000000000007f8      0x120
+ *(.rela.plt)
+ .rela.plt      0x00000000000007f8      0x120 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+ *(.rela.iplt)
+
+.init           0x0000000000000918       0x17
+ *(SORT(.init))
+ .init          0x0000000000000918       0x12 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+                0x0000000000000918                _init
+ .init          0x000000000000092a        0x5 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crtn.o
+
+.plt            0x0000000000000930       0xd0
+ *(.plt)
+ .plt           0x0000000000000930       0xd0 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+ *(.iplt)
+
+.plt.got        0x0000000000000a00        0x8
+ *(.plt.got)
+ .plt.got       0x0000000000000a00        0x8 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+
+.plt.bnd
+ *(.plt.bnd)
+
+.text           0x0000000000000a10    0x18f24
+ *(.text.unlikely .text.*_unlikely .text.unlikely.*)
+ *(.text.exit .text.exit.*)
+ *(.text.startup .text.startup.*)
+ .text.startup  0x0000000000000a10       0x13 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtfastmath.o
+ *(.text.hot .text.hot.*)
+ *(.text .stub .text.* .gnu.linkonce.t.*)
+ *fill*         0x0000000000000a23        0xd 
+ .text          0x0000000000000a30       0xda /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtbeginS.o
+ *fill*         0x0000000000000b0a        0x6 
+ .text          0x0000000000000b10    0x18092 /tmp/handmade-c58058.o
+                0x0000000000000b10                LoadBitmap
+                0x00000000000016f0                LoadSound
+                0x0000000000001960                LoadFont
+                0x0000000000001d10                UpdateAndRender
+                0x000000000000d030                GetSoundSamples
+                0x000000000000e200                DEBUGFrameEnd
+ *fill*         0x0000000000018ba2        0xe 
+ .text          0x0000000000018bb0      0xd84 handmade_optimized.obj
+                0x0000000000018bb0                DrawRectangleQuickly
+ *(.gnu.warning)
+
+.fini           0x0000000000019934        0x9
+ *(SORT(.fini))
+ .fini          0x0000000000019934        0x4 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+                0x0000000000019934                _fini
+ .fini          0x0000000000019938        0x5 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crtn.o
+                [!provide]                        PROVIDE (__etext, .)
+                [!provide]                        PROVIDE (_etext, .)
+                [!provide]                        PROVIDE (etext, .)
+
+.rodata         0x0000000000019940      0x7ac
+ *(.rodata .rodata.* .gnu.linkonce.r.*)
+ .rodata.cst4   0x0000000000019940       0xa8 /tmp/handmade-c58058.o
+                                        0x1c8 (size before relaxing)
+ *fill*         0x00000000000199e8        0x8 
+ .rodata        0x00000000000199f0      0x11c /tmp/handmade-c58058.o
+ *fill*         0x0000000000019b0c        0x4 
+ .rodata.cst16  0x0000000000019b10       0x30 /tmp/handmade-c58058.o
+                                         0x40 (size before relaxing)
+ .rodata.str1.1
+                0x0000000000019b40      0x486 /tmp/handmade-c58058.o
+                                        0x4a2 (size before relaxing)
+ *fill*         0x0000000000019fc6        0x2 
+ .rodata.cst8   0x0000000000019fc8        0x8 /tmp/handmade-c58058.o
+ .rodata.cst4   0x0000000000019fd0        0x4 handmade_optimized.obj
+ .rodata.cst16  0x0000000000019fd0       0xe0 handmade_optimized.obj
+ .rodata.str1.1
+                0x000000000001a0b0       0x3c handmade_optimized.obj
+
+.rodata1
+ *(.rodata1)
+
+.eh_frame_hdr   0x000000000001a0ec      0x884
+ *(.eh_frame_hdr)
+ .eh_frame_hdr  0x000000000001a0ec      0x884 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtfastmath.o
+                0x000000000001a0ec                __GNU_EH_FRAME_HDR
+ *(.eh_frame_entry .eh_frame_entry.*)
+
+.eh_frame       0x000000000001a970     0x220c
+ *(.eh_frame)
+ .eh_frame      0x000000000001a970       0x40 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+ .eh_frame      0x000000000001a9b0       0x18 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+                                         0x30 (size before relaxing)
+ .eh_frame      0x000000000001a9c8       0x18 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtfastmath.o
+                                         0x30 (size before relaxing)
+ .eh_frame      0x000000000001a9e0     0x2160 /tmp/handmade-c58058.o
+                                       0x1d58 (size before relaxing)
+ .eh_frame      0x000000000001cb40       0x38 handmade_optimized.obj
+                                         0x50 (size before relaxing)
+ .eh_frame      0x000000000001cb78        0x4 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtendS.o
+ *(.eh_frame.*)
+
+.gcc_except_table
+ *(.gcc_except_table .gcc_except_table.*)
+
+.gnu_extab
+ *(.gnu_extab*)
+
+.exception_ranges
+ *(.exception_ranges .exception_ranges*)
+                0x000000000021cdf0                . = DATA_SEGMENT_ALIGN (CONSTANT (MAXPAGESIZE), CONSTANT (COMMONPAGESIZE))
+
+.eh_frame
+ *(.eh_frame)
+ *(.eh_frame.*)
+
+.gnu_extab
+ *(.gnu_extab)
+
+.gcc_except_table
+ *(.gcc_except_table .gcc_except_table.*)
+
+.exception_ranges
+ *(.exception_ranges .exception_ranges*)
+
+.tdata
+ *(.tdata .tdata.* .gnu.linkonce.td.*)
+
+.tbss
+ *(.tbss .tbss.* .gnu.linkonce.tb.*)
+ *(.tcommon)
+
+.preinit_array
+ *(.preinit_array)
+
+.init_array     0x000000000021cdf0       0x10
+ *(SORT(.init_array.*) SORT(.ctors.*))
+ *(.init_array EXCLUDE_FILE(*crtend?.o *crtend.o *crtbegin?.o *crtbegin.o) .ctors)
+ .init_array    0x000000000021cdf0        0x8 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtbeginS.o
+ .init_array    0x000000000021cdf8        0x8 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtfastmath.o
+
+.fini_array     0x000000000021ce00        0x8
+ *(SORT(.fini_array.*) SORT(.dtors.*))
+ *(.fini_array EXCLUDE_FILE(*crtend?.o *crtend.o *crtbegin?.o *crtbegin.o) .dtors)
+ .fini_array    0x000000000021ce00        0x8 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtbeginS.o
+
+.ctors
+ *crtbegin.o(.ctors)
+ *crtbegin?.o(.ctors)
+ *(EXCLUDE_FILE(*crtend?.o *crtend.o) .ctors)
+ *(SORT(.ctors.*))
+ *(.ctors)
+
+.dtors
+ *crtbegin.o(.dtors)
+ *crtbegin?.o(.dtors)
+ *(EXCLUDE_FILE(*crtend?.o *crtend.o) .dtors)
+ *(SORT(.dtors.*))
+ *(.dtors)
+
+.jcr
+ *(.jcr)
+
+.data.rel.ro    0x000000000021ce08        0x0
+ *(.data.rel.ro.local* .gnu.linkonce.d.rel.ro.local.*)
+ *(.data.rel.ro .data.rel.ro.* .gnu.linkonce.d.rel.ro.*)
+ .data.rel.ro   0x000000000021ce08        0x0 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+
+.dynamic        0x000000000021ce08      0x1c0
+ *(.dynamic)
+ .dynamic       0x000000000021ce08      0x1c0 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+                0x000000000021ce08                _DYNAMIC
+
+.got            0x000000000021cfc8       0x38
+ *(.got)
+ .got           0x000000000021cfc8       0x38 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+ *(.igot)
+                0x000000000021dfe8                . = DATA_SEGMENT_RELRO_END (., (SIZEOF (.got.plt) >= 0x18)?0x18:0x0)
+
+.got.plt        0x000000000021d000       0x78
+ *(.got.plt)
+ .got.plt       0x000000000021d000       0x78 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+                0x000000000021d000                _GLOBAL_OFFSET_TABLE_
+ *(.igot.plt)
+
+.data           0x000000000021d080     0x4024
+ *(.data .data.* .gnu.linkonce.d.*)
+ .data.rel.local
+                0x000000000021d080        0x8 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtbeginS.o
+                0x000000000021d080                __dso_handle
+ *fill*         0x000000000021d088        0x8 
+ .data          0x000000000021d090     0x4010 /tmp/handmade-c58058.o
+                0x000000000021d090                GlobalDebugTable
+ .data          0x00000000002210a0        0x4 handmade_optimized.obj
+                0x00000000002210a0                DebugRecords_Optimized_Count
+
+.tm_clone_table
+                0x00000000002210a8        0x0
+ .tm_clone_table
+                0x00000000002210a8        0x0 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtbeginS.o
+ .tm_clone_table
+                0x00000000002210a8        0x0 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtendS.o
+
+.data1
+ *(.data1)
+                0x00000000002210a8                _edata = .
+                [!provide]                        PROVIDE (edata, .)
+                0x00000000002210a8                . = .
+                0x00000000002210a8                __bss_start = .
+
+.bss            0x00000000002210a8  0x84800c0
+ *(.dynbss)
+ .dynbss        0x00000000002210a8        0x0 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/../../../../lib64/crti.o
+ *(.bss .bss.* .gnu.linkonce.b.*)
+ .bss           0x00000000002210a8        0x1 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtbeginS.o
+ *fill*         0x00000000002210a9        0x7 
+ .bss           0x00000000002210b0  0x84800b0 /tmp/handmade-c58058.o
+ *(COMMON)
+ COMMON         0x00000000086a1160        0x8 /tmp/handmade-c58058.o
+                0x00000000086a1160                DebugGlobalMemory
+                0x00000000086a1168                . = ALIGN ((. != 0x0)?0x8:0x1)
+
+.lbss
+ *(.dynlbss)
+ *(.lbss .lbss.* .gnu.linkonce.lb.*)
+ *(LARGE_COMMON)
+                0x00000000086a1168                . = ALIGN (0x8)
+                0x00000000086a1168                . = SEGMENT_START ("ldata-segment", .)
+
+.lrodata
+ *(.lrodata .lrodata.* .gnu.linkonce.lr.*)
+
+.ldata          0x0000000008aa1168        0x0
+ *(.ldata .ldata.* .gnu.linkonce.l.*)
+                0x0000000008aa1168                . = ALIGN ((. != 0x0)?0x8:0x1)
+                0x0000000008aa1168                . = ALIGN (0x8)
+                0x0000000008aa1168                _end = .
+                [!provide]                        PROVIDE (end, .)
+                0x0000000008aa1168                . = DATA_SEGMENT_END (.)
+
+.stab
+ *(.stab)
+
+.stabstr
+ *(.stabstr)
+
+.stab.excl
+ *(.stab.excl)
+
+.stab.exclstr
+ *(.stab.exclstr)
+
+.stab.index
+ *(.stab.index)
+
+.stab.indexstr
+ *(.stab.indexstr)
+
+.comment        0x0000000000000000       0x47
+ *(.comment)
+ .comment       0x0000000000000000       0x1a /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtbeginS.o
+                                         0x1b (size before relaxing)
+ .comment       0x000000000000001a       0x1b /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtfastmath.o
+ .comment       0x000000000000001a       0x2d /tmp/handmade-c58058.o
+                                         0x2e (size before relaxing)
+ .comment       0x0000000000000047       0x2e handmade_optimized.obj
+ .comment       0x0000000000000047       0x1b /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtendS.o
+
+.debug
+ *(.debug)
+
+.line
+ *(.line)
+
+.debug_srcinfo
+ *(.debug_srcinfo)
+
+.debug_sfnames
+ *(.debug_sfnames)
+
+.debug_aranges  0x0000000000000000       0x30
+ *(.debug_aranges)
+ .debug_aranges
+                0x0000000000000000       0x30 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtfastmath.o
+
+.debug_pubnames
+                0x0000000000000000     0x159e
+ *(.debug_pubnames)
+ .debug_pubnames
+                0x0000000000000000     0x1486 /tmp/handmade-c58058.o
+ .debug_pubnames
+                0x0000000000001486      0x118 handmade_optimized.obj
+
+.debug_info     0x0000000000000000     0xc8a3
+ *(.debug_info .gnu.linkonce.wi.*)
+ .debug_info    0x0000000000000000       0x5e /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtfastmath.o
+ .debug_info    0x000000000000005e     0xb24a /tmp/handmade-c58058.o
+ .debug_info    0x000000000000b2a8     0x15fb handmade_optimized.obj
+
+.debug_abbrev   0x0000000000000000      0x545
+ *(.debug_abbrev)
+ .debug_abbrev  0x0000000000000000       0x46 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtfastmath.o
+ .debug_abbrev  0x0000000000000046      0x2c6 /tmp/handmade-c58058.o
+ .debug_abbrev  0x000000000000030c      0x239 handmade_optimized.obj
+
+.debug_line     0x0000000000000000     0x9daa
+ *(.debug_line .debug_line.* .debug_line_end)
+ .debug_line    0x0000000000000000       0x6d /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtfastmath.o
+ .debug_line    0x000000000000006d     0x95c5 /tmp/handmade-c58058.o
+ .debug_line    0x0000000000009632      0x778 handmade_optimized.obj
+
+.debug_frame
+ *(.debug_frame)
+
+.debug_str      0x0000000000000000     0x4566
+ *(.debug_str)
+ .debug_str     0x0000000000000000      0x152 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtfastmath.o
+                                        0x15f (size before relaxing)
+ .debug_str     0x0000000000000152     0x3f6d /tmp/handmade-c58058.o
+                                       0x4693 (size before relaxing)
+ .debug_str     0x00000000000040bf      0x4a7 handmade_optimized.obj
+                                        0x92a (size before relaxing)
+
+.debug_loc      0x0000000000000000     0x2152
+ *(.debug_loc)
+ .debug_loc     0x0000000000000000       0x3f /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtfastmath.o
+ .debug_loc     0x000000000000003f     0x2113 handmade_optimized.obj
+
+.debug_macinfo  0x0000000000000000        0x2
+ *(.debug_macinfo)
+ .debug_macinfo
+                0x0000000000000000        0x1 /tmp/handmade-c58058.o
+ .debug_macinfo
+                0x0000000000000001        0x1 handmade_optimized.obj
+
+.debug_weaknames
+ *(.debug_weaknames)
+
+.debug_funcnames
+ *(.debug_funcnames)
+
+.debug_typenames
+ *(.debug_typenames)
+
+.debug_varnames
+ *(.debug_varnames)
+
+.debug_pubtypes
+                0x0000000000000000      0xe6c
+ *(.debug_pubtypes)
+ .debug_pubtypes
+                0x0000000000000000      0xc5f /tmp/handmade-c58058.o
+ .debug_pubtypes
+                0x0000000000000c5f      0x20d handmade_optimized.obj
+
+.debug_ranges   0x0000000000000000      0x290
+ *(.debug_ranges)
+ .debug_ranges  0x0000000000000000       0x20 /usr/lib64/gcc/x86_64-pc-linux-gnu/7.1.1/crtfastmath.o
+ .debug_ranges  0x0000000000000020        0x0 /tmp/handmade-c58058.o
+ .debug_ranges  0x0000000000000020      0x270 handmade_optimized.obj
+
+.debug_macro
+ *(.debug_macro)
+
+.debug_addr
+ *(.debug_addr)
+
+.gnu.attributes
+ *(.gnu.attributes)
+
+/DISCARD/
+ *(.note.GNU-stack)
+ *(.gnu_debuglink)
+ *(.gnu.lto_*)
+OUTPUT(handmade.so elf64-x86-64)
