@@ -954,3 +954,58 @@ Linear1ToSRGB255(v4 C)
 
   return(Result);  
 }
+
+//
+//
+//
+
+internal inline void
+DEBUGValueSetEventData_v2(debug_event* Event, v2 Value)
+{
+  Event->Type = DebugEvent_V2;
+  Event->VecR32[0] = Value.x;
+  Event->VecR32[1] = Value.y;
+}
+
+internal inline void
+DEBUGValueSetEventData_v3(debug_event* Event, v3 Value)
+{
+  Event->Type = DebugEvent_V3;
+  Event->VecR32[0] = Value.x;
+  Event->VecR32[1] = Value.y;
+  Event->VecR32[2] = Value.z;
+}
+
+internal inline void
+DEBUGValueSetEventData_v4(debug_event* Event, v4 Value)
+{
+  Event->Type = DebugEvent_V4;
+  Event->VecR32[0] = Value.x;
+  Event->VecR32[1] = Value.y;
+  Event->VecR32[2] = Value.z;
+  Event->VecR32[3] = Value.w;
+}
+
+internal inline void
+DEBUGValueSetEventData_rectangle2(debug_event* Event, rectangle2 Value)
+{
+  Event->Type = DebugEvent_Rectangle2;
+  Event->VecR32[0] = Value.Min.x;
+  Event->VecR32[1] = Value.Min.y;
+  Event->VecR32[2] = Value.Max.x;
+  Event->VecR32[3] = Value.Max.y;
+}
+
+internal inline void
+DEBUGValueSetEventData_rectangle3(debug_event* Event, rectangle3 Value)
+{
+  Event->Type = DebugEvent_Rectangle3;
+  Event->VecR32[0] = Value.Min.x;
+  Event->VecR32[1] = Value.Min.y;
+  Event->VecR32[2] = Value.Min.z;
+  Event->VecR32[3] = Value.Max.x;
+  Event->VecR32[4] = Value.Max.y;
+  Event->VecR32[5] = Value.Max.z;
+}
+
+

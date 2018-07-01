@@ -1674,17 +1674,19 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		  v4 OutlineColour = V4(1.0f, 1.0f, 0.0f, 1.0f);
 		  PushRectOutline(RenderGroup, V3Sub(Volume->OffsetP, V3(0.0f, 0.0f, 0.5f*Volume->Dim.z)), Volume->Dim.xy, OutlineColour, 0.05f);
 
-		  DEBUG_BEGIN_HOT_ELEMENT(Entity);
-		  DEBUG_VALUE(Entity->StorageIndex);
-		  DEBUG_VALUE(Entity->Updateable);
-		  DEBUG_VALUE(Entity->Type);
-		  DEBUG_VALUE(Entity->P);
-		  DEBUG_VALUE(Entity->dP);
-		  DEBUG_VALUE(Entity->DistanceLimit);
-		  DEBUG_VALUE(Entity->FacingDirection);
-		  DEBUG_VALUE(Entity->tBob);
-		  DEBUG_VALUE(Entity->dAbsTileZ);
-		  DEBUG_VALUE(Entity->HitPointMax);
+		  DEBUG_BEGIN_DATA_BLOCK("Hot Entity",
+					 State->LowEntities + Entity->StorageIndex,
+					 0);
+		  DEBUG_VALUE(Entity->StorageIndex, u32);
+		  DEBUG_VALUE(Entity->Updatable, u32);
+		  DEBUG_VALUE(Entity->Type, u32);
+		  DEBUG_VALUE(Entity->P, v3);
+		  DEBUG_VALUE(Entity->dP, v3);
+		  DEBUG_VALUE(Entity->DistanceLimit, r32);
+		  DEBUG_VALUE(Entity->FacingDirection, r32);
+		  DEBUG_VALUE(Entity->tBob, r32);
+		  DEBUG_VALUE(Entity->HitPointMax, u32);
+#if 0
 		  DEBUG_BEGIN_ARRAY(Entity->HitPoint);
 		  for(u32 HitPointIndex = 0;
 		      HitPointIndex < Entity->HitPointMax;
@@ -1694,9 +1696,10 @@ extern UPDATE_AND_RENDER(UpdateAndRender)
 		    }
 		  DEBUG_END_ARRAY();
 		  DEBUG_VALUE(Entity->Sword);
-		  DEBUG_VALUE(Entity->WalkableDim);
-		  DEBUG_VALUE(Entity->WalkableHeight);
-		  DEBUG_END_HOT_ELEMENT();
+#endif
+		  DEBUG_VALUE(Entity->WalkableDim, v2);
+		  DEBUG_VALUE(Entity->WalkableHeight, r32);
+		  DEBUG_END_DATA_BLOCK();
 		}
 
 	    }

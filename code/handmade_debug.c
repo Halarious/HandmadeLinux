@@ -1144,7 +1144,8 @@ GetDebugThread(debug_state* DebugState, u32 ThreadID)
       Result = PushStruct(&DebugState->CollateArena, debug_thread);
       Result->ID = ThreadID;
       Result->LaneIndex = DebugState->FrameBarLaneCount++;
-      Result->FirstOpenBlock = 0;
+      Result->FirstOpenCodeBlock = 0;
+      Result->FirstOpenDataBlock = 0;
       Result->Next = DebugState->FirstThread;
       DebugState->FirstThread = Result;
     }
@@ -1167,7 +1168,31 @@ GetRecordFrom(open_debug_block* Block)
   debug_record* Result = Block ?  Block->Source : 0;
   return(Result);
 }
-	   
+
+internal inline open_debug_block*
+AllocateOpenDebugBlock(debug_state* DebugState)
+{
+  open_debug_block* Result = DebugState->FirstFreeBlock;
+  if(Result)
+    {
+      DebugState->FirstFreeBlock = Result->NextFree;
+    }
+  else
+    {
+      Result = PushStruct(&DebugState->CollateArena, open_debug_block); 
+    }
+
+  return(Result);
+}
+
+internal inline void
+DeallocateOpenDebugBlock(debug_state* DebugState, open_debug_block* Block)
+{			    
+  Block->NextFree = DebugState->FirstFreeBlock;
+  DebugState->FirstFreeBlock = Block;
+			    
+}
+
 internal void
 CollateDebugRecords(debug_state* DebugState, u32 InvalidEventArrayIndex)
 {
@@ -1227,76 +1252,110 @@ CollateDebugRecords(debug_state* DebugState, u32 InvalidEventArrayIndex)
 	      debug_thread* Thread = GetDebugThread(DebugState, Event->TC.ThreadID);
 	      u64 RelativeClock = Event->Clock - DebugState->CollationFrame->BeginClock;
 
-	      if(Event->Type == DebugEvent_BeginBlock)
+	      switch(Event->Type)
 		{
-		  open_debug_block* DebugBlock = DebugState->FirstFreeBlock;
-		  if(DebugBlock)
-		    {
-		      DebugState->FirstFreeBlock = DebugBlock->NextFree;
-		    }
-		  else
-		    {
-		      DebugBlock = PushStruct(&DebugState->CollateArena, open_debug_block); 
-		    }
+		  
+		case(DebugEvent_BeginBlock):
+		  {
+		    open_debug_block* DebugBlock = AllocateOpenDebugBlock(DebugState);
+		    
+		    DebugBlock->StartingFrameIndex = FrameIndex;
+		    DebugBlock->OpeningEvent = Event;
+		    DebugBlock->Parent = Thread->FirstOpenCodeBlock;
+		    DebugBlock->Source = Source;
+		    Thread->FirstOpenCodeBlock = DebugBlock;
+		    DebugBlock->NextFree = 0;
+		  } break;
 
-		  DebugBlock->StartingFrameIndex = FrameIndex;
-		  DebugBlock->OpeningEvent = Event;
-		  DebugBlock->Parent = Thread->FirstOpenBlock;
-		  DebugBlock->Source = Source;
-		  Thread->FirstOpenBlock = DebugBlock;
-		  DebugBlock->NextFree = 0;
-		}
-	      else if(Event->Type == DebugEvent_EndBlock)
-		{
-		  if(StringsAreEqual(Source->BlockName, "GameUpdate"))
-		    {
-		      u32 Break = 0;
-		    }
+		case(DebugEvent_EndBlock):
+		  {
+		    if(StringsAreEqual(Source->BlockName, "GameUpdate"))
+		      {
+			u32 Break = 0;
+		      }
 
-		  if(Thread->FirstOpenBlock)
-		    {
-		      open_debug_block* MatchingBlock = Thread->FirstOpenBlock;
-		      debug_event* OpeningEvent = MatchingBlock->OpeningEvent;
-		      if((OpeningEvent->TC.ThreadID == Event->TC.ThreadID) &&
-			 (OpeningEvent->DebugRecordIndex == Event->DebugRecordIndex) &&
-			 (OpeningEvent->TranslationUnit == Event->TranslationUnit))
-			{
-			  if(MatchingBlock->StartingFrameIndex == FrameIndex)
-			    {
-			      if(GetRecordFrom(MatchingBlock->Parent) == DebugState->ScopeToRecord)
-				{
-				  r32 MinT = (r32)(OpeningEvent->Clock - DebugState->CollationFrame->BeginClock);
-				  r32 MaxT = (r32)(Event->Clock - DebugState->CollationFrame->BeginClock);
-				  r32 ThresholdT = 0.01f;
-				  if((MaxT - MinT) > ThresholdT)
-				    {
-				      debug_frame_region* Region = AddRegion(DebugState, DebugState->CollationFrame);
-				      Region->Record = Source;
-				      Region->CycleCount = (Event->Clock - OpeningEvent->Clock);
-				      Region->LaneIndex = (u16)Thread->LaneIndex;
-				      Region->MinT = MinT;
-				      Region->MaxT = MaxT;
-				      Region->ColourIndex = OpeningEvent->DebugRecordIndex;
-				    }
-				}
-			    }
-			  else
-			    {
-			    }
+		    if(Thread->FirstOpenCodeBlock)
+		      {
+			open_debug_block* MatchingBlock = Thread->FirstOpenCodeBlock;
+			debug_event* OpeningEvent = MatchingBlock->OpeningEvent;
+			if((OpeningEvent->TC.ThreadID == Event->TC.ThreadID) &&
+			   (OpeningEvent->DebugRecordIndex == Event->DebugRecordIndex) &&
+			   (OpeningEvent->TranslationUnit == Event->TranslationUnit))
+			  {
+			    if(MatchingBlock->StartingFrameIndex == FrameIndex)
+			      {
+				if(GetRecordFrom(MatchingBlock->Parent) == DebugState->ScopeToRecord)
+				  {
+				    r32 MinT = (r32)(OpeningEvent->Clock - DebugState->CollationFrame->BeginClock);
+				    r32 MaxT = (r32)(Event->Clock - DebugState->CollationFrame->BeginClock);
+				    r32 ThresholdT = 0.01f;
+				    if((MaxT - MinT) > ThresholdT)
+				      {
+					debug_frame_region* Region = AddRegion(DebugState, DebugState->CollationFrame);
+					Region->Record = Source;
+					Region->CycleCount = (Event->Clock - OpeningEvent->Clock);
+					Region->LaneIndex = (u16)Thread->LaneIndex;
+					Region->MinT = MinT;
+					Region->MaxT = MaxT;
+					Region->ColourIndex = OpeningEvent->DebugRecordIndex;
+				      }
+				  }
+			      }
+			    else
+			      {
+			      }
 
-			  Thread->FirstOpenBlock->NextFree = DebugState->FirstFreeBlock;
-			  DebugState->FirstFreeBlock = Thread->FirstOpenBlock;
-			  Thread->FirstOpenBlock = MatchingBlock->Parent;
-			}
-		      else
-			{
+			    DeallocateOpenDebugBlock(DebugState, Thread->FirstOpenCodeBlock);
+			    Thread->FirstOpenCodeBlock = MatchingBlock->Parent;
+			  }
+			else
+			  {
 			  
-			}		      
-		    }
-		}
-	      else
-		{
-		  Assert(!"Invalid event type");
+			  }		      
+		      }
+		  } break;
+
+		case(DebugEvent_OpenDataBlock):
+		  {
+		  } break;
+		  
+		case(DebugEvent_CloseDataBlock):
+		  {
+		  } break;
+		  
+		case(DebugEvent_U32):
+		  {
+		  } break;
+
+		case(DebugEvent_S32):
+		  {
+		  } break;
+
+		case(DebugEvent_R32):
+		  {
+		  } break;
+
+		case(DebugEvent_V2):
+		  {
+		  } break;
+
+		case(DebugEvent_V3):
+		  {
+		  } break;
+
+		case(DebugEvent_V4):
+		  {
+		  } break;
+
+		case(DebugEvent_Rectangle2):
+		  {
+		  } break;
+
+		case(DebugEvent_Rectangle3):
+		  {
+		  } break;
+		  
+		  InvalidCase;
 		}
 	    }
 	}
@@ -1520,24 +1579,6 @@ DEBUGEnd(debug_state* DebugState, input* Input, loaded_bitmap* DrawBuffer)
   v2 MouseP = Unproject(DebugState->RenderGroup, V2(Input->MouseX, Input->MouseY)).xy;
   DEBUGDrawMainMenu(DebugState, RenderGroup, MouseP);
   DEBUGInteract(DebugState, Input, MouseP);
-
-  sim_entity TestEntity = {};
-  TestEntity.DistanceLimit = 10.0f;
-  TestEntity.tBob = 0.1f;
-  TestEntity.FacingDirection = 360.0f;
-
-  sim_region TestRegion = {};
-  TestRegion.MaxEntityRadius = 25.0f;
-  TestRegion.MaxEntityVelocity = 9.98f;
-  TestRegion.MaxEntityCount = 3;
-  TestRegion.EntityCount    = 2;
-  TestRegion.Bounds = RectMinMax(V3(1, 2, 3), V3(4, 5, 6));
-  TestRegion.UpdatableBounds = RectMinMax(V3(10, 20, 30), V3(40, 50, 60));
-  
-  DEBUGTextLine("sim_entity:");
-  DEBUGDumpStruct(ArrayCount(MembersOf_sim_entity), MembersOf_sim_entity, &TestEntity, 0);
-  DEBUGTextLine("sim_region:");
-  DEBUGDumpStruct(ArrayCount(MembersOf_sim_region), MembersOf_sim_region, &TestRegion, 0);
   
   if(DebugState->Compiling)
     {

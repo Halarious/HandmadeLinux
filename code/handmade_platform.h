@@ -469,6 +469,18 @@ typedef enum
     DebugEvent_FrameMarker,
     DebugEvent_BeginBlock,
     DebugEvent_EndBlock,
+    
+    DebugEvent_OpenDataBlock,
+    DebugEvent_CloseDataBlock,
+
+    DebugEvent_U32,
+    DebugEvent_S32,
+    DebugEvent_R32,
+    DebugEvent_V2,
+    DebugEvent_V3,
+    DebugEvent_V4,
+    DebugEvent_Rectangle2,
+    DebugEvent_Rectangle3,
   } debug_event_type; 
 
 typedef struct
@@ -480,14 +492,19 @@ typedef struct
 typedef struct
 {
   u64 Clock;
+  u16 DebugRecordIndex;
+  u8 TranslationUnit;
+  u8 Type;
   union
   {
     threadid_coreindex TC;
     r32 SecondsElapsed;
+
+    void* VecPtr[3];
+    s32   VecS32[6];
+    u32   VecU32[6];
+    r32   VecR32[6];
   };
-  u16 DebugRecordIndex;
-  u8 TranslationUnit;
-  u8 Type;
 } debug_event;
 
 #define MAX_DEBUG_THREAD_COUNT 256
@@ -584,11 +601,61 @@ DestructTimedBlock(timed_block Block)
   END_TIMED_BLOCK_(Block.Counter);
 }
 
-#define DEBUG_BEGIN_HOT_ELEMENT(...)
-#define DEBUG_VALUE(...)
+internal inline void
+DEBUGValueSetEventData_u32(debug_event* Event, u32 Value)
+{
+  Event->Type = DebugEvent_U32;
+  Event->VecU32[0] = Value;
+}
+
+internal inline void
+DEBUGValueSetEventData_s32(debug_event* Event, s32 Value)
+{
+  Event->Type = DebugEvent_S32;
+  Event->VecS32[0] = Value;
+}
+
+internal inline void
+DEBUGValueSetEventData_r32(debug_event* Event, r32 Value)
+{
+  Event->Type = DebugEvent_R32;
+  Event->VecR32[0] = Value;
+}
+
+#define DEBUG_BEGIN_DATA_BLOCK(Name, Ptr0, Ptr1)			\
+  { 									\
+    int Counter = __COUNTER__;						\
+    RecordDebugEventCommon(Counter, DebugEvent_OpenDataBlock);		\
+    Event->VecPtr[0] = Ptr0;						\
+    Event->VecPtr[1] = Ptr1;						\
+    debug_record* Record = GlobalDebugTable->Records[TRANSLATION_UNIT_INDEX] + Counter; \
+    Record->FileName = __FILE__;					\
+    Record->LineNumber = __LINE__;					\
+    Record->BlockName = Name;						\
+  }									\
+
+#define DEBUG_END_DATA_BLOCK()						\
+  { 									\
+    int Counter = __COUNTER__;						\
+    RecordDebugEventCommon(Counter, DebugEvent_CloseDataBlock);		\
+    debug_record* Record = GlobalDebugTable->Records[TRANSLATION_UNIT_INDEX] + Counter; \
+    Record->FileName = __FILE__;					\
+    Record->LineNumber = __LINE__;					\
+  }									\
+
+#define DEBUG_VALUE(Value, Type)						\
+  {									\
+    int Counter = __COUNTER__;						\
+    RecordDebugEventCommon(Counter, DebugEvent_R32);			\
+    DEBUGValueSetEventData##_##Type(Event, Value);			\
+    debug_record* Record = GlobalDebugTable->Records[TRANSLATION_UNIT_INDEX] + Counter; \
+    Record->FileName = __FILE__;					\
+    Record->LineNumber = __LINE__;					\
+    Record->BlockName = "Value";					\
+  }									\
+
 #define DEBUG_BEGIN_ARRAY(...)
 #define DEBUG_END_ARRAY(...)
-#define DEBUG_END_HOT_ELEMENT(...)
 
 
 #else
